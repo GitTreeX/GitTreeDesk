@@ -1,6 +1,6 @@
 # 05 · Branches, Remotes & Tags
 
-> Status: 🚧 Planned · Scope: v1 · Engineering: [`../spec.md`](../spec.md) §F4 (Branch/Remote/Tags)
+> Status: 🚧 Planned · Scope: v1 · Engineering: [`../spec.md`](../spec.md)
 
 ## Branches
 

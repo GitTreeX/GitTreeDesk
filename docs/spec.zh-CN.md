@@ -310,23 +310,6 @@ CREATE TABLE oplog        (id INTEGER PRIMARY KEY, repo_id INT, op TEXT, backup_
 
 ## 4. 功能规格
 
-需求索引：
-
-| 需求 | 功能 | 章节 | 范围 |
-|---|---|---|---|
-| R1 | 工作区打开、仓库发现、Explorer 与 Repos 树 | F1、F2 | v1 |
-| R2 | 可勾选的多仓库变更展示 | F2 视图选项、F7 | v1 |
-| R3 | Worktree 展示与管理 | F3 | v1 |
-| R4 | 完整 Git 操作 | F4 | v1 |
-| R5 | 提交图 | F5 | v1 |
-| R6 | 编辑器 + 高亮 + TS 提示 + 跳 VSCode | F6 | v1 |
-| R7 | 变更列表与 diff | F7 | v1 |
-| R8 | 终端：多配置、级联配置、快捷命令 | F8 | v1 |
-| R9 | 现代化 UI、键盘友好 | §5、F10、F11 | v1 |
-| R10a | 提交信息生成 | F9 | v1 |
-| R10b | 跨平台 | F12 | v1 |
-| R11 | 工作区优先 | F1 | v1 |
-
 ### F1 — 工作区打开与最近列表
 
 *范围：v1。* 欢迎页展示最近工作区（来自 `ui_state`）、"打开文件夹…"对话框、支持把文件夹拖入窗口。v1 为单实例单窗口（多窗口见 §9）。打开工作区：登记 SQLite → 如有缓存立即展示树 → 启动增量扫描 + 后台状态预热。首次打开出现信任提示（AD-13）。切换工作区原地完成（不重启）。关闭时仅保留当前工作区的监听状态，其他工作区释放。
@@ -340,7 +323,7 @@ CREATE TABLE oplog        (id INTEGER PRIMARY KEY, repo_id INT, op TEXT, backup_
 - **Explorer 视图** —— 真实文件系统树：文件夹按原样展示，仓库带徽标（分支名或短 sha），worktree 文件夹带 worktree 图标。目录惰性读取；已展开目录按 AD-08 监听。文件操作：新建文件/文件夹、重命名、删除（经 `shell.trashItem` 移入系统回收站——可逆）、在系统文件管理器中显示、复制路径、"在 VSCode 中打开"、"在此打开终端"、"对比选中的两个文件"。
 - **Repos 视图** —— 逻辑视图：分组（配置的或按首层路径段派生），仓库为一级行，显示名称、当前分支/ref、徽标，并嵌套子节点：**链接 worktree**（带各自分支）与 **submodule**（含未初始化）显示在其主仓库下；工作区外的 worktree 在开启时以灰色 + 绝对路径显示。
 
-徽标与视图选项（R2）：每种徽标可独立开关——`dirty 圆点`、`ahead/behind 计数`、`stash 数`、`进行中操作`、`detached HEAD`、`submodule 待处理`。快捷过滤："仅 dirty"、"仅 ahead/behind"、"仅 worktree"，外加逐仓库勾选集合，决定哪些仓库进入 SCM 视图（F7）及未来的聚合界面。仓库行支持多选做批量操作（批量 fetch、批量 pull、批量开终端）。
+徽标与视图选项：每种徽标可独立开关——`dirty 圆点`、`ahead/behind 计数`、`stash 数`、`进行中操作`、`detached HEAD`、`submodule 待处理`。快捷过滤："仅 dirty"、"仅 ahead/behind"、"仅 worktree"，外加逐仓库勾选集合，决定哪些仓库进入 SCM 视图（F7）及未来的聚合界面。仓库行支持多选做批量操作（批量 fetch、批量 pull、批量开终端）。
 
 两个视图都用虚拟滚动（TanStack Virtual）与键盘导航（↑/↓、←/→ 折叠展开、Enter 打开、仅在 SCM 中 Space 切换 stage）。
 
@@ -373,7 +356,7 @@ CREATE TABLE oplog        (id INTEGER PRIMARY KEY, repo_id INT, op TEXT, backup_
 - hook 输出（pre-commit/prepare-commit-msg）流式进提交面板；失败时保留消息；不受信工作区按 AD-13 抑制 hooks。
 - GPG 签名：*后续。*
 
-**历史改写（R4——修改指定提交的提交信息 / 作者 / 时间）**
+**历史改写——修改指定提交的提交信息 / 作者 / 时间**
 
 - HEAD 提交：`commit --amend` 配 `--author`、`--date`，以及（改提交时间）`GIT_COMMITTER_DATE` 环境变量。
 - 任意更早的提交（或一批提交一次完成）：脚本化交互式 rebase——从目标提交的父提交开始 `rebase --interactive`，用 `GIT_SEQUENCE_EDITOR` 把目标行标为 `edit`（走序列文件，不需要 TTY），每次暂停时执行 `git commit --amend --author=… --date=… -m …`（非交互 `GIT_EDITOR`），随后 `rebase --continue`。前置条件：工作树干净（否则提供自动 stash），已创建 backup ref，分支已推送时强烈警告（"将改写已发布历史" + 显式确认）。完成后提供 Undo（回退到 backup ref）。
@@ -392,7 +375,7 @@ CREATE TABLE oplog        (id INTEGER PRIMARY KEY, repo_id INT, op TEXT, backup_
 - Cherry-pick：单提交或区间（`A..B`），可选 `--no-commit`；revert 同理。
 - Reset：`--soft | --mixed | --hard` 到任意 ref（`--hard` 需 backup ref + 确认；对话框明确说明将丢失什么）。
 - Stash：创建（消息、含未跟踪、keep-index、按路径子集）、列表可展开文件与 diff、apply / pop / drop（drop 前建 backup ref）、show。
-- Submodule：每个 submodule 的状态（是否初始化、commit 漂移、脏）、**一键 "Update all"**（`submodule update --init --recursive --jobs <n>`，进度流式——R4）、sync URLs、作为仓库打开（跳转 Repos 视图）；add/deinit 属*后续*。
+- Submodule：每个 submodule 的状态（是否初始化、commit 漂移、脏）、**一键 "Update all"**（`submodule update --init --recursive --jobs <n>`，进度流式）、sync URLs、作为仓库打开（跳转 Repos 视图）；add/deinit 属*后续*。
 - 冲突（统一流程）：进行中操作横幅（continue/abort/skip）、冲突文件列表，逐文件 **ours/theirs/both** 解决、"在编辑器中打开带标记内容"、启动外部合并工具（命令可配置）、标记已解决，以及 continue 前的校验（"仍有未解决冲突"清单）。
 
 **进行中操作检测**会拦截互斥操作（如 merge 中不可 rebase），弹窗解释并给出合法操作。
@@ -414,7 +397,7 @@ CREATE TABLE oplog        (id INTEGER PRIMARY KEY, repo_id INT, op TEXT, backup_
 *范围：v1。*
 
 - Monaco 本地打包（AD-05）；标签页（打开编辑器列表、脏标记、关闭/关闭其他）；分屏属*后续*。
-- 语言能力：内置语言高亮（按需懒加载语言贡献）；TypeScript/JavaScript 提示走内置 TS worker，配置尽力而为——就近 `tsconfig.json` 的 `compilerOptions` + stdlib；v1 不做 `node_modules` 类型解析（作为已知限制写入文档）。**"在 VSCode 中打开"**按钮（`code --goto <path>:<line>[:<col>]`，命令可配置；失败时回退到在系统文件管理器中显示）是工程级智能提示/重构的明确逃生口（R6）。
+- 语言能力：内置语言高亮（按需懒加载语言贡献）；TypeScript/JavaScript 提示走内置 TS worker，配置尽力而为——就近 `tsconfig.json` 的 `compilerOptions` + stdlib；v1 不做 `node_modules` 类型解析（作为已知限制写入文档）。**"在 VSCode 中打开"**按钮（`code --goto <path>:<line>[:<col>]`，命令可配置；失败时回退到在系统文件管理器中显示）是工程级智能提示/重构的明确逃生口。
 - 保存（Ctrl/Cmd+S）：原子写入；外部变更检测（聚焦时与保存前校验 mtime+hash）→ 冲突对话框（覆盖 / 重新加载 / 查看 diff）。超过 10 MB 的文件只读打开（需确认）；二进制文件给预览（图片）或提示外部打开。
 - 仅保留最小化编辑设置：字号/字体、制表符宽度、插入空格、自动换行、minimap 开关。这不是 IDE：不做保存时格式化、不做任务、不做多根工作区、不做扩展。
 
@@ -422,7 +405,7 @@ CREATE TABLE oplog        (id INTEGER PRIMARY KEY, repo_id INT, op TEXT, backup_
 
 *范围：v1。*
 
-- **SCM 视图**（活动栏）：按仓库分节——哪些仓库出现由 F2 的逐仓库勾选决定；每节展示 已暂存 / 未暂存 / 未跟踪 / 冲突 分组（每组可见性可单独开关 = R2）、提交框（消息 + 生成 + commit/amend/stage-all），以及该仓库的进行中操作横幅。
+- **SCM 视图**（活动栏）：按仓库分节——哪些仓库出现由 F2 的逐仓库勾选决定；每节展示 已暂存 / 未暂存 / 未跟踪 / 冲突 分组（每组可见性可单独开关）、提交框（消息 + 生成 + commit/amend/stage-all），以及该仓库的进行中操作横幅。
 - 文件行：状态图标（M/A/D/R/U/!/C）、已暂存与未暂存区分、悬停操作（stage/unstage/discard）、多选、点击 → diff。
 - **Diff 视图**：Monaco diff 编辑器（并排 ⇄ 内联切换）、忽略空白开关、自动换行；rename 感知；二进制显示体积信息；图片给 2-up 前后对比预览（洋葱皮滑块属*后续*）；diff 边栏提供 hunk 操作：stage hunk / revert hunk；"与…对比"选择器（INDEX / HEAD / 任意 ref / 另一分支），可作用于单个文件或整个仓库范围。
 - **文件历史**：单文件 `git log` 列表（rename 跟随属*后续*），点某版本打开该文件在该版本的 diff。
@@ -592,7 +575,7 @@ CREATE TABLE oplog        (id INTEGER PRIMARY KEY, repo_id INT, op TEXT, backup_
 2. **跨仓库活动流 / 多仓库图**——README 提到 "history across repositories"；v1 只做逐仓库图。确认是否需要尽早做聚合时间线。
 3. **自动更新通道**与托管（GitHub Releases vs 对象存储）；macOS 未签名分发的预期。
 4. 单实例内的**多窗口 / 多工作区**——v1 单窗口。
-5. **R2 的确切含义**——"勾选展示哪些变更"：当前设计为 SCM 视图的逐仓库勾选*与*按分组/按徽标可见性开关**两者皆有**，请确认。
+5. **"可勾选变更展示"的确切含义**——"勾选展示哪些变更"：当前设计为 SCM 视图的逐仓库勾选*与*按分组/按徽标可见性开关**两者皆有**，请确认。
 6. v1 的 zh-Hans 语言质量基线（当前：随包发布，可社区审校）。
 
 ## 10. 附录

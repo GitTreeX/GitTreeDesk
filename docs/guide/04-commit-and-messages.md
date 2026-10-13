@@ -1,6 +1,6 @@
 # 04 · Commit & Commit Messages
 
-> Status: 🚧 Planned · Scope: v1 · Engineering: [`../spec.md`](../spec.md) §F4 (Commit), §F9, AD-12
+> Status: 🚧 Planned · Scope: v1 · Engineering: [`../spec.md`](../spec.md)
 
 ## The commit box
 

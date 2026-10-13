@@ -1,6 +1,6 @@
 # 12 · Settings & Keyboard
 
-> Status: 🚧 Planned · Scope: v1 · Engineering: [`../spec.md`](../spec.md) §F10, §F11, AD-10
+> Status: 🚧 Planned · Scope: v1 · Engineering: [`../spec.md`](../spec.md)
 
 ## Settings
 

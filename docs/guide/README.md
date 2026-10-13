@@ -18,6 +18,7 @@ Rules for edits:
 - Defaults, interactions, error messages, and edge cases are **part of the requirement** — include or change them explicitly.
 - Mark post-v1 ideas inline with `[Later]`.
 - If an edit contradicts [`../spec.md`](../spec.md), the AI must flag the conflict and propose a spec update instead of silently diverging.
+- Code comments, identifiers, and commit messages **never cite document numbering** (`F4`, `AD-12`, page numbers). These documents are transitional and may be deleted once the behavior ships, which would leave unresolvable references in the code history — describe the behavior instead ("stage a single hunk from the diff view", not "per F7").
 - Edit whichever language is more comfortable; the AI keeps the other version in sync.
 
 Status legend: 🚧 Planned · 🔨 In progress · ✅ Implemented

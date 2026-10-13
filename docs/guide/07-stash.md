@@ -1,6 +1,6 @@
 # 07 · Stash
 
-> Status: 🚧 Planned · Scope: v1 · Engineering: [`../spec.md`](../spec.md) §F4 (Stash)
+> Status: 🚧 Planned · Scope: v1 · Engineering: [`../spec.md`](../spec.md)
 
 ## Creating a stash
 

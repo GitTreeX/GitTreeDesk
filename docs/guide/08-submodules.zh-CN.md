@@ -1,6 +1,6 @@
 # 08 · Submodule
 
-> 状态：🚧 计划中 · 范围：v1 · 工程参考：[`../spec.md`](../spec.md) §F4（Submodules）
+> 状态：🚧 计划中 · 范围：v1 · 工程参考：[`../spec.md`](../spec.md)
 
 ## Submodule 如何展示
 

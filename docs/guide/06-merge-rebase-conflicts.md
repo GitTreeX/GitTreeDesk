@@ -1,6 +1,6 @@
 # 06 · Merge, Rebase & Conflicts
 
-> Status: 🚧 Planned · Scope: v1 · Engineering: [`../spec.md`](../spec.md) §F4 (Merge/Rebase/…), AD-12
+> Status: 🚧 Planned · Scope: v1 · Engineering: [`../spec.md`](../spec.md)
 
 ## Merge
 

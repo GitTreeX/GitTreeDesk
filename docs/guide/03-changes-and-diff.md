@@ -1,6 +1,6 @@
 # 03 · Changes & Diff
 
-> Status: 🚧 Planned · Scope: v1 · Engineering: [`../spec.md`](../spec.md) §F7, §3.4
+> Status: 🚧 Planned · Scope: v1 · Engineering: [`../spec.md`](../spec.md)
 
 The **Source Control view** (activity bar) is the multi-repo changes list: one section per repository, all uncommitted work at a glance.
 

@@ -1,6 +1,6 @@
 # 01 · Workspace & Repository Tree
 
-> Status: 🚧 Planned · Scope: v1 · Engineering: [`../spec.md`](../spec.md) §3.2, §F1–F2
+> Status: 🚧 Planned · Scope: v1 · Engineering: [`../spec.md`](../spec.md)
 
 ## Opening a workspace
 

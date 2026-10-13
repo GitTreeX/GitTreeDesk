@@ -1,6 +1,6 @@
 # 13 · FAQ & Troubleshooting
 
-> Status: 🚧 Planned · Scope: v1 · Engineering: [`../spec.md`](../spec.md) §7, AD-12, AD-13
+> Status: 🚧 Planned · Scope: v1 · Engineering: [`../spec.md`](../spec.md)
 
 ## Setup & platform
 

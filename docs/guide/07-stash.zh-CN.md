@@ -1,6 +1,6 @@
 # 07 · Stash
 
-> 状态：🚧 计划中 · 范围：v1 · 工程参考：[`../spec.md`](../spec.md) §F4（Stash）
+> 状态：🚧 计划中 · 范围：v1 · 工程参考：[`../spec.md`](../spec.md)
 
 ## 创建 stash
 
