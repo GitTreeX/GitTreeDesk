@@ -1,0 +1,124 @@
+import { z } from 'zod'
+import type { InvokeChannel, InvokeMap } from './ipc'
+
+const pathString = z.string().min(1).max(4096)
+const keyString = z.string().min(1).max(512)
+const keyPath = z.array(keyString).min(1).max(32)
+const scope = z.enum(['user', 'workspace'])
+const entryName = z
+  .string()
+  .min(1)
+  .max(255)
+  .refine((name) => name !== '.' && name !== '..' && !/[/\\\u0000-\u001f]/.test(name), {
+    message: 'must be a plain entry name without path separators'
+  })
+const repoRelPath = z
+  .string()
+  .min(1)
+  .max(4096)
+  .refine(
+    (value) => {
+      if (value.startsWith('/') || value.includes('\\') || /[\u0000-\u001f]/.test(value)) return false
+      const trimmed = value.endsWith('/') ? value.slice(0, -1) : value
+      if (trimmed.length === 0) return false
+      return trimmed.split('/').every((segment) => segment !== '' && segment !== '.' && segment !== '..')
+    },
+    { message: 'must be a repo-relative path without traversal segments' }
+  )
+
+/**
+ * Request schemas for every invoke channel, validated on the main side before a
+ * handler runs. Responses are trusted (main authors them) and only typed.
+ */
+export const invokeSchemas = {
+  'workspace:open': z.object({ root: pathString }),
+  'workspace:close': z.undefined(),
+  'workspace:recent': z.undefined(),
+  'workspace:rescan': z.object({
+    dirs: z.array(pathString).max(1024).optional(),
+    raiseBudget: z.boolean().optional()
+  }),
+  'workspace:pick': z.undefined(),
+  'workspace:removeRecent': z.object({ root: pathString }),
+  'git:status': z.object({ gitDir: pathString, refresh: z.boolean().optional() }),
+  'git:stage': z.object({ gitDir: pathString, paths: z.array(repoRelPath).min(1).max(1024) }),
+  'git:unstage': z.object({ gitDir: pathString, paths: z.array(repoRelPath).min(1).max(1024) }),
+  'git:discard': z.object({ gitDir: pathString, paths: z.array(repoRelPath).min(1).max(1024) }),
+  'git:stageAll': z.object({ gitDir: pathString }),
+  'git:unstageAll': z.object({ gitDir: pathString }),
+  'git:ignore': z.object({ gitDir: pathString, path: repoRelPath }),
+  'git:diff': z
+    .object({
+      gitDir: pathString,
+      path: repoRelPath,
+      origPath: repoRelPath.optional(),
+      from: z.object({ kind: z.enum(['worktree', 'index', 'rev']), rev: z.string().max(1024).optional() }),
+      to: z.object({ kind: z.enum(['worktree', 'index', 'rev']), rev: z.string().max(1024).optional() }),
+      allowLarge: z.boolean().optional()
+    })
+    .refine(
+      (value) =>
+        (value.from.kind !== 'rev' || (value.from.rev !== undefined && value.from.rev.length > 0)) &&
+        (value.to.kind !== 'rev' || (value.to.rev !== undefined && value.to.rev.length > 0)),
+      { message: 'rev source requires a revision' }
+    ),
+  'git:applyHunk': z.object({
+    gitDir: pathString,
+    patch: z.string().min(1).max(5_000_000),
+    mode: z.enum(['stage', 'unstage', 'revert'])
+  }),
+  'git:commit': z.object({
+    gitDir: pathString,
+    message: z.string().max(100_000),
+    signOff: z.boolean().optional(),
+    amend: z.boolean().optional(),
+    stageAll: z.boolean().optional()
+  }),
+  'git:headCommit': z.object({ gitDir: pathString }),
+  'git:fileLog': z.object({
+    gitDir: pathString,
+    path: repoRelPath,
+    limit: z.number().int().min(1).max(1000).optional(),
+    skip: z.number().int().min(0).max(1_000_000).optional()
+  }),
+  'git:refs': z.object({ gitDir: pathString }),
+  'fs:readDir': z.object({ path: pathString }),
+  'fs:readFile': z.object({ path: pathString, allowLarge: z.boolean().optional() }),
+  'fs:stat': z.object({ path: pathString }),
+  'fs:writeFile': z.object({
+    path: pathString,
+    text: z.string().max(20_000_000),
+    expectedMtimeMs: z.number().nonnegative().optional()
+  }),
+  'workspace:listFiles': z.object({ limit: z.number().int().min(1).max(200_000).optional() }),
+  'fs:create': z.object({ parent: pathString, name: entryName, kind: z.enum(['file', 'dir']) }),
+  'fs:rename': z.object({ path: pathString, newName: entryName }),
+  'fs:trash': z.object({ path: pathString }),
+  'fs:reveal': z.object({ path: pathString }),
+  'fs:openExternal': z.object({ path: pathString }),
+  'fs:watch': z.object({ path: pathString }),
+  'fs:unwatch': z.object({ path: pathString }),
+  'editor:openInCode': z.object({
+    path: pathString,
+    line: z.number().int().positive().max(10_000_000).optional()
+  }),
+  'app:copyText': z.object({ text: z.string().max(1_000_000) }),
+  'settings:get': z.object({ scope, keyPath }),
+  'settings:getAll': z.object({ scope }),
+  'settings:getEffective': z.object({ keyPath }),
+  'settings:set': z.object({ scope, keyPath, value: z.unknown() }),
+  'settings:remove': z.object({ scope, keyPath }),
+  'trust:query': z.undefined(),
+  'trust:grant': z.object({ trusted: z.boolean() }),
+  'ui-state:get': z.object({ key: keyString }),
+  'ui-state:set': z.object({ key: keyString, value: z.unknown() }),
+  'ui-state:keys': z.object({ prefix: z.string().max(512).optional() }),
+  'ui-state:delete': z.object({ key: keyString }),
+  'app:info': z.undefined()
+} satisfies { [K in InvokeChannel]: z.ZodTypeAny }
+
+/** Compile-time guard: every schema's output must match its channel's request type. */
+export const checkedInvokeSchemas: { [K in InvokeChannel]: z.ZodType<InvokeMap[K]['request']> } =
+  invokeSchemas
+
+export type InvokeSchemaMap = { [K in InvokeChannel]: z.ZodTypeAny }
