@@ -1,0 +1,23 @@
+{
+  "name": "@gitreedesk/store",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Persistent storage: SQLite cache database, scoped JSON settings and workspace trust (pure Node)",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@gitreedesk/shared": "workspace:*",
+    "better-sqlite3": "catalog:",
+    "jsonc-parser": "catalog:"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "catalog:",
+    "@types/node": "catalog:",
+    "vitest": "catalog:"
+  }
+}
