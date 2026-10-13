@@ -1,0 +1,43 @@
+{
+  "name": "@gitreedesk/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "GitTreeDesk desktop application (Electron)",
+  "main": "out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@gitreedesk/commit-msg": "workspace:*",
+    "@gitreedesk/git-core": "workspace:*",
+    "@gitreedesk/shared": "workspace:*",
+    "@gitreedesk/store": "workspace:*",
+    "@gitreedesk/terminal-core": "workspace:*",
+    "@gitreedesk/ui": "workspace:*",
+    "@gitreedesk/workspace-core": "workspace:*",
+    "@parcel/watcher": "catalog:",
+    "@tanstack/react-virtual": "catalog:",
+    "better-sqlite3": "catalog:",
+    "i18next": "catalog:",
+    "jsonc-parser": "catalog:",
+    "monaco-editor": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "react-i18next": "catalog:"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "catalog:",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "electron": "catalog:",
+    "electron-vite": "catalog:",
+    "tailwindcss": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}

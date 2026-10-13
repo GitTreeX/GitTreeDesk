@@ -1,0 +1,69 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --gtd-canvas: #ffffff;
+  --gtd-panel: #f4f4f5;
+  --gtd-ink: #18181b;
+  --gtd-muted: #71717a;
+  --gtd-line: #e4e4e7;
+  --gtd-accent: #2563eb;
+  --gtd-danger: #dc2626;
+  --gtd-warn: #b45309;
+  --gtd-success: #16a34a;
+}
+
+.dark {
+  --gtd-canvas: #121214;
+  --gtd-panel: #18181b;
+  --gtd-ink: #e4e4e7;
+  --gtd-muted: #a1a1aa;
+  --gtd-line: #27272a;
+  --gtd-accent: #3b82f6;
+  --gtd-danger: #f87171;
+  --gtd-warn: #fbbf24;
+  --gtd-success: #4ade80;
+}
+
+@theme inline {
+  --color-canvas: var(--gtd-canvas);
+  --color-panel: var(--gtd-panel);
+  --color-ink: var(--gtd-ink);
+  --color-muted: var(--gtd-muted);
+  --color-line: var(--gtd-line);
+  --color-accent: var(--gtd-accent);
+  --color-danger: var(--gtd-danger);
+  --color-warn: var(--gtd-warn);
+  --color-success: var(--gtd-success);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+input,
+textarea,
+[contenteditable='true'] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+::selection {
+  background: var(--gtd-accent);
+  color: #ffffff;
+}
+
+/* Hunk markers in the diff editor glyph margin; clicking one acts on the hunk. */
+.gtd-diff-hunk-glyph {
+  cursor: pointer;
+  background-image: radial-gradient(circle at center, var(--gtd-accent) 3.5px, transparent 4px);
+}
