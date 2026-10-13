@@ -1,3 +1,5 @@
+English | [简体中文](README.zh-CN.md)
+
 > 🚧 **WIP / Early Development**
 >
 > GitTreeDesk is in early development. Features, APIs, configuration, and project structure may change without notice.

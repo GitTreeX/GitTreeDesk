@@ -1,3 +1,5 @@
+[English](README.md) | 简体中文
+
 > 🚧 **WIP / 早期开发中**
 >
 > GitTreeDesk 尚处于早期开发阶段。功能、API、配置与项目结构可能随时变更，恕不另行通知。
