@@ -1,0 +1,4 @@
+node_modules
+
+# Local working notes — keep out of the published project
+docs/draft/
