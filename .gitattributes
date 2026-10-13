@@ -1,0 +1,26 @@
+# Store and check out text files with LF so that Windows and Unix contributors
+# produce identical blobs.
+* text=auto eol=lf
+
+# cmd.exe cannot reliably parse LF batch files.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Never rewrite binary payloads.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.icns binary
+*.ttf binary
+*.woff binary
+*.woff2 binary
+*.eot binary
+*.pdf binary
+*.zip binary
+*.gz binary
+*.exe binary
+*.dll binary
+*.node binary

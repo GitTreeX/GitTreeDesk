@@ -2,3 +2,12 @@ node_modules
 
 # Local working notes — keep out of the published project
 docs/draft/
+
+# Build outputs and local artifacts
+out/
+dist/
+release/
+coverage/
+*.log
+*.local
+.DS_Store
