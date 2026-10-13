@@ -140,6 +140,39 @@ export function ScmView(): JSX.Element {
     [records, statusFor, tree.isScmSelected, tree.scmOnlySelected, tree.scmGroups, untrackedLimits]
   )
 
+  // Working-tree edits only reach the status pipeline through tree watches, so the
+  // repos this view covers stay watched while it is mounted; released on unmount.
+  const watchedRef = useRef(new Set<string>())
+  useEffect(() => {
+    const watched = watchedRef.current
+    const desired = new Set<string>()
+    for (const record of records) {
+      if (record.gitDir === '') continue
+      if (tree.scmOnlySelected && !tree.isScmSelected(checkoutKey(record))) continue
+      desired.add(record.path)
+    }
+    for (const dir of desired) {
+      if (watched.has(dir)) continue
+      watched.add(dir)
+      void api.invoke('fs:watch', { path: dir }).catch(() => {
+        watched.delete(dir)
+      })
+    }
+    for (const dir of [...watched]) {
+      if (desired.has(dir)) continue
+      watched.delete(dir)
+      void api.invoke('fs:unwatch', { path: dir }).catch(() => undefined)
+    }
+  }, [records, tree.isScmSelected, tree.scmOnlySelected])
+
+  useEffect(() => {
+    const watched = watchedRef.current
+    return () => {
+      for (const dir of watched) void api.invoke('fs:unwatch', { path: dir }).catch(() => undefined)
+      watched.clear()
+    }
+  }, [])
+
   const items = useMemo(() => {
     const list: FlatItem[] = []
     const collapsed = new Set(tree.scmCollapsed)
