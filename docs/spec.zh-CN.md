@@ -69,7 +69,7 @@ GitTreeDesk 把这些有用的部分合进一个工具，并且把**工作区**�
 
 ### 1.4 参考场景（验收场景）
 
-以真实工作区作为验收标的：`spidermemos/` —— 约 55 个 Git 仓库，分布在 2~3 层分组下（`app/`、`backend/`、`website/`……），链接 worktree 集中放在兄弟目录 `__worktree__/`（如 `spidermemos-app_worktree-feat-mvp-note-todo`），混有非 Git 文件夹，根目录有噪声目录 `node_modules/`，并且至少有一个中文命名目录（`zhigeweb-织个网`）。
+以一个代表性的工作区作为验收标的（示例已脱敏）：`acme/` —— 约 55 个 Git 仓库，分布在 2~3 层分组下（`app/`、`backend/`、`website/`……），链接 worktree 集中放在兄弟目录 `__worktree__/`（如 `mobile-app_worktree-feat-dark-mode`），混有非 Git 文件夹，根目录有噪声目录 `node_modules/`，并且至少有一个中文命名目录（`content/中文文档`）。
 
 v1 验收标准：
 
@@ -260,8 +260,8 @@ stashCount · worktrees[]（branch、path、locked/prunable） · submodulesPres
 ```jsonc
 {
   "$schema": "https://gitreedesk.dev/schemas/workspace.json",
-  "name": "spidermemos",
-  "exclude": ["others/zhigeweb-织个网", "**/fixtures/**"],
+  "name": "acme",
+  "exclude": ["content/中文文档", "**/fixtures/**"],
   "scan": { "maxDepth": 8, "followSymlinks": false },
   "groups": [{ "name": "Backend", "match": ["backend/*"] }]
 }
@@ -349,7 +349,7 @@ CREATE TABLE oplog        (id INTEGER PRIMARY KEY, repo_id INT, op TEXT, backup_
 *范围：v1。*
 
 - **展示**：链接 worktree 在 Repos 视图中嵌套于主仓库之下（AD-11 身份），标注 `<分支> @ <路径>`；主工作树带 "main" 标记。
-- **创建**：对话框含源仓库、新建或已有分支选择器（选已有分支时做"已被其他工作树检出"拦截——Git 禁止同一分支出现在两个 worktree）、新分支的基底 ref、目标路径模板。默认模板与作者惯例一致：`{worktreeRoot}/{repo}_{branch-slug}`，其中 `branch-slug` 把 `/` 替换为 `-`（如 `__worktree__/spidermemos-app_worktree-feat-mvp-note-todo`——`worktreeRoot` 默认 `<workspace>/__worktree__`，模板可配置）。新建的 `__worktree__` 根自动从发现噪声中排除，并归到父仓库下显示。
+- **创建**：对话框含源仓库、新建或已有分支选择器（选已有分支时做"已被其他工作树检出"拦截——Git 禁止同一分支出现在两个 worktree）、新分支的基底 ref、目标路径模板。默认模板：`{worktreeRoot}/{repo}_{branch-slug}`，其中 `branch-slug` 把 `/` 替换为 `-`（如 `__worktree__/mobile-app_worktree-feat-dark-mode`——`worktreeRoot` 默认 `<workspace>/__worktree__`，模板可配置）。新建的 `__worktree__` 根自动从发现噪声中排除，并归到父仓库下显示。
 - **删除 / prune / lock / unlock / move**：全部暴露；脏工作树删除需 force（二次确认 + backup ref），prune 支持手动触发与 fetch 后触发。
 - worktree 行完全可操作：F4/F5 的每个 Git 功能都可在该 worktree 的仓库上下文与工作树中执行。
 
@@ -486,7 +486,7 @@ CREATE TABLE oplog        (id INTEGER PRIMARY KEY, repo_id INT, op TEXT, backup_
 *范围：v1。*
 
 - 设置页：可搜索，分组（Appearance、Editor、Git、Terminal、Commit message、Advanced），每项显示作用域（User / Workspace）与"复制到工作区"入口；修改原子写入 JSON 并即时生效。应用内置 JSON schema，手改文件也有自动补全。
-- 作用域：`userData/settings.json`（用户）→ `.gitreedesk/settings.json`（工作区覆盖）→ 逐仓库覆盖表（如 `repos: { "backend/spidermemos-backend": { pullStrategy: "rebase" } }`）。
+- 作用域：`userData/settings.json`（用户）→ `.gitreedesk/settings.json`（工作区覆盖）→ 逐仓库覆盖表（如 `repos: { "backend/api-server": { pullStrategy: "rebase" } }`）。
 - 关键设置组：appearance（主题模式、密度、强调色）、git（git 路径覆盖、并发数、轮询间隔、默认 pull 策略、未跟踪策略）、terminal（默认 profile）、commit message（Provider 预设、base URL、模型、temperature）、advanced（支持用日志级别）。
 
 ### F12 — 平台与打包
@@ -537,7 +537,7 @@ CREATE TABLE oplog        (id INTEGER PRIMARY KEY, repo_id INT, op TEXT, backup_
 | # | 里程碑 | 规模 | 交付 | 演示 |
 |---|--------|------|------|------|
 | M0 | 骨架 | S | pnpm workspace、Electron 外壳、IPC 契约 + zod、设置、主题（system/light/dark）、i18n 接线（en/zh-Hans）、信任提示、CI 矩阵桩 | 应用可打开，主题/语言实时切换 |
-| M1 | 工作区与树 | M | 发现 + 注册表（SQLite）、Explorer + Repos 视图（虚拟化）、徽标 + 视图选项、watcher 骨架（git dir 监听）、状态模型 + 预热调度 | spidermemos 工作区打开；完整树 ≤ 预算；状态流式上屏；中文路径正确 |
+| M1 | 工作区与树 | M | 发现 + 注册表（SQLite）、Explorer + Repos 视图（虚拟化）、徽标 + 视图选项、watcher 骨架（git dir 监听）、状态模型 + 预热调度 | 50+ 仓库的工作区打开；完整树 ≤ 预算；状态流式上屏；中文路径正确 |
 | M2 | 变更 & diff & 提交 | M | SCM 视图（多仓库、开关项）、hunk/文件级 stage、discard（未跟踪进回收站）、Monaco diff（并排/内联）、提交框、文件历史 | 在应用内完成完整的本地提交流程 |
 | M3 | 核心 Git 操作 | L | 分支、远端、fetch/pull/push、merge/rebase（交互式）、cherry-pick、revert、reset、stash、tag、冲突流程、操作横幅、backup ref + 撤销 | 日常流程对标 SourceTree；端到端冲突解决 |
 | M4 | Worktree 与 submodule | M | worktree 增删改查 + 归组 + 模板；submodule 状态 + 一键 "Update all"（流式）；工作区外 worktree 支持 | 从 UI 创建 worktree；一键修复工作区 submodule |
@@ -572,7 +572,7 @@ CREATE TABLE oplog        (id INTEGER PRIMARY KEY, repo_id INT, op TEXT, backup_
 | 风险 | 对策 |
 |---|---|
 | Windows 长路径（> 260 字符） | 逐命令 `-c core.longpaths=true`，Node fs 调用用 `\\?\` 前缀，文档说明嵌套过深时的应对 |
-| Unicode/中文路径（`zhigeweb-织个网`） | porcelain 一律基于 `-z` NUL 输出解析并消除 `core.quotepath` 影响；测试 fixture 覆盖中文/空格/换行文件名 |
+| Unicode/中文路径（如 `content/中文文档`） | porcelain 一律基于 `-z` NUL 输出解析并消除 `core.quotepath` 影响；测试 fixture 覆盖中文/空格/换行文件名 |
 | 凭据弹窗挂起操作 | `GIT_TERMINAL_PROMPT=0` + 类型化认证错误 + 内置 askpass（M3）；SSH agent 透传 |
 | 不受信工作区执行 Git hooks | 信任门禁 + `core.hooksPath` 抑制（AD-13） |
 | Linux inotify 监听上限 | 有界监听计划（§3.5），优雅降级为轮询并一次性提示 |

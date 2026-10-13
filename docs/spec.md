@@ -69,7 +69,7 @@ Three principles drive design trade-offs:
 
 ### 1.4 Reference scenario (acceptance scenario)
 
-A real workspace used as the acceptance target: `spidermemos/` — ~55 Git repositories nested 2–3 levels under groups (`app/`, `backend/`, `website/`, …), linked worktrees kept in a sibling `__worktree__/` folder (`spidermemos-app_worktree-feat-mvp-note-todo`, …), non-Git folders mixed in, a noisy `node_modules/` at the root, and at least one CJK-named directory (`zhigeweb-织个网`).
+A representative workspace used as the acceptance target: `acme/` — ~55 Git repositories nested 2–3 levels under groups (`app/`, `backend/`, `website/`, …), linked worktrees kept in a sibling `__worktree__/` folder (`mobile-app_worktree-feat-dark-mode`, …), non-Git folders mixed in, a noisy `node_modules/` at the root, and at least one CJK-named directory (`content/中文文档`).
 
 Acceptance for v1:
 
@@ -260,8 +260,8 @@ Refresh rules:
 ```jsonc
 {
   "$schema": "https://gitreedesk.dev/schemas/workspace.json",
-  "name": "spidermemos",
-  "exclude": ["others/zhigeweb-织个网", "**/fixtures/**"],
+  "name": "acme",
+  "exclude": ["content/中文文档", "**/fixtures/**"],
   "scan": { "maxDepth": 8, "followSymlinks": false },
   "groups": [{ "name": "Backend", "match": ["backend/*"] }]
 }
@@ -349,7 +349,7 @@ Both views render with virtualization (TanStack Virtual) and keyboard navigation
 *Scope: v1.*
 
 - **Display**: linked worktrees are nested under their main repository in the Repos view (AD-11 identity), labelled `<branch> @ <path>`; the main worktree shows a "main" marker.
-- **Create**: dialog with source repository, new-or-existing branch picker (existing branch gets a "already checked out elsewhere" guard — Git forbids the same branch in two worktrees), base ref for new branches, target path with a configurable template. Default template matches the author's convention: `{worktreeRoot}/{repo}_{branch-slug}` where `branch-slug` replaces `/` with `-` (e.g. `__worktree__/spidermemos-app_worktree-feat-mvp-note-todo` — `worktreeRoot` defaults to `<workspace>/__worktree__`, path template itself is configurable). New `__worktree__` roots are auto-excluded from discovery noise and shown under the parent repo instead.
+- **Create**: dialog with source repository, new-or-existing branch picker (existing branch gets a "already checked out elsewhere" guard — Git forbids the same branch in two worktrees), base ref for new branches, target path with a configurable template. Default template: `{worktreeRoot}/{repo}_{branch-slug}` where `branch-slug` replaces `/` with `-` (e.g. `__worktree__/mobile-app_worktree-feat-dark-mode` — `worktreeRoot` defaults to `<workspace>/__worktree__`, path template itself is configurable). New `__worktree__` roots are auto-excluded from discovery noise and shown under the parent repo instead.
 - **Remove / prune / lock / unlock / move**: all exposed; remove refuses on dirty worktree unless force (with confirm + backup ref), prunes on demand and after fetch.
 - Worktree rows are fully operable: every Git feature in F4/F5 works on the worktree's repository context with that worktree's working tree.
 
@@ -486,7 +486,7 @@ Both views render with virtualization (TanStack Virtual) and keyboard navigation
 *Scope: v1.*
 
 - Settings tab: searchable, grouped (Appearance, Editor, Git, Terminal, Commit message, Advanced), each setting showing scope (User / Workspace) and a "copy to workspace" affordance; edits write the JSON files atomically and apply live. A JSON schema ships with the app so hand-edited files get autocomplete.
-- Scopes: `userData/settings.json` (user) → `.gitreedesk/settings.json` (workspace overrides) → per-repo overrides map (e.g., `repos: { "backend/spidermemos-backend": { pullStrategy: "rebase" } }`).
+- Scopes: `userData/settings.json` (user) → `.gitreedesk/settings.json` (workspace overrides) → per-repo overrides map (e.g., `repos: { "backend/api-server": { pullStrategy: "rebase" } }`).
 - Key setting groups: appearance (theme mode, density, accent), git (git path override, concurrency, polling interval, default pull strategy, untracked strategy), terminal (default profile), commit message (provider preset, base URL, model, temperature), advanced (log verbosity for support).
 
 ### F12 — Platform & packaging
@@ -537,7 +537,7 @@ Each milestone ends in a demo-able outcome. Sizes are relative (S ≪ L), not ca
 | # | Milestone | Size | Delivers | Demo |
 |---|-----------|------|----------|------|
 | M0 | Skeleton | S | pnpm workspace, Electron shell, IPC contract + zod, settings, theming (system/light/dark), i18n wiring (en/zh-Hans), trust prompt, CI matrix stub | App opens, switches theme/locale live |
-| M1 | Workspace & trees | M | Discovery + registry (SQLite), Explorer + Repos views (virtualized), badges + view options, watcher skeleton (git-dir watching), status model + warm-up scheduler | The spidermemos workspace opens; full tree ≤ budget; statuses stream in; CJK paths correct |
+| M1 | Workspace & trees | M | Discovery + registry (SQLite), Explorer + Repos views (virtualized), badges + view options, watcher skeleton (git-dir watching), status model + warm-up scheduler | A 50+ repo workspace opens; full tree ≤ budget; statuses stream in; CJK paths correct |
 | M2 | Changes & diff & commit | M | SCM view (multi-repo, toggles), hunk/file staging, discard (trash for untracked), Monaco diff (side-by-side/inline), commit box, file history | Complete local commit flow inside the app |
 | M3 | Core Git operations | L | Branches, remotes, fetch/pull/push, merge/rebase(interactive), cherry-pick, revert, reset, stash, tags, conflict flow, op-in-progress banner, backup refs + undo | SourceTree-parity for everyday flows; conflict resolution end-to-end |
 | M4 | Worktrees & submodules | M | Worktree CRUD + grouping + templates; submodule status + "Update all" (streamed); external worktree support | Create a worktree from the UI; fix the workspace's submodules in one click |
@@ -572,7 +572,7 @@ Budget failures are treated as bugs, not polish; the dev overlay (toggleable, sh
 | Risk | Mitigation |
 |---|---|
 | Windows long paths (> 260 chars) | per-command `-c core.longpaths=true`, `\\?\`-prefixed Node fs calls, documented guidance for users who hit nested-limit cases |
-| Unicode/CJK paths (`zhigeweb-织个网`) | all porcelain parsing on `-z` NUL output with `core.quotepath` neutralized; fixtures include CJK/space/newline paths in tests |
+| Unicode/CJK paths (e.g. `content/中文文档`) | all porcelain parsing on `-z` NUL output with `core.quotepath` neutralized; fixtures include CJK/space/newline paths in tests |
 | Credential prompts hanging operations | `GIT_TERMINAL_PROMPT=0` + typed auth errors + in-app askpass (M3); SSH agent passthrough |
 | Git hooks running from untrusted workspaces | trust gating + `core.hooksPath` suppression (AD-13) |
 | inotify watch limits on Linux | bounded watch plan (§3.5), graceful degradation to polling with one-time notice |
