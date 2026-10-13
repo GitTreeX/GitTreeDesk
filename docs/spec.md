@@ -100,7 +100,7 @@ Numbered decisions with the alternatives that were considered and rejected. Thes
 
 | ID | Decision | Rationale | Rejected alternatives |
 |----|----------|-----------|----------------------|
-| AD-01 | **Greenfield Electron application** (current stable Electron, aligning with the author's existing `desktop-electron` 44.x setup). | The performance pain is architectural in VSCode (whole-workspace watchers, SCM provider per repo, TS project graph). A greenfield shell lets discovery, watching, and status refresh be designed for the multi-repo case from the start. | **Fork code-oss**: million-LOC fork, heavy upstream-merge burden, the perf problems are architectural and cannot be fixed inside a fork, ~80% of the codebase is irrelevant. **VSCode extension**: cannot fix the watcher/scan root cause; at most an interim UX probe. |
+| AD-01 | **Greenfield Electron application** (current stable Electron; the major version is pinned in `package.json` and upgraded deliberately). | The performance pain is architectural in VSCode (whole-workspace watchers, SCM provider per repo, TS project graph). A greenfield shell lets discovery, watching, and status refresh be designed for the multi-repo case from the start. | **Fork code-oss**: million-LOC fork, heavy upstream-merge burden, the perf problems are architectural and cannot be fixed inside a fork, ~80% of the codebase is irrelevant. **VSCode extension**: cannot fix the watcher/scan root cause; at most an interim UX probe. |
 | AD-02 | **Git engine = system `git` CLI**, spawned with argument arrays; porcelain output parsed. | Correctness: worktree, submodule, LFS (filters), credential helpers, hooks, and edge-case behavior are 100% identical to the command line — the same strategy as VSCode, SourceTree, Fork. Performance comes from a concurrency pool, index-fingerprint skips, and caching. | **isomorphic-git**: as of 2026-10 its command index lacks rebase, cherry-pick, worktree, submodule, hooks, LFS — disqualifying for G3/G4; also slow on large repositories. **libgit2 bindings** (nodegit/koffi): worktree/submodule/filter gaps, hooks don't run, per-platform native packaging. **Hybrid** (native reads + CLI writes): two engines, doubled consistency cost; revisit only if profiling proves it necessary. |
 | AD-03 | **Git binary strategy**: prefer system Git (`git` on PATH, overridable in settings). Require ≥ 2.23; warn below 2.36. Detect via `git --version` at startup. On Windows, also probe `%ProgramFiles%\Git\cmd\git.exe`. Bundling a portable Git is an open question (§9). | Users of Git GUIs already have Git; bundling adds tens of MB and update burden. The version floor covers `git switch/restore` (2.23) and stable porcelain behavior. | Bundling Git for Windows / shipping our own builds — later, only if real users hit missing-Git walls. |
 | AD-04 | **Renderer stack**: React 19 + TypeScript, Vite, Tailwind CSS v4, Radix UI primitives (shadcn-style vendored components), Zustand for state, TanStack Virtual for trees/lists, Lucide icons. | Hot-update-friendly; Zustand fits high-frequency status patches; Radix gives accessible primitives without a heavyweight component kit. | Ant Design / MUI: heavy theming cost, dated visual language, conflicts with G10. |
@@ -141,7 +141,7 @@ Numbered decisions with the alternatives that were considered and rejected. Thes
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-pnpm workspace mirroring the author's house layout (`apps/*` + `packages/*`, catalog versions):
+pnpm workspace layout (`apps/*` + `packages/*`, catalog-managed versions):
 
 ```
 GitTreeDesk/
@@ -310,22 +310,22 @@ CREATE TABLE oplog        (id INTEGER PRIMARY KEY, repo_id INT, op TEXT, backup_
 
 ## 4. Features
 
-Feature index (maps to the original requirement list):
+Requirement index:
 
 | Req | Feature | Section | Scope |
 |---|---|---|---|
-| ① | Workspace open, repo discovery, Explorer & Repos trees | F1, F2 | v1 |
-| ② | Selectable change display across repositories | F2 view options, F7 | v1 |
-| ③ | Worktree display & management | F3 | v1 |
-| ④ | Complete Git operations | F4 | v1 |
-| ⑤ | Commit graph | F5 | v1 |
-| ⑥ | Editor + highlighting + TS hints + jump to VSCode | F6 | v1 |
-| ⑦ | Changes list & diff | F7 | v1 |
-| ⑧ | Terminal: profiles, cascading config, quick commands | F8 | v1 |
-| ⑨ | Modern UI, keyboard-friendly | §5, F10, F11 | v1 |
-| ⑩a | Commit message generation | F9 | v1 |
-| ⑩b | Cross-platform | F12 | v1 |
-| — | Workspace-first | F1 | v1 |
+| R1 | Workspace open, repo discovery, Explorer & Repos trees | F1, F2 | v1 |
+| R2 | Selectable change display across repositories | F2 view options, F7 | v1 |
+| R3 | Worktree display & management | F3 | v1 |
+| R4 | Complete Git operations | F4 | v1 |
+| R5 | Commit graph | F5 | v1 |
+| R6 | Editor + highlighting + TS hints + jump to VSCode | F6 | v1 |
+| R7 | Changes list & diff | F7 | v1 |
+| R8 | Terminal: profiles, cascading config, quick commands | F8 | v1 |
+| R9 | Modern UI, keyboard-friendly | §5, F10, F11 | v1 |
+| R10a | Commit message generation | F9 | v1 |
+| R10b | Cross-platform | F12 | v1 |
+| R11 | Workspace-first | F1 | v1 |
 
 ### F1 — Workspace open & recent list
 
@@ -340,7 +340,7 @@ Two coordinated views over the same registry:
 - **Explorer view** — the real filesystem tree: folders as-is, repositories marked with a badge (branch name or short-sha), worktree folders marked with a worktree glyph. Lazy directory reads; expanded-directory watching per AD-08. File operations: new file/folder, rename, delete (moves to OS trash via `shell.trashItem` — reversible), reveal in OS file manager, copy path, "Open in VSCode", "Open terminal here", "Compare two selected files".
 - **Repos view** — the logical view: groups (configured or derived from the first path segment), repositories as first-class rows showing name, current branch/ref, badges, and children nested: **linked worktrees** (with their own branch) and **submodules** (initialized or not) appear under their main repository; external worktrees appear greyed with their absolute path when enabled.
 
-Badges & view options (requirement ②): each badge type is individually toggleable — `dirty dot`, `ahead/behind counts`, `stash count`, `in-progress operation`, `detached HEAD`, `submodules pending`. Quick filters: "only dirty", "only ahead/behind", "only worktrees", plus a per-repo checkbox set deciding which repositories contribute to the SCM view (F7) and to any future aggregate surfaces. Repo rows support multi-select for batch operations (fetch all selected, pull all, open terminals).
+Badges & view options (R2): each badge type is individually toggleable — `dirty dot`, `ahead/behind counts`, `stash count`, `in-progress operation`, `detached HEAD`, `submodules pending`. Quick filters: "only dirty", "only ahead/behind", "only worktrees", plus a per-repo checkbox set deciding which repositories contribute to the SCM view (F7) and to any future aggregate surfaces. Repo rows support multi-select for batch operations (fetch all selected, pull all, open terminals).
 
 Both views render with virtualization (TanStack Virtual) and keyboard navigation (↑/↓, ←/→ collapse/expand, Enter open, Space stage-toggles in SCM only).
 
@@ -373,7 +373,7 @@ Both views render with virtualization (TanStack Virtual) and keyboard navigation
 - Hook output (pre-commit/prepare-commit-msg) streamed into the commit panel; failures keep the message; untrusted-workspace hooks suppression per AD-13.
 - GPG signing: *Later.*
 
-**History editing (requirement ④ "edit a given commit's message/author/date")**
+**History editing (R4 — edit a given commit's message/author/date)**
 
 - HEAD commit: `commit --amend` with `--author`, `--date`, and (for committer date) `GIT_COMMITTER_DATE` env.
 - Any earlier commit (or a batch, in one pass): scripted interactive rebase — rebase `--interactive` up to the target's parent with `GIT_SEQUENCE_EDITOR` marking targets as `edit` (sequence list, not a TTY), then per stop: `git commit --amend --author=… --date=… -m …` (non-interactive `GIT_EDITOR`), then `rebase --continue`. Preconditions: clean worktree (else offer auto-stash), backup ref created, hard warning when the branch is pushed ("rewrites published history" + explicit confirm). After completion: "Undo" restores the backup ref.
@@ -392,7 +392,7 @@ Both views render with virtualization (TanStack Virtual) and keyboard navigation
 - Cherry-pick: single or range (`A..B`), `--no-commit` option; revert same.
 - Reset: `--soft | --mixed | --hard` to any ref (backup ref + confirm for `--hard`; dialog states exactly what will be lost).
 - Stash: create (message, include-untracked, keep-index, path subset), list with expandable file lists and diffs, apply / pop / drop (drop creates a backup ref), show.
-- Submodules: per-submodule status (initialized, commit drift, dirty), **"Update all" one-click** (`submodule update --init --recursive --jobs <n>` with streamed progress — requirement ④), sync URLs, open-as-repository (navigates the Repos view), add/deinit are *Later*.
+- Submodules: per-submodule status (initialized, commit drift, dirty), **"Update all" one-click** (`submodule update --init --recursive --jobs <n>` with streamed progress — R4), sync URLs, open-as-repository (navigates the Repos view), add/deinit are *Later*.
 - Conflicts (shared flow): operation-in-progress banner (continue/abort/skip), conflicted-file list with per-file **ours/theirs/both** resolution, "open in editor with markers", external merge tool launch (configurable command), mark-resolved, and a before-continue validation ("unresolved conflicts remain" list).
 
 **Operation-in-progress detection** blocks conflicting operations (e.g., cannot rebase during a merge) with an explanatory dialog offering the legal actions.
@@ -414,7 +414,7 @@ Both views render with virtualization (TanStack Virtual) and keyboard navigation
 *Scope: v1.*
 
 - Monaco with local bundling (AD-05); tabs (open editors list, dirty indicator, close/close-others), split view *Later*.
-- Language features: highlighting for all bundled languages (lazy-loaded contributions); TypeScript/JavaScript hints via the built-in TS worker with best-effort configuration — nearest `tsconfig.json` `compilerOptions` + stdlib; no `node_modules` type resolution in v1 (documented limitation). The **"Open in VSCode"** button (`code --goto <path>:<line>[:<col>]`, command configurable; falls back to reveal-in-OS) is the explicit escape hatch for project-wide IntelliSense/refactoring (requirement ⑥).
+- Language features: highlighting for all bundled languages (lazy-loaded contributions); TypeScript/JavaScript hints via the built-in TS worker with best-effort configuration — nearest `tsconfig.json` `compilerOptions` + stdlib; no `node_modules` type resolution in v1 (documented limitation). The **"Open in VSCode"** button (`code --goto <path>:<line>[:<col>]`, command configurable; falls back to reveal-in-OS) is the explicit escape hatch for project-wide IntelliSense/refactoring (R6).
 - Save (Ctrl/Cmd+S): atomic write; external-change detection (mtime+hash on focus and before save) → conflict dialog (overwrite / reload / diff). Read-only guard for files > 10 MB (open read-only with confirm); binary files open with a preview (images) or offer open-externally.
 - Minimal editing settings only: font size/family, tab size, insert-spaces, word wrap, minimap on/off. This is not an IDE: no format-on-save, no tasks, no multi-root workspaces, no extensions.
 
@@ -422,7 +422,7 @@ Both views render with virtualization (TanStack Virtual) and keyboard navigation
 
 *Scope: v1.*
 
-- **SCM view** (activity bar): repository sections — which repositories appear is governed by F2's per-repo checkboxes; each section shows staged / unstaged / untracked / conflicted groups (each group's visibility individually toggleable = requirement ②), a commit box (message + generate + commit/amend/stage-all), and its in-progress operation banner.
+- **SCM view** (activity bar): repository sections — which repositories appear is governed by F2's per-repo checkboxes; each section shows staged / unstaged / untracked / conflicted groups (each group's visibility individually toggleable = R2), a commit box (message + generate + commit/amend/stage-all), and its in-progress operation banner.
 - File rows: status icon (M/A/D/R/U/!/C), staged vs unstaged, hover actions (stage/unstage/discard), multi-select, click → diff.
 - **Diff view**: Monaco diff editor (side-by-side ⇄ inline toggle), whitespace-ignore toggle, word-wrap; rename-aware; binary files show size info; images get a 2-up before/after preview (onion slider *Later*); hunk actions from the diff margin: stage hunk / revert hunk; "Compare with…" picker (INDEX / HEAD / any ref / another branch) for a file or a whole repository scope.
 - **File history**: per-file `git log` list (rename-follow *Later*), clicking a revision opens that revision's diff for the file.
@@ -592,7 +592,7 @@ Budget failures are treated as bugs, not polish; the dev overlay (toggleable, sh
 2. **Cross-repo activity feed / multi-repo graph** — README mentions "history across repositories"; v1 is per-repo graph only. Confirm whether an aggregate timeline is wanted soon.
 3. **Auto-update channel** and hosting (GitHub Releases vs object storage); unsigned-macOS distribution expectations.
 4. **Multi-window / multi-workspace** in one app instance — v1 is single-window.
-5. **Requirement ② exact intent** — "select which repos/changes to display": currently designed as *both* per-repo checkboxes in the SCM view *and* per-group/per-badge visibility toggles. Confirm.
+5. **R2 exact intent** — "select which repos/changes to display": currently designed as *both* per-repo checkboxes in the SCM view *and* per-group/per-badge visibility toggles. Confirm.
 6. zh-Hans locale quality bar for v1 (currently: shipped, community-reviewable).
 
 ## 10. Appendices
