@@ -1,0 +1,23 @@
+{
+  "name": "gitreedesk",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Workspace-first multi-repo Git workbench",
+  "license": "MIT",
+  "packageManager": "pnpm@12.4.2",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @gitreedesk/desktop dev",
+    "build": "pnpm --filter @gitreedesk/desktop build",
+    "postinstall": "pnpm --filter @gitreedesk/desktop exec install-electron",
+    "typecheck": "tsc --noEmit -p apps/desktop/tsconfig.node.json && tsc --noEmit -p apps/desktop/tsconfig.web.json && tsc --noEmit -p packages/shared && tsc --noEmit -p packages/ui && tsc --noEmit -p packages/git-core && tsc --noEmit -p packages/workspace-core && tsc --noEmit -p packages/store && tsc --noEmit -p packages/terminal-core && tsc --noEmit -p packages/commit-msg",
+    "test": "vitest run --passWithNoTests"
+  },
+  "devDependencies": {
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "@gitreedesk/commit-msg",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Commit message convention detection, offline drafts and LLM providers",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@gitreedesk/git-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:"
+  }
+}

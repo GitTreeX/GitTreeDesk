@@ -1,0 +1,37 @@
+packages:
+  - apps/*
+  - packages/*
+allowBuilds:
+  '@parcel/watcher': true
+  '@tailwindcss/oxide': true
+  better-sqlite3: true
+  electron: true
+  esbuild: true
+  node-pty: true
+catalog:
+  '@parcel/watcher': ^2.6.0
+  '@tailwindcss/vite': ^4.3.3
+  '@tanstack/react-virtual': ^3.13.0
+  '@types/better-sqlite3': ^9.6.0
+  '@types/node': ^24.19.2
+  '@types/picomatch': ^4.0.3
+  '@types/react': ^19.3.0
+  '@types/react-dom': ^19.3.0
+  '@vitejs/plugin-react': ^5.2.0
+  better-sqlite3: ^13.0.3
+  electron: ^44.7.0
+  electron-vite: ^5.0.0
+  i18next: ^26.4.4
+  jsonc-parser: ^3.3.1
+  monaco-editor: ^0.57.0
+  picomatch: ^4.0.7
+  react: ^19.3.0
+  react-dom: ^19.3.0
+  react-i18next: ^17.0.16
+  tailwindcss: ^4.3.3
+  typescript: ^7.0.2
+  vite: ^7.3.7
+  vitest: ^5.0.4
+  zod: ^4.6.7
+minimumReleaseAgeExclude:
+  - zod@4.6.7

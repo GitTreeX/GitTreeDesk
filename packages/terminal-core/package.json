@@ -1,0 +1,13 @@
+{
+  "name": "@gitreedesk/terminal-core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shell profile detection, cascading terminal config resolution and quick commands",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:"
+  }
+}
