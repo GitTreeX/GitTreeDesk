@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="GitTreeDesk mark">
+  <g transform="translate(256 256) scale(0.92) translate(-256 -294)" fill="none" stroke="#e4e4e7" stroke-width="30" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M256 156 V442"/>
+    <path d="M200 196 L256 150 L312 196"/>
+    <path d="M164 288 L256 238 L348 288"/>
+    <path d="M126 390 L256 330 L386 390"/>
+  </g>
+  <g transform="translate(256 256) scale(0.92) translate(-256 -294)" fill="#e4e4e7">
+    <circle cx="256" cy="156" r="25"/>
+    <circle cx="256" cy="244" r="25"/>
+    <circle cx="256" cy="332" r="25"/>
+  </g>
+</svg>
