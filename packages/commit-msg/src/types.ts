@@ -1,21 +1,4 @@
-import type { ChangeKind } from '@gitreedesk/shared'
-
-/** One staged file with its churn stats; binary files carry `null` counts. */
-export interface StagedFile {
-  path: string
-  origPath?: string
-  kind: ChangeKind
-  additions: number | null
-  deletions: number | null
-}
-
-/** The staged change-set the generators describe. */
-export interface StagedSummary {
-  files: readonly StagedFile[]
-  /** Unified diff of the staged changes, already byte-capped by the producer. */
-  patch: string
-  patchTruncated: boolean
-}
+export type { StagedFile, StagedSummary } from '@gitreedesk/shared'
 
 export type SubjectLanguage = 'en' | 'zh' | 'unknown'
 
