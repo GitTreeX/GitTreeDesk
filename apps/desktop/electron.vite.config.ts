@@ -1,6 +1,7 @@
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
+import { resolve } from 'node:path'
 import type { Plugin } from 'vite'
 
 const devCsp = [
@@ -74,7 +75,15 @@ const workspacePackages = [
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin({ exclude: workspacePackages })]
+    plugins: [externalizeDepsPlugin({ exclude: workspacePackages })],
+    build: {
+      rollupOptions: {
+        input: {
+          index: resolve(__dirname, 'src/main/index.ts'),
+          ptyHost: resolve(__dirname, 'src/pty-host/index.ts')
+        }
+      }
+    }
   },
   preload: {
     plugins: [externalizeDepsPlugin({ exclude: workspacePackages })]
