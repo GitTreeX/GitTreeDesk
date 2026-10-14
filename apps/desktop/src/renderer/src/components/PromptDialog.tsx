@@ -6,6 +6,8 @@ export interface PromptDialogProps {
   label: string
   initialValue?: string
   submitLabel: string
+  /** Secondary line under the input, e.g. a consequence the user should know. */
+  hint?: string
   validate?: (value: string) => string | null
   onSubmit: (value: string) => void
   onClose: () => void
@@ -16,6 +18,7 @@ export function PromptDialog({
   label,
   initialValue = '',
   submitLabel,
+  hint,
   validate,
   onSubmit,
   onClose
@@ -73,6 +76,7 @@ export function PromptDialog({
           onKeyDown={onKeyDown}
           className="mt-1 w-full rounded border border-line bg-canvas px-2 py-1 text-sm text-ink outline-none focus:border-accent"
         />
+        {hint !== undefined && <p className="mt-1 text-xs text-muted">{hint}</p>}
         {error !== null && <p className="mt-1 text-xs text-danger">{error}</p>}
         <div className="mt-4 flex justify-end gap-2">
           <button

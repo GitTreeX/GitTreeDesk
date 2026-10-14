@@ -9,6 +9,7 @@ import {
   type MutableRefObject,
   type ReactNode
 } from 'react'
+import type { RepoRecord } from '@gitreedesk/shared'
 import type { RepoFilters } from '../tree/repos-model'
 import { DEFAULT_SCM_GROUPS, type ScmGroupVisibility } from '../tree/scm-model'
 import { useUiState } from '../use-ui-state'
@@ -67,6 +68,12 @@ export interface ScmActions {
   discardSelected: () => void
 }
 
+/** Imperative surface the Repos view advertises while it is the visible view. */
+export interface ReposActions {
+  /** Selected repositories; empty when nothing is selected. */
+  selectedRecords: () => readonly RepoRecord[]
+}
+
 interface TreeUiContextValue {
   view: TreeViewKind
   setView: (next: TreeViewKind) => void
@@ -106,6 +113,7 @@ interface TreeUiContextValue {
   requestScmFocus: () => void
   explorerActions: MutableRefObject<ExplorerActions | null>
   scmActions: MutableRefObject<ScmActions | null>
+  reposActions: MutableRefObject<ReposActions | null>
 }
 
 const TreeUiContext = createContext<TreeUiContextValue | null>(null)
@@ -187,6 +195,7 @@ export function TreeUiProvider({ children }: { children: ReactNode }): JSX.Eleme
   const [scmFocusTicket, setScmFocusTicket] = useState(0)
   const explorerActions = useRef<ExplorerActions | null>(null)
   const scmActions = useRef<ScmActions | null>(null)
+  const reposActions = useRef<ReposActions | null>(null)
 
   const isScmSelected = useCallback(
     (key: string) => !scmDeselected.includes(key),
@@ -274,7 +283,8 @@ export function TreeUiProvider({ children }: { children: ReactNode }): JSX.Eleme
       scmFocusTicket,
       requestScmFocus,
       explorerActions,
-      scmActions
+      scmActions,
+      reposActions
     }),
     [
       view,
