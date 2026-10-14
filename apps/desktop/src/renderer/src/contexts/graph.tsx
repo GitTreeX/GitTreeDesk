@@ -22,6 +22,8 @@ export interface GraphFilters {
   since: string
   until: string
   grep: string
+  /** Restricts the walk to commits reachable from HEAD. */
+  currentBranch: boolean
 }
 
 export const EMPTY_GRAPH_FILTERS: GraphFilters = {
@@ -30,7 +32,8 @@ export const EMPTY_GRAPH_FILTERS: GraphFilters = {
   path: '',
   since: '',
   until: '',
-  grep: ''
+  grep: '',
+  currentBranch: false
 }
 
 /** First page; scrolling streams older history in {@link GRAPH_PAGE_STEP} chunks. */
@@ -111,7 +114,8 @@ function sanitizeFilters(stored: unknown): GraphFilters | null {
     path: text(value.path),
     since: text(value.since),
     until: text(value.until),
-    grep: text(value.grep)
+    grep: text(value.grep),
+    currentBranch: value.currentBranch === true
   }
 }
 
@@ -124,7 +128,7 @@ function requestFor(
   const text = (value: string): string | undefined => (value.trim().length > 0 ? value.trim() : undefined)
   return {
     gitDir,
-    revs: filters.revs ?? undefined,
+    revs: filters.currentBranch ? ['HEAD'] : (filters.revs ?? undefined),
     author: text(filters.author),
     path: text(filters.path),
     since: text(filters.since),

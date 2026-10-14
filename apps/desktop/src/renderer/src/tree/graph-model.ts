@@ -1,4 +1,4 @@
-import type { CommitInfo } from '@gitreedesk/shared'
+import type { CommitInfo, GitRef, RefKind } from '@gitreedesk/shared'
 
 /**
  * One lane segment crossing a commit row. A segment runs from the lane band
@@ -103,4 +103,34 @@ export function layoutCommits(commits: readonly CommitInfo[]): GraphLayout {
   }
 
   return { rows, laneCount }
+}
+
+const REF_KIND_RANK: Record<RefKind, number> = { branch: 0, remote: 1, tag: 2 }
+
+/** HEAD first, then branches, remotes and tags; ties break by short name. */
+export function compareRefs(a: GitRef, b: GitRef): number {
+  if (a.isHead !== b.isHead) return a.isHead ? -1 : 1
+  return REF_KIND_RANK[a.kind] - REF_KIND_RANK[b.kind] || a.name.localeCompare(b.name)
+}
+
+/** Groups refs by the commit they point at; each group is display-ordered. */
+export function refsBySha(refs: readonly GitRef[]): Map<string, GitRef[]> {
+  const grouped = new Map<string, GitRef[]>()
+  for (const ref of refs) {
+    const group = grouped.get(ref.sha)
+    if (group === undefined) grouped.set(ref.sha, [ref])
+    else group.push(ref)
+  }
+  for (const group of grouped.values()) group.sort(compareRefs)
+  return grouped
+}
+
+/** The ref a commit is best known by: HEAD, then branch, remote and tag. */
+export function prioritizedRefName(refs: readonly GitRef[]): string | null {
+  const best = refs.reduce<GitRef | null>(
+    (current, ref) => (current === null || compareRefs(ref, current) < 0 ? ref : current),
+    null
+  )
+  if (best === null) return null
+  return best.isHead ? 'HEAD' : best.name
 }
