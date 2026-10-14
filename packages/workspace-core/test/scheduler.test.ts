@@ -157,4 +157,27 @@ describe('StatusScheduler', () => {
     },
     30_000
   )
+
+  it(
+    'reports per-read timing, marking fingerprint hits as skipped',
+    async () => {
+      const { target } = await repoFixture()
+      const reads: { ms: number; skipped: boolean }[] = []
+      const s = scheduler({ onRead: (_key, ms, skipped) => reads.push({ ms, skipped }) })
+
+      await s.request(target, { reason: 'warmup' })
+      expect(reads).toHaveLength(1)
+      expect(reads[0]?.skipped).toBe(false)
+      expect(reads[0]?.ms).toBeGreaterThanOrEqual(0)
+
+      await s.request(target, { reason: 'poll' })
+      expect(reads).toHaveLength(2)
+      expect(reads[1]?.skipped).toBe(true)
+
+      await s.request(target, { reason: 'event' })
+      expect(reads).toHaveLength(3)
+      expect(reads[2]?.skipped).toBe(false)
+    },
+    30_000
+  )
 })

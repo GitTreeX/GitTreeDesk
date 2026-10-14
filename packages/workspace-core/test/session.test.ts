@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { RepoStatus } from '@gitreedesk/shared'
+import type { DiscoveryStats, RepoStatus } from '@gitreedesk/shared'
 import { GitPool, runGitOrThrow } from '@gitreedesk/git-core'
 import { WorkspaceSession, type WorkspaceSessionOptions } from '../src/session'
 import { parcelWatchBackend } from '../src/watcher'
@@ -113,6 +113,45 @@ describe('WorkspaceSession', () => {
 
       expect(changes.some((change) => change.added.includes('group/team/app'))).toBe(true)
       expect(changes.some((change) => change.removed.includes('group/team/app'))).toBe(true)
+    },
+    120_000
+  )
+
+  it(
+    'opens from seeded records and converges through a follow-up full rescan',
+    async () => {
+      const root = await tempDir()
+      await initRepo(join(root, 'api-server'))
+      await initRepo(join(root, 'site'))
+
+      const first = session(root, { watchBackend: null })
+      const discovered = await first.open()
+      await first.close()
+
+      await initRepo(join(root, 'tools'))
+      const changes: { added: string[]; removed: string[]; stats: DiscoveryStats | undefined }[] = []
+      const second = session(root, {
+        watchBackend: null,
+        seedRecords: discovered.repos,
+        onReposChanged: (diff, _records, stats) =>
+          changes.push({
+            added: diff.added.map((record) => record.relPath),
+            removed: diff.removed.map((record) => record.relPath),
+            stats
+          })
+      })
+
+      const result = await second.open()
+      expect(result.repos.map((record) => record.relPath).sort()).toEqual(['api-server', 'site'])
+      expect(result.stats.dirsScanned).toBe(0)
+      expect(relPaths(second)).toEqual(['api-server', 'site'])
+      expect(changes).toEqual([])
+
+      const fresh = await second.rescan()
+      expect(fresh?.repos.map((record) => record.relPath).sort()).toEqual(['api-server', 'site', 'tools'])
+      expect(changes).toHaveLength(1)
+      expect(changes[0]?.added).toEqual(['tools'])
+      expect(changes[0]?.stats?.repos).toBe(3)
     },
     120_000
   )

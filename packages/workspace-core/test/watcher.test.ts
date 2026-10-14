@@ -265,6 +265,28 @@ describe('WatcherService', () => {
     )
   })
 
+  it('reports live scope counts including degraded scopes', async () => {
+    const root = await tempDir()
+    const gitDir = join(root, 'app', '.git')
+    await mkdir(gitDir, { recursive: true })
+    const { backend, service } = watcherService(root, { pollIntervalMs: 5_000 })
+    expect(service.stats()).toEqual({ scopes: 0, subscribed: 0, degraded: 0 })
+
+    await service.start()
+    service.updateRepos([repoRecord(join(root, 'app'), gitDir)])
+    service.watchTree(join(root, 'app'))
+    await vi.waitFor(() => expect(service.stats()).toEqual({ scopes: 3, subscribed: 3, degraded: 0 }))
+
+    backend.break(gitDir)
+    await vi.waitFor(() => expect(service.stats().degraded).toBe(1))
+    const stats = service.stats()
+    expect(stats.scopes).toBe(3)
+    expect(stats.subscribed).toBe(2)
+
+    await service.stop()
+    expect(service.stats()).toEqual({ scopes: 0, subscribed: 0, degraded: 0 })
+  })
+
   it('stops cleanly, closing every subscription', async () => {
     const root = await tempDir()
     const gitDir = join(root, 'app', '.git')
