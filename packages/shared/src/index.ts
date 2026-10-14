@@ -1,4 +1,5 @@
 export * from './api'
+export * from './conflicts'
 export * from './git'
 export * from './ipc'
 export * from './workspace'

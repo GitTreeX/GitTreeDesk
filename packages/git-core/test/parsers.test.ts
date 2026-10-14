@@ -69,16 +69,45 @@ describe('parseSubmoduleStatus', () => {
 })
 
 describe('parseStashList', () => {
-  it('parses selector, sha and subject per entry', () => {
+  it('parses selector, sha, subject, branch and date per entry', () => {
     const stdout =
-      ['stash@{0}', sha40('a'), 'On main: second stash'].join(NUL) +
+      ['stash@{0}', sha40('a'), 'On main: second stash', '2026-10-13T08:05:03+02:00'].join(NUL) +
       NUL +
-      ['stash@{1}', sha40('b'), 'WIP on main: abc123 first stash'].join(NUL) +
+      ['stash@{1}', sha40('b'), 'WIP on main: abc123 first stash', '2026-10-12T01:02:03+02:00'].join(
+        NUL
+      ) +
+      NUL +
+      ['stash@{2}', sha40('c'), 'a plain subject', '2026-10-11T00:00:00+02:00'].join(NUL) +
       NUL
 
     expect(parseStashList(stdout)).toEqual([
-      { index: 0, selector: 'stash@{0}', sha: sha40('a'), subject: 'On main: second stash' },
-      { index: 1, selector: 'stash@{1}', sha: sha40('b'), subject: 'WIP on main: abc123 first stash' }
+      {
+        index: 0,
+        selector: 'stash@{0}',
+        sha: sha40('a'),
+        subject: 'On main: second stash',
+        branch: 'main',
+        at: '2026-10-13T08:05:03+02:00',
+        files: 0
+      },
+      {
+        index: 1,
+        selector: 'stash@{1}',
+        sha: sha40('b'),
+        subject: 'WIP on main: abc123 first stash',
+        branch: 'main',
+        at: '2026-10-12T01:02:03+02:00',
+        files: 0
+      },
+      {
+        index: 2,
+        selector: 'stash@{2}',
+        sha: sha40('c'),
+        subject: 'a plain subject',
+        branch: null,
+        at: '2026-10-11T00:00:00+02:00',
+        files: 0
+      }
     ])
   })
 })

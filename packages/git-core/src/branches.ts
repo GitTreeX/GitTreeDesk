@@ -173,3 +173,14 @@ export async function readHeadSha(repoPath: string, options: BranchOpOptions = {
   if (result.code !== 0) return null
   return result.stdout.trim()
 }
+
+/** Current branch name of HEAD; `null` while detached. */
+export async function readHeadRef(repoPath: string, options: BranchOpOptions = {}): Promise<string | null> {
+  const result = await runGit(['symbolic-ref', '--short', '-q', 'HEAD'], {
+    cwd: repoPath,
+    signal: options.signal
+  })
+  if (result.code !== 0) return null
+  const name = result.stdout.trim()
+  return name.length === 0 ? null : name
+}

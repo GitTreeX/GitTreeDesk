@@ -156,3 +156,15 @@ export async function readStatus(options: ReadStatusOptions): Promise<RepoStatus
 
   return { ...parsed, operation, stashCount, submodulesPresent }
 }
+
+/**
+ * True when the repository is mid-operation or has unmerged index entries —
+ * the states in which a command either stopped on conflicts or left a pause.
+ */
+export async function isOperationStopped(
+  repoPath: string,
+  options: { signal?: AbortSignal } = {}
+): Promise<boolean> {
+  const status = await readStatus({ repoPath, untracked: 'no', signal: options.signal })
+  return status.conflicted.length > 0 || status.operation !== 'none'
+}

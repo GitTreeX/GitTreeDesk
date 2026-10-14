@@ -44,6 +44,8 @@ export interface LogOptions {
   skip?: number
   revs?: readonly string[]
   path?: string
+  /** Oldest first; used to load replay plans. */
+  reverse?: boolean
   signal?: AbortSignal
 }
 
@@ -56,6 +58,7 @@ export async function logCommits(options: LogOptions): Promise<LogResult> {
   const maxCount = options.maxCount ?? 50
   const args = ['log', '-z', `--max-count=${String(maxCount + 1)}`, `--format=${FORMAT}`]
 
+  if (options.reverse === true) args.push('--reverse')
   if (options.skip !== undefined && options.skip > 0) args.push(`--skip=${String(options.skip)}`)
   for (const rev of options.revs ?? []) {
     if (rev.startsWith('-')) throw new Error(`Invalid revision: ${rev}`)

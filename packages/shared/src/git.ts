@@ -141,6 +141,12 @@ export interface StashEntry {
   selector: string
   sha: string
   subject: string
+  /** Branch the stash was taken on; `null` when the subject cannot be parsed. */
+  branch: string | null
+  /** ISO 8601 creation time. */
+  at: string
+  /** Number of files the stash touches. */
+  files: number
 }
 
 export interface BackupRef {

@@ -58,6 +58,19 @@ export class OpLogStore {
     this.#db.prepare<[string | null, number]>('UPDATE oplog SET undo_state = ? WHERE id = ?').run(undoState, id)
   }
 
+  get(id: number): OperationRow | null {
+    const row = this.#db.prepare<[number], OpLogDbRow>('SELECT * FROM oplog WHERE id = ?').get(id)
+    return row === undefined ? null : toRow(row)
+  }
+
+  /** Most recent row that took a specific backup ref; backs restore-by-ref. */
+  findByBackupRef(backupRef: string): OperationRow | null {
+    const row = this.#db
+      .prepare<[string], OpLogDbRow>('SELECT * FROM oplog WHERE backup_ref = ? ORDER BY id DESC LIMIT 1')
+      .get(backupRef)
+    return row === undefined ? null : toRow(row)
+  }
+
   latest(repoId: number | null, options: { op?: string } = {}): OperationRow | null {
     const row =
       options.op === undefined

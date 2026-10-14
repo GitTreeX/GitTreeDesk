@@ -140,3 +140,32 @@ export async function listBackupRefs(options: ListBackupRefsOptions): Promise<Ba
     (a, b) => b.createdAt.localeCompare(a.createdAt) || b.ref.localeCompare(a.ref)
   )
 }
+
+/** Tip of a backup ref; `null` when the ref is missing or not a backup ref. */
+export async function readBackupSha(
+  repoPath: string,
+  ref: string,
+  options: { signal?: AbortSignal } = {}
+): Promise<string | null> {
+  if (!ref.startsWith(BACKUP_REF_PREFIX)) return null
+  const result = await runGit(['rev-parse', '--verify', '--quiet', `${ref}^{commit}`], {
+    cwd: repoPath,
+    signal: options.signal
+  })
+  if (result.code !== 0) return null
+  return result.stdout.trim()
+}
+
+/** Resolves a revision to a commit sha; throws when it does not name one. */
+export async function verifyRevision(
+  repoPath: string,
+  rev: string,
+  options: { signal?: AbortSignal } = {}
+): Promise<string> {
+  if (rev.length === 0 || rev.startsWith('-')) throw new Error(`Invalid revision: ${rev}`)
+  const result = await runGitOrThrow(['rev-parse', '--verify', `${rev}^{commit}`], {
+    cwd: repoPath,
+    signal: options.signal
+  })
+  return result.stdout.trim()
+}
