@@ -65,6 +65,8 @@ export interface StatusSchedulerOptions {
   /** Receives `(key, status)` — the key is a checkout's git dir. */
   onStatus?: (key: string, status: RepoStatus) => void
   onError?: (key: string, error: unknown) => void
+  /** Per-read timing; `skipped` marks a fingerprint hit that avoided a git call. */
+  onRead?: (key: string, ms: number, skipped: boolean) => void
   debounceMs?: number
 }
 
@@ -104,6 +106,7 @@ export class StatusScheduler {
   readonly #pool: GitPool
   readonly #onStatus: ((repoId: string, status: RepoStatus) => void) | undefined
   readonly #onError: ((repoId: string, error: unknown) => void) | undefined
+  readonly #onRead: ((key: string, ms: number, skipped: boolean) => void) | undefined
   readonly #debounceMs: number
   readonly #controller = new AbortController()
   #states = new Map<string, RepoState>()
@@ -113,6 +116,7 @@ export class StatusScheduler {
     this.#pool = options.pool
     this.#onStatus = options.onStatus
     this.#onError = options.onError
+    this.#onRead = options.onRead
     this.#debounceMs = options.debounceMs ?? DEFAULT_DEBOUNCE_MS
   }
 
@@ -243,8 +247,12 @@ export class StatusScheduler {
     if (this.#disposed) throw abortError()
 
     if (job.checkFingerprint && state.cached !== null && state.cached.fingerprint !== null) {
+      const skipStarted = performance.now()
       const fingerprint = await statusFingerprint(target)
-      if (fingerprint === state.cached.fingerprint) return state.cached.status
+      if (fingerprint === state.cached.fingerprint) {
+        this.#onRead?.(target.gitDir, performance.now() - skipStarted, true)
+        return state.cached.status
+      }
     }
 
     // The pre-read fingerprint is what the next poll compares against: a change during the
@@ -256,14 +264,16 @@ export class StatusScheduler {
         : AbortSignal.any([this.#controller.signal, job.signal])
 
     const status = await this.#pool.run(
-      (taskSignal) =>
-        readStatus({
+      (taskSignal) => {
+        const started = performance.now()
+        return readStatus({
           repoPath: target.path,
           gitDir: target.gitDir,
           commonDir: target.commonDir,
           untracked: target.untracked,
           signal: taskSignal
-        }),
+        }).finally(() => this.#onRead?.(target.gitDir, performance.now() - started, false))
+      },
       { priority: job.priority, signal }
     )
 

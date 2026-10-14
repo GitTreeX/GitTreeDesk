@@ -215,6 +215,17 @@ export class WatcherService {
     this.#config = config
   }
 
+  /** Live scope counts, for diagnostics surfaces. */
+  stats(): { scopes: number; subscribed: number; degraded: number } {
+    let subscribed = 0
+    let degraded = 0
+    for (const scope of this.#scopes.values()) {
+      if (scope.subscription !== null) subscribed += 1
+      if (scope.degraded) degraded += 1
+    }
+    return { scopes: this.#scopes.size, subscribed, degraded }
+  }
+
   /** Keeps one git-dir watch per registered checkout; bare repositories have no status to watch. */
   updateRepos(records: readonly RepoRecord[]): void {
     if (!this.#running) return

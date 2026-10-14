@@ -310,72 +310,78 @@ export async function discoverRepositories(options: DiscoverOptions): Promise<Di
   }
 
   // Linked worktrees are enumerated from `git worktree list`: in-root ones were already
-  // found by the scan and gain their lock/prune state here; the rest are added.
+  // found by the scan and gain their lock/prune state here; the rest are added. Linked
+  // worktrees live under `<commonDir>/worktrees/`, so repos without that directory skip
+  // the spawn entirely. The remaining listings run concurrently through the pool.
   const recordByKey = new Map(records.map((record) => [`${record.id}\u0000${record.path}`, record]))
   const mainRecords = records.filter((record) => record.kind !== 'bare' && record.gitDir === record.id)
-  for (const main of mainRecords) {
-    if (signal?.aborted === true) throw new DOMException('Discovery aborted', 'AbortError')
-    let worktrees
-    try {
-      worktrees = await pool.run((taskSignal) => listWorktrees({ repoPath: main.path, signal: taskSignal }), {
-        priority: 'background',
-        signal
-      })
-    } catch {
-      issues.push(`Cannot list worktrees of: ${main.path}`)
-      continue
-    }
+  await Promise.all(
+    mainRecords.map(async (main) => {
+      if (signal?.aborted === true) throw new DOMException('Discovery aborted', 'AbortError')
+      if (!(await pathExists(join(main.commonDir, 'worktrees')))) return
 
-    for (const worktree of worktrees) {
-      if (worktree.bare) continue
-      let worktreePath: string
+      let worktrees
       try {
-        worktreePath = await realpathPosix(worktree.path)
+        worktrees = await pool.run((taskSignal) => listWorktrees({ repoPath: main.path, signal: taskSignal }), {
+          priority: 'background',
+          signal
+        })
       } catch {
-        // The folder is gone; keep a prunable record so the leftover can be pruned.
-        worktreePath = toPosix(worktree.path)
-      }
-      // A submodule checkout reports its own git dir as the "main worktree"; the actual
-      // checkout is discovered by the scan, so this entry carries no new information.
-      if (worktreePath === main.gitDir) continue
-
-      const key = `${main.id}\u0000${worktreePath}`
-      const existing = recordByKey.get(key)
-      if (existing !== undefined) {
-        existing.worktreeLocked = worktree.locked
-        existing.worktreePrunable = worktree.prunable
-        continue
+        issues.push(`Cannot list worktrees of: ${main.path}`)
+        return
       }
 
-      let gitDir = ''
-      let commonDir = main.commonDir
-      try {
-        const dirs = await resolveRepoDirs(worktreePath, { signal })
-        gitDir = await realpathPosix(dirs.gitDir)
-        commonDir = await realpathPosix(dirs.commonDir)
-      } catch {
-        // Keep the record; status reads resolve the directories again on demand.
-      }
+      for (const worktree of worktrees) {
+        if (worktree.bare) continue
+        let worktreePath: string
+        try {
+          worktreePath = await realpathPosix(worktree.path)
+        } catch {
+          // The folder is gone; keep a prunable record so the leftover can be pruned.
+          worktreePath = toPosix(worktree.path)
+        }
+        // A submodule checkout reports its own git dir as the "main worktree"; the actual
+        // checkout is discovered by the scan, so this entry carries no new information.
+        if (worktreePath === main.gitDir) continue
 
-      const record: RepoRecord = {
-        id: main.id,
-        root: rootPosix,
-        relPath: toPosix(relative(rootPosix, worktreePath)),
-        path: worktreePath,
-        gitDir,
-        commonDir,
-        kind: 'worktree',
-        parentId: main.id,
-        name: basename(worktreePath),
-        external: !isInside(rootPosix, worktreePath),
-        hasSubmodules: false,
-        worktreeLocked: worktree.locked,
-        worktreePrunable: worktree.prunable
+        const key = `${main.id}\u0000${worktreePath}`
+        const existing = recordByKey.get(key)
+        if (existing !== undefined) {
+          existing.worktreeLocked = worktree.locked
+          existing.worktreePrunable = worktree.prunable
+          continue
+        }
+
+        let gitDir = ''
+        let commonDir = main.commonDir
+        try {
+          const dirs = await resolveRepoDirs(worktreePath, { signal })
+          gitDir = await realpathPosix(dirs.gitDir)
+          commonDir = await realpathPosix(dirs.commonDir)
+        } catch {
+          // Keep the record; status reads resolve the directories again on demand.
+        }
+
+        const record: RepoRecord = {
+          id: main.id,
+          root: rootPosix,
+          relPath: toPosix(relative(rootPosix, worktreePath)),
+          path: worktreePath,
+          gitDir,
+          commonDir,
+          kind: 'worktree',
+          parentId: main.id,
+          name: basename(worktreePath),
+          external: !isInside(rootPosix, worktreePath),
+          hasSubmodules: false,
+          worktreeLocked: worktree.locked,
+          worktreePrunable: worktree.prunable
+        }
+        recordByKey.set(key, record)
+        records.push(record)
       }
-      recordByKey.set(key, record)
-      records.push(record)
-    }
-  }
+    })
+  )
 
   linkRecordParents(records)
 

@@ -1,6 +1,6 @@
 import { realpath } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
-import type { DiscoveryResult, RepoRecord, RepoStatus, WorkspaceConfig } from '@gitreedesk/shared'
+import type { DiscoveryResult, DiscoveryStats, RepoRecord, RepoStatus, WorkspaceConfig } from '@gitreedesk/shared'
 import type { GitPool } from '@gitreedesk/git-core'
 import { loadWorkspaceConfig } from './config'
 import { discoverRepositories } from './discovery'
@@ -28,14 +28,22 @@ export interface WorkspaceSessionOptions {
   config?: WorkspaceConfig
   /** `null` disables filesystem watching (tests, headless use); rescans stay available. */
   watchBackend?: WatchBackend | null
+  /**
+   * Records shown immediately on open (a cache-first open); the caller still runs a
+   * full rescan so the tree converges on the live state. Empty or absent ⇒ the open
+   * waits for discovery instead.
+   */
+  seedRecords?: readonly RepoRecord[]
   debounceMs?: number
   pollIntervalMs?: number
   treeWatchCap?: number
   /** Per-repo untracked listing mode for status reads; `undefined` keeps the default. */
   untrackedStrategy?: (record: RepoRecord) => 'no' | 'normal' | 'all' | undefined
   onStatus?: (key: string, status: RepoStatus) => void
+  /** Per-read timing; `skipped` marks a fingerprint hit that avoided a git call. */
+  onStatusRead?: (key: string, ms: number, skipped: boolean) => void
   onError?: (key: string, error: unknown) => void
-  onReposChanged?: (diff: RepoDiff, records: RepoRecord[]) => void
+  onReposChanged?: (diff: RepoDiff, records: RepoRecord[], stats?: DiscoveryStats) => void
   onIssues?: (issues: string[]) => void
   /** Raw working-tree change paths, for explorer invalidation. */
   onTreeChange?: (paths: readonly string[]) => void
@@ -70,6 +78,7 @@ export class WorkspaceSession {
       pool: options.pool,
       debounceMs: options.debounceMs,
       onStatus: (key, status) => options.onStatus?.(key, status),
+      onRead: (key, ms, skipped) => options.onStatusRead?.(key, ms, skipped),
       onError: (key, error) => options.onError?.(key, error)
     })
   }
@@ -107,33 +116,54 @@ export class WorkspaceSession {
         : { config: this.#options.config, issues: [] as string[] }
     this.#config = loaded.config
 
-    const result = await discoverRepositories({ root: this.#root, config: loaded.config, pool: this.#pool })
-    this.#registry = new WorkspaceRegistry({ root: this.#root, config: loaded.config })
-    this.#registry.replace(result.repos)
+    const seed = this.#options.seedRecords
+    let result: DiscoveryResult
+    if (seed !== undefined && seed.length > 0) {
+      // Cache-first: reuse the previous session's records so the tree paints at once;
+      // the caller follows up with a full rescan that converges on the live state.
+      result = {
+        repos: [...seed],
+        stats: {
+          dirsScanned: 0,
+          candidates: 0,
+          repos: seed.length,
+          budgetExceeded: false,
+          maxDepthReached: false
+        },
+        issues: []
+      }
+    } else {
+      result = await discoverRepositories({ root: this.#root, config: loaded.config, pool: this.#pool })
+    }
 
     if (loaded.issues.length > 0) this.#options.onIssues?.(loaded.issues)
     if (result.issues.length > 0) this.#options.onIssues?.(result.issues)
 
-    const backend = this.#options.watchBackend === undefined ? parcelWatchBackend : this.#options.watchBackend
-    if (backend !== null) {
-      this.#watcher = new WatcherService({
-        backend,
-        root: this.#root,
-        config: loaded.config,
-        debounceMs: this.#options.debounceMs,
-        pollIntervalMs: this.#options.pollIntervalMs,
-        treeWatchCap: this.#options.treeWatchCap,
-        onDiscoveryChange: (dirs) => void this.rescan(dirs),
-        onGitDirChange: (batches, reason) => this.#refreshGitDirs(batches, reason),
-        onTreeChange: (paths) => this.#refreshTree(paths),
-        onDegraded: this.#options.onDegraded
-      })
-      await this.#watcher.start()
-      this.#watcher.updateRepos(result.repos)
-    }
+    this.#registry = new WorkspaceRegistry({ root: this.#root, config: loaded.config })
+    this.#registry.replace(result.repos)
 
+    await this.#startWatcher(loaded.config, result.repos)
     void this.warmUp()
     return result
+  }
+
+  async #startWatcher(config: WorkspaceConfig, records: readonly RepoRecord[]): Promise<void> {
+    const backend = this.#options.watchBackend === undefined ? parcelWatchBackend : this.#options.watchBackend
+    if (backend === null) return
+    this.#watcher = new WatcherService({
+      backend,
+      root: this.#root,
+      config,
+      debounceMs: this.#options.debounceMs,
+      pollIntervalMs: this.#options.pollIntervalMs,
+      treeWatchCap: this.#options.treeWatchCap,
+      onDiscoveryChange: (dirs) => void this.rescan(dirs),
+      onGitDirChange: (batches, reason) => this.#refreshGitDirs(batches, reason),
+      onTreeChange: (paths) => this.#refreshTree(paths),
+      onDegraded: this.#options.onDegraded
+    })
+    await this.#watcher.start()
+    this.#watcher.updateRepos(records)
   }
 
   setConfig(config: WorkspaceConfig): void {
@@ -159,6 +189,11 @@ export class WorkspaceSession {
   /** Fallback polling cadence for degraded watch scopes; applies to future retries. */
   setPollIntervalMs(ms: number): void {
     this.#watcher?.setPollIntervalMs(ms)
+  }
+
+  /** Live watch scope counts; zeroes once the watcher is stopped. */
+  watcherStats(): { scopes: number; subscribed: number; degraded: number } {
+    return this.#watcher?.stats() ?? { scopes: 0, subscribed: 0, degraded: 0 }
   }
 
   watchDirectory(dir: string): void {
@@ -197,7 +232,7 @@ export class WorkspaceSession {
     if (dirs === undefined) {
       const result = await discoverRepositories({ root: this.#root, config, pool: this.#pool })
       if (result.issues.length > 0) this.#options.onIssues?.(result.issues)
-      this.#applyRecords(result.repos)
+      this.#applyRecords(result.repos, result.stats)
       return result
     }
 
@@ -238,13 +273,15 @@ export class WorkspaceSession {
     this.#retryTimers.add(timer)
   }
 
-  #applyRecords(next: readonly RepoRecord[]): void {
+  #applyRecords(next: readonly RepoRecord[], stats?: DiscoveryStats): void {
     const diff = this.registry.replace(next)
     for (const record of diff.removed) this.#scheduler.forget(record.gitDir)
     this.#watcher?.updateRepos(next)
     if (diff.added.length > 0 || diff.updated.length > 0) void this.warmUp([...diff.added, ...diff.updated])
-    if (diff.added.length > 0 || diff.removed.length > 0 || diff.updated.length > 0) {
-      this.#options.onReposChanged?.(diff, this.registry.all)
+    const changed = diff.added.length > 0 || diff.removed.length > 0 || diff.updated.length > 0
+    // A full rescan reports even an unchanged result: its stats still refresh the UI.
+    if (changed || stats !== undefined) {
+      this.#options.onReposChanged?.(diff, this.registry.all, stats)
     }
   }
 
