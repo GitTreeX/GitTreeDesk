@@ -16,7 +16,9 @@ function sameRecord(a: RepoRecord, b: RepoRecord): boolean {
     a.parentId === b.parentId &&
     a.name === b.name &&
     a.external === b.external &&
-    a.hasSubmodules === b.hasSubmodules
+    a.hasSubmodules === b.hasSubmodules &&
+    (a.worktreeLocked ?? null) === (b.worktreeLocked ?? null) &&
+    (a.worktreePrunable ?? null) === (b.worktreePrunable ?? null)
   )
 }
 

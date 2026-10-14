@@ -25,6 +25,13 @@ export interface RepoRecord {
   /** True when the checkout lives outside the workspace root. */
   external: boolean
   hasSubmodules: boolean
+  /**
+   * Worktree only: the lock reason, `''` when locked without one; `null` when
+   * unlocked. `undefined` while the state has not been read for this record.
+   */
+  worktreeLocked?: string | null
+  /** Worktree only: the prune reason of a worktree whose folder is gone. */
+  worktreePrunable?: string | null
 }
 
 export interface WorkspaceGroup {

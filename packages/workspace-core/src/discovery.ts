@@ -309,7 +309,9 @@ export async function discoverRepositories(options: DiscoverOptions): Promise<Di
     }
   }
 
-  // Linked worktrees outside the workspace only exist in `git worktree list` output.
+  // Linked worktrees are enumerated from `git worktree list`: in-root ones were already
+  // found by the scan and gain their lock/prune state here; the rest are added.
+  const recordByKey = new Map(records.map((record) => [`${record.id}\u0000${record.path}`, record]))
   const mainRecords = records.filter((record) => record.kind !== 'bare' && record.gitDir === record.id)
   for (const main of mainRecords) {
     if (signal?.aborted === true) throw new DOMException('Discovery aborted', 'AbortError')
@@ -330,15 +332,20 @@ export async function discoverRepositories(options: DiscoverOptions): Promise<Di
       try {
         worktreePath = await realpathPosix(worktree.path)
       } catch {
-        continue
+        // The folder is gone; keep a prunable record so the leftover can be pruned.
+        worktreePath = toPosix(worktree.path)
       }
       // A submodule checkout reports its own git dir as the "main worktree"; the actual
       // checkout is discovered by the scan, so this entry carries no new information.
       if (worktreePath === main.gitDir) continue
 
       const key = `${main.id}\u0000${worktreePath}`
-      if (seen.has(key)) continue
-      seen.add(key)
+      const existing = recordByKey.get(key)
+      if (existing !== undefined) {
+        existing.worktreeLocked = worktree.locked
+        existing.worktreePrunable = worktree.prunable
+        continue
+      }
 
       let gitDir = ''
       let commonDir = main.commonDir
@@ -350,7 +357,7 @@ export async function discoverRepositories(options: DiscoverOptions): Promise<Di
         // Keep the record; status reads resolve the directories again on demand.
       }
 
-      records.push({
+      const record: RepoRecord = {
         id: main.id,
         root: rootPosix,
         relPath: toPosix(relative(rootPosix, worktreePath)),
@@ -361,8 +368,12 @@ export async function discoverRepositories(options: DiscoverOptions): Promise<Di
         parentId: main.id,
         name: basename(worktreePath),
         external: !isInside(rootPosix, worktreePath),
-        hasSubmodules: false
-      })
+        hasSubmodules: false,
+        worktreeLocked: worktree.locked,
+        worktreePrunable: worktree.prunable
+      }
+      recordByKey.set(key, record)
+      records.push(record)
     }
   }
 
