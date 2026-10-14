@@ -1,0 +1,107 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows-x64
+            os: windows-latest
+            package: win
+            caches: |
+              ~/AppData/Local/electron/Cache
+              ~/AppData/Local/electron-builder/Cache
+              ~/.npm/_prebuilds
+          - name: macos-arm64
+            os: macos-latest
+            package: mac
+            caches: |
+              ~/Library/Caches/electron
+              ~/Library/Caches/electron-builder
+              ~/.npm/_prebuilds
+          - name: macos-x64
+            os: macos-15-intel
+            package: mac
+            caches: |
+              ~/Library/Caches/electron
+              ~/Library/Caches/electron-builder
+              ~/.npm/_prebuilds
+          - name: linux-x64
+            os: ubuntu-latest
+            package: linux
+            caches: |
+              ~/.cache/electron
+              ~/.cache/electron-builder
+              ~/.npm/_prebuilds
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Cache Electron, builder tooling, and native prebuilds
+        uses: actions/cache@v6
+        with:
+          path: ${{ matrix.caches }}
+          key: ${{ matrix.name }}-${{ hashFiles('pnpm-lock.yaml', '.npmrc') }}
+          restore-keys: |
+            ${{ matrix.name }}-
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - run: pnpm fixture
+      - name: Package (${{ matrix.package }})
+        run: pnpm package:${{ matrix.package }}
+      - name: Packaged smoke (headless Linux)
+        if: matrix.package == 'linux'
+        run: xvfb-run -a pnpm smoke:packaged
+      - name: Packaged smoke
+        if: matrix.package != 'linux'
+        run: pnpm smoke:packaged
+      # The release budgets are gates on the reference machine; shared CI
+      # runners are only good enough for trend measurement.
+      - name: Perf budgets (informational on shared runners)
+        if: matrix.package == 'win'
+        continue-on-error: true
+        run: pnpm perf-budget
+      - name: Upload smoke reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: reports-${{ matrix.name }}
+          path: |
+            .fixtures/packaged-profile/smoke-report.json
+            .fixtures/packaged-profile/packaged-open.png
+            .fixtures/perf-profile/perf-report.json
+          if-no-files-found: ignore
+      - name: Upload installers
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v7
+        with:
+          name: installers-${{ matrix.name }}
+          path: |
+            release/*.exe
+            release/*.zip
+            release/*.dmg
+            release/*.AppImage
+            release/*.deb
+          if-no-files-found: ignore
