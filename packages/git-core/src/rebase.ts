@@ -44,6 +44,10 @@ export async function loadRebasePlan(options: {
     reverse: true,
     signal: options.signal
   })
+  // A truncated plan would drop the commits it omits when git replays it.
+  if (result.hasMore) {
+    throw new Error(`The branch has more than ${String(PLAN_LIMIT)} commits above ${options.base}`)
+  }
   return result.commits.filter((commit) => commit.parents.length <= 1)
 }
 
@@ -144,8 +148,12 @@ export interface RebaseStepInput {
 
 export interface InteractiveRebaseOptions {
   /** Revision whose descendants are replayed (`git rebase -i <base>`). */
-  base: string
+  base?: string
+  /** Replays every commit up to and including the root (`git rebase -i --root`). */
+  root?: boolean
   steps: readonly RebaseStepInput[]
+  /** Receives git's stdout and stderr while the rebase runs. */
+  onOutput?: (chunk: string) => void
   signal?: AbortSignal
 }
 
@@ -158,7 +166,12 @@ export async function rebaseInteractive(
   repoPath: string,
   options: InteractiveRebaseOptions
 ): Promise<RebaseResult> {
-  assertRev(options.base, 'base')
+  if (options.root !== true) {
+    if (options.base === undefined || options.base.length === 0) {
+      throw new Error('The rebase base is required')
+    }
+    assertRev(options.base, 'base')
+  }
   if (options.steps.length === 0) throw new Error('The rebase plan is empty')
 
   const todo: string[] = []
@@ -195,11 +208,14 @@ export async function rebaseInteractive(
   await mkdir(dirname(file), { recursive: true })
   await writeFile(
     file,
-    JSON.stringify({ dir, base: options.base, startedAt: Date.now() } satisfies RebaseSession),
+    JSON.stringify({ dir, base: options.base ?? '', startedAt: Date.now() } satisfies RebaseSession),
     'utf8'
   )
 
-  const args = ['-c', 'rebase.autoStash=true', 'rebase', '--interactive', options.base]
+  const args =
+    options.root === true
+      ? ['-c', 'rebase.autoStash=true', 'rebase', '--interactive', '--root']
+      : ['-c', 'rebase.autoStash=true', 'rebase', '--interactive', options.base ?? '']
   try {
     const result = await runGit(args, {
       cwd: repoPath,
@@ -207,6 +223,8 @@ export async function rebaseInteractive(
         ...editorEnv(script, configPath),
         GIT_SEQUENCE_EDITOR: editorCommand(script, 'seq')
       },
+      onStdout: options.onOutput,
+      onStderr: options.onOutput,
       signal: options.signal
     })
     return await classifyRebaseRun(repoPath, args, result, options.signal, true)

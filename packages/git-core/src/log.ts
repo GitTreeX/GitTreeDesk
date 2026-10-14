@@ -38,7 +38,42 @@ export function parseLog(stdout: string): CommitInfo[] {
   return commits
 }
 
-export interface LogOptions {
+export interface LogFilters {
+  /** Literal substring of the author name or email. */
+  author?: string
+  /** `--since` boundary; any date git understands. */
+  since?: string
+  /** `--until` boundary. */
+  until?: string
+  /** Case-insensitive literal substring of the commit message. */
+  grep?: string
+}
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function appendFilterArgs(args: string[], filters: LogFilters): void {
+  if (filters.author !== undefined && filters.author.length > 0) {
+    args.push(`--author=${escapeRegex(filters.author)}`)
+  }
+  if (filters.since !== undefined && filters.since.length > 0) args.push(`--since=${filters.since}`)
+  if (filters.until !== undefined && filters.until.length > 0) args.push(`--until=${filters.until}`)
+  if (filters.grep !== undefined && filters.grep.length > 0) {
+    args.push('--regexp-ignore-case', `--grep=${escapeRegex(filters.grep)}`)
+  }
+}
+
+function appendStartArgs(args: string[], options: { revs?: readonly string[]; all?: boolean }): void {
+  // `--all` would also walk backup and stash refs, so the explicit trio stands in.
+  if (options.all === true) args.push('--branches', '--remotes', '--tags')
+  for (const rev of options.revs ?? []) {
+    if (rev.startsWith('-')) throw new Error(`Invalid revision: ${rev}`)
+    args.push(rev)
+  }
+}
+
+export interface LogOptions extends LogFilters {
   repoPath: string
   maxCount?: number
   skip?: number
@@ -46,6 +81,8 @@ export interface LogOptions {
   path?: string
   /** Oldest first; used to load replay plans. */
   reverse?: boolean
+  /** Walks every branch, remote-tracking branch and tag instead of `revs`. */
+  all?: boolean
   signal?: AbortSignal
 }
 
@@ -59,11 +96,9 @@ export async function logCommits(options: LogOptions): Promise<LogResult> {
   const args = ['log', '-z', `--max-count=${String(maxCount + 1)}`, `--format=${FORMAT}`]
 
   if (options.reverse === true) args.push('--reverse')
+  appendFilterArgs(args, options)
+  appendStartArgs(args, options)
   if (options.skip !== undefined && options.skip > 0) args.push(`--skip=${String(options.skip)}`)
-  for (const rev of options.revs ?? []) {
-    if (rev.startsWith('-')) throw new Error(`Invalid revision: ${rev}`)
-    args.push(rev)
-  }
   if (options.path !== undefined) args.push('--', options.path)
 
   const result = await runGit(args, {
@@ -88,4 +123,44 @@ export async function logCommits(options: LogOptions): Promise<LogResult> {
   const commits = parseLog(result.stdout)
   if (commits.length > maxCount) return { commits: commits.slice(0, maxCount), hasMore: true }
   return { commits, hasMore: false }
+}
+
+export interface CountCommitsOptions extends LogFilters {
+  repoPath: string
+  revs?: readonly string[]
+  /** Counts every branch, remote-tracking branch and tag instead of `revs`. */
+  all?: boolean
+  path?: string
+  signal?: AbortSignal
+}
+
+/** Size of the history a matching `logCommits` call would walk, ignoring paging. */
+export async function countCommits(options: CountCommitsOptions): Promise<number> {
+  const args = ['rev-list', '--count']
+  appendFilterArgs(args, options)
+  // `log` defaults to HEAD on its own, but `rev-list` treats a missing start
+  // point as a usage error — the implicit HEAD is spelled out instead.
+  const explicitRevs = options.revs !== undefined && options.revs.length > 0
+  if (!explicitRevs && options.all !== true) args.push('HEAD')
+  appendStartArgs(args, options)
+  if (options.path !== undefined) args.push('--', options.path)
+
+  const result = await runGit(args, {
+    cwd: options.repoPath,
+    env: options.path === undefined ? undefined : LITERAL_PATHS_ENV,
+    signal: options.signal
+  })
+  if (result.code !== 0) {
+    const unborn = /does not have any commits yet|ambiguous argument 'HEAD'/.test(result.stderr)
+    if (!explicitRevs && unborn) return 0
+    throw new GitCommandError(`git rev-list failed (exit code ${String(result.code)})`, {
+      args,
+      cwd: options.repoPath,
+      code: result.code,
+      stdout: result.stdout,
+      stderr: result.stderr
+    })
+  }
+  const value = Number.parseInt(result.stdout.trim(), 10)
+  return Number.isFinite(value) ? value : 0
 }

@@ -81,11 +81,20 @@ export async function readHeadCommit(options: ReadHeadCommitOptions): Promise<He
   return { sha, message }
 }
 
+/** True when a remote-tracking branch contains the revision, i.e. it is published. */
+export async function isCommitPushed(options: {
+  repoPath: string
+  rev: string
+  signal?: AbortSignal
+}): Promise<boolean> {
+  const result = await runGit(
+    ['for-each-ref', '--count=1', `--contains=${options.rev}`, 'refs/remotes/'],
+    { cwd: options.repoPath, signal: options.signal }
+  )
+  return result.code === 0 && result.stdout.trim().length > 0
+}
+
 /** True when HEAD is contained in a remote-tracking branch, i.e. already published. */
 export async function isHeadPushed(options: ReadHeadCommitOptions): Promise<boolean> {
-  const result = await runGit(['for-each-ref', '--count=1', '--contains=HEAD', 'refs/remotes/'], {
-    cwd: options.repoPath,
-    signal: options.signal
-  })
-  return result.code === 0 && result.stdout.trim().length > 0
+  return await isCommitPushed({ repoPath: options.repoPath, rev: 'HEAD', signal: options.signal })
 }
