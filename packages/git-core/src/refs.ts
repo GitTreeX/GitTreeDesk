@@ -57,7 +57,9 @@ export function parseForEachRef(stdout: string): GitRef[] {
       ahead,
       behind,
       subject: subject.length > 0 ? subject : null,
-      updatedAt: creatorDate.length > 0 ? creatorDate : null
+      updatedAt: creatorDate.length > 0 ? creatorDate : null,
+      // `%(*objectname)` peels a tag object; lightweight tags have nothing to peel.
+      annotated: kind === 'tag' && peeledName.length > 0
     })
   }
 

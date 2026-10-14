@@ -40,6 +40,7 @@ const ref: GitRef = {
   name: 'main',
   fullName: 'refs/heads/main',
   kind: 'branch',
+  annotated: false,
   sha: 'b'.repeat(40),
   isHead: true,
   upstream: 'origin/main',

@@ -63,6 +63,8 @@ export interface GitRef {
   subject: string | null
   /** ISO 8601 date of the tip: committer date of the commit, or tagger date. */
   updatedAt: string | null
+  /** Tags only: a tag object carries the annotation; always false elsewhere. */
+  annotated: boolean
 }
 
 export type PullStrategy = 'ff-only' | 'merge' | 'rebase'

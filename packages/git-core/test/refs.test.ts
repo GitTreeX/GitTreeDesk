@@ -52,7 +52,8 @@ describe('parseForEachRef', () => {
         ahead: 1,
         behind: 2,
         subject: 'Initial commit',
-        updatedAt: '2026-01-02T03:04:05+08:00'
+        updatedAt: '2026-01-02T03:04:05+08:00',
+        annotated: false
       }
     ])
   })
@@ -92,7 +93,7 @@ describe('parseForEachRef', () => {
         refLine({ fullName: 'refs/tags/light', name: 'light', sha: 'd'.repeat(40) })
       ].join('\n')
     )
-    expect(refs[0]).toMatchObject({ kind: 'tag', sha: 'c'.repeat(40) })
-    expect(refs[1]).toMatchObject({ kind: 'tag', sha: 'd'.repeat(40) })
+    expect(refs[0]).toMatchObject({ kind: 'tag', sha: 'c'.repeat(40), annotated: true })
+    expect(refs[1]).toMatchObject({ kind: 'tag', sha: 'd'.repeat(40), annotated: false })
   })
 })
