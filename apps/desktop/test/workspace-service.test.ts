@@ -1059,4 +1059,43 @@ describe('submodule operations', () => {
     },
     60_000
   )
+
+  it(
+    'registers a submodule checkout once it is initialized',
+    async () => {
+      const root = await tempDir('gtd-svc-sub-')
+      const userData = await tempDir('gtd-svc-data-')
+      const library = await tempDir('gtd-svc-sub-lib-')
+      await git(library, ['init', '-q', '-b', 'main'])
+      await writeFile(join(library, 'lib.txt'), 'lib\n')
+      await commitAll(library, 'library')
+
+      const repo = join(root, 'api-server')
+      await initRepo(repo)
+      await git(repo, ['submodule', 'add', '-q', library.replace(/\\/g, '/'), 'libs/core'])
+      await commitAll(repo, 'add library submodule')
+      await git(repo, ['submodule', 'deinit', '-f', 'libs/core'])
+
+      const events: WorkspaceServiceEvent[] = []
+      const instance = service(userData, events)
+      const descriptor = await instance.open(root)
+      const main = descriptor.records.find((entry) => entry.relPath === 'api-server')
+      const gitDir = main?.gitDir ?? ''
+
+      const before = (await instance.gitSubmodules({ gitDir })).submodules
+      expect(before).toHaveLength(1)
+      expect(before[0]?.checkout).toBe('uninitialized')
+
+      const { results } = await instance.gitSubmoduleUpdate({ gitDir, init: true })
+      expect(results).toHaveLength(1)
+      expect(results[0]).toMatchObject({ path: 'libs/core', ok: true, updated: true })
+
+      // The initialized checkout registers through a scoped rescan as a
+      // repository nested under the superproject.
+      const added = events.flatMap((event) => (event.type === 'reposChanged' ? event.diff.added : []))
+      const child = added.find((entry) => entry.relPath === 'api-server/libs/core')
+      expect(child).toMatchObject({ kind: 'repository', parentId: main?.id })
+    },
+    60_000
+  )
 })

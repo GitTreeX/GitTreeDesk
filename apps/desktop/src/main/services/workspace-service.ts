@@ -1192,6 +1192,20 @@ export class WorkspaceService {
       record,
       results.filter((row) => row.updated).map((row) => row.path)
     )
+    // Freshly cloned checkouts register through a scoped rescan, so their rows
+    // appear without waiting for the watcher.
+    const initialized = results.filter(
+      (row) => row.ok && before.find((entry) => entry.path === row.path)?.checkout === 'uninitialized'
+    )
+    const dirs: string[] = []
+    for (const row of initialized) {
+      try {
+        dirs.push(await this.resolveInside(toPosix(join(record.path, row.path))))
+      } catch {
+        // The checkout did not appear; there is no row to register.
+      }
+    }
+    if (dirs.length > 0) await this.rescan(dirs)
     return { results }
   }
 
