@@ -5,6 +5,7 @@ export type Monaco = typeof MonacoApi
 export type TextModel = MonacoApi.editor.ITextModel
 export type StandaloneEditor = MonacoApi.editor.IStandaloneCodeEditor
 export type DiffEditor = MonacoApi.editor.IStandaloneDiffEditor
+export type DeltaDecoration = MonacoApi.editor.IModelDeltaDecoration
 
 type WorkerLike = {
   getWorker?: (moduleId: string, label: string) => Worker | Promise<Worker>

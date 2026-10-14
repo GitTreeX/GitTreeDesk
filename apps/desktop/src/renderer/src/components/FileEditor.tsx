@@ -4,10 +4,17 @@ import type { FsReadFileResponse } from '@gitreedesk/shared'
 import { api } from '../api'
 import { useEditor, type FileTab, type FileTabActions } from '../contexts/editor'
 import { useWorkspace } from '../contexts/workspace'
+import {
+  applyConflictChoice,
+  findConflictHunks,
+  type ConflictChoice,
+  type ConflictHunk
+} from '../editor/conflict-markers'
 import { ensureLanguage, isTsMode, languageIdForPath } from '../editor/languages'
-import { loadMonaco, type StandaloneEditor, type TextModel } from '../editor/monaco'
+import { loadMonaco, type DeltaDecoration, type Monaco, type StandaloneEditor, type TextModel } from '../editor/monaco'
 import { applyNearestTsconfig } from '../editor/ts-config'
 import { notifyError } from '../notify'
+import { ContextMenu, type ContextMenuItem } from './ContextMenu'
 import { SnapshotDiffView } from './SnapshotDiffView'
 
 const DEFAULT_FONT_FAMILY = "Menlo, Monaco, 'Courier New', monospace"
@@ -36,6 +43,43 @@ function formatSize(bytes: number): string {
   return `${bytes} B`
 }
 
+/** Highlights conflict hunks; marker-line glyphs open the resolution menu when `interactive`. */
+function buildConflictDecorations(
+  monaco: Monaco,
+  hunks: readonly ConflictHunk[],
+  hint: string,
+  interactive: boolean
+): DeltaDecoration[] {
+  const decorations: DeltaDecoration[] = []
+  const marker = (line: number, glyph: boolean): void => {
+    decorations.push({
+      range: new monaco.Range(line, 1, line, 1),
+      options: {
+        linesDecorationsClassName: 'gtd-conflict-marker-line',
+        ...(glyph
+          ? { glyphMarginClassName: 'gtd-conflict-glyph', glyphMarginHoverMessage: { value: hint } }
+          : {})
+      }
+    })
+  }
+  const region = (from: number, to: number, className: string): void => {
+    if (from > to) return
+    decorations.push({
+      range: new monaco.Range(from, 1, to, 1),
+      options: { isWholeLine: true, className }
+    })
+  }
+  for (const hunk of hunks) {
+    marker(hunk.startLine, interactive)
+    marker(hunk.endLine, interactive)
+    marker(hunk.sepLine, false)
+    region(hunk.oursStart, hunk.oursEnd, 'gtd-conflict-ours')
+    region(hunk.theirsStart, hunk.theirsEnd, 'gtd-conflict-theirs')
+    if (hunk.hasBase) region(hunk.baseStart, hunk.baseEnd, 'gtd-conflict-base')
+  }
+  return decorations
+}
+
 export function FileEditor({ tab, active }: { tab: FileTab; active: boolean }): JSX.Element {
   const { t } = useTranslation()
   const editorCtx = useEditor()
@@ -47,6 +91,10 @@ export function FileEditor({ tab, active }: { tab: FileTab; active: boolean }): 
   const [deleted, setDeleted] = useState(false)
   const [conflict, setConflict] = useState<ConflictInfo | null>(null)
   const [diskDiff, setDiskDiff] = useState<ConflictInfo | null>(null)
+  const [hunkMenu, setHunkMenu] = useState<{ x: number; y: number; hunk: ConflictHunk } | null>(null)
+
+  const tRef = useRef(t)
+  tRef.current = t
 
   const containerRef = useRef<HTMLDivElement | null>(null)
   const editorRef = useRef<StandaloneEditor | null>(null)
@@ -127,6 +175,7 @@ export function FileEditor({ tab, active }: { tab: FileTab; active: boolean }): 
     if (doc.status !== 'text' || mountedRef.current) return
     mountedRef.current = true
     let disposed = false
+    let parseTimer: number | undefined
     void (async () => {
       try {
         const monaco = await loadMonaco()
@@ -150,10 +199,31 @@ export function FileEditor({ tab, active }: { tab: FileTab; active: boolean }): 
           wordWrap: settings.wordWrap ? 'on' : 'off',
           scrollBeyondLastLine: false,
           renderWhitespace: 'selection',
+          glyphMargin: true,
           fixedOverflowWidgets: true
         })
+        const collection = editor.createDecorationsCollection([])
+        let currentHunks: readonly ConflictHunk[] = []
+        const refreshHunks = (): void => {
+          currentHunks = findConflictHunks(model.getLinesContent())
+          collection.set(
+            buildConflictDecorations(monaco, currentHunks, tRef.current('editor.conflictGutterHint'), !doc.readOnly)
+          )
+        }
+        refreshHunks()
         editor.onDidChangeModelContent(() => {
           editorCtx.setTabDirty(tab.id, editor.getValue() !== savedTextRef.current)
+          if (parseTimer !== undefined) window.clearTimeout(parseTimer)
+          parseTimer = window.setTimeout(refreshHunks, 200)
+        })
+        editor.onMouseDown((event) => {
+          if (event.target.type !== monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN) return
+          const line = event.target.position?.lineNumber
+          if (line === undefined) return
+          const hunk = currentHunks.find((item) => item.startLine === line || item.endLine === line)
+          if (hunk === undefined) return
+          if (event.event.rightButton) event.event.preventDefault()
+          setHunkMenu({ x: event.event.posx, y: event.event.posy, hunk })
         })
         editorRef.current = editor
         modelRef.current = model
@@ -167,6 +237,7 @@ export function FileEditor({ tab, active }: { tab: FileTab; active: boolean }): 
       disposed = true
       mountedRef.current = false
       setReady(false)
+      if (parseTimer !== undefined) window.clearTimeout(parseTimer)
       editorRef.current?.dispose()
       modelRef.current?.dispose()
       editorRef.current = null
@@ -321,6 +392,30 @@ export function FileEditor({ tab, active }: { tab: FileTab; active: boolean }): 
       })
   }, [tab.path])
 
+  const resolveHunk = useCallback((target: ConflictHunk, choice: ConflictChoice): void => {
+    const editor = editorRef.current
+    const model = modelRef.current
+    if (editor === null || model === null || readOnlyRef.current) return
+    // The menu may stay open while the text changes; act on the current hunk at the same marker lines.
+    const lines = model.getLinesContent()
+    const hunk = findConflictHunks(lines).find(
+      (item) => item.startLine === target.startLine && item.endLine === target.endLine
+    )
+    if (hunk === undefined) return
+    const resolved = applyConflictChoice(lines, hunk, choice).join(model.getEOL())
+    model.applyEdits([{ range: model.getFullModelRange(), text: resolved }])
+    editor.focus()
+  }, [])
+
+  const conflictMenuItems = (hunk: ConflictHunk): ContextMenuItem[] => {
+    const withLabel = (base: string, side: string): string => (side === '' ? base : `${base} — ${side}`)
+    return [
+      { label: withLabel(t('editor.acceptOurs'), hunk.oursLabel), onSelect: () => resolveHunk(hunk, 'ours') },
+      { label: withLabel(t('editor.acceptTheirs'), hunk.theirsLabel), onSelect: () => resolveHunk(hunk, 'theirs') },
+      { label: t('editor.acceptBoth'), onSelect: () => resolveHunk(hunk, 'both') }
+    ]
+  }
+
   const saveRef = useRef(save)
   saveRef.current = save
   const openInCodeRef = useRef(openInCode)
@@ -435,6 +530,15 @@ export function FileEditor({ tab, active }: { tab: FileTab; active: boolean }): 
           onReload={onConflictReload}
           onShowDiff={onConflictShowDiff}
           onCancel={() => setConflict(null)}
+        />
+      )}
+
+      {hunkMenu !== null && (
+        <ContextMenu
+          x={hunkMenu.x}
+          y={hunkMenu.y}
+          items={conflictMenuItems(hunkMenu.hunk)}
+          onClose={() => setHunkMenu(null)}
         />
       )}
 

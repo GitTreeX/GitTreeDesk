@@ -67,3 +67,27 @@ textarea,
   cursor: pointer;
   background-image: radial-gradient(circle at center, var(--gtd-accent) 3.5px, transparent 4px);
 }
+
+/* Conflict markers in the editor; the glyph opens the resolution menu. */
+.gtd-conflict-glyph {
+  cursor: pointer;
+  background-image: radial-gradient(circle at center, var(--gtd-warn) 4.5px, transparent 5px);
+}
+
+.gtd-conflict-marker-line {
+  margin-left: 4px;
+  width: 3px !important;
+  background-color: var(--gtd-warn);
+}
+
+.gtd-conflict-ours {
+  background-color: color-mix(in srgb, var(--gtd-success) 14%, transparent);
+}
+
+.gtd-conflict-theirs {
+  background-color: color-mix(in srgb, var(--gtd-accent) 14%, transparent);
+}
+
+.gtd-conflict-base {
+  background-color: color-mix(in srgb, var(--gtd-muted) 10%, transparent);
+}
