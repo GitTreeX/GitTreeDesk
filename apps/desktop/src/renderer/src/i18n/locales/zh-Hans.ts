@@ -77,7 +77,12 @@ export const zhHansResource: TranslationResource = {
     removeWorktree: '移除工作树…',
     lockWorktree: '锁定工作树',
     unlockWorktree: '解锁工作树',
-    pruneWorktrees: '清理工作树'
+    pruneWorktrees: '清理工作树',
+    updateSubmodules: '更新全部子模块',
+    syncSubmoduleUrls: '同步子模块地址',
+    updateSubmodule: '更新此子模块',
+    checkoutRecordedCommit: '检出记录的提交',
+    openAsRepository: '作为仓库打开'
   },
   dialogs: {
     cancel: '取消',
@@ -552,6 +557,17 @@ export const zhHansResource: TranslationResource = {
     locked: '已锁定工作树 {{name}}',
     unlocked: '已解锁工作树 {{name}}'
   },
+  submodule: {
+    none: '此仓库没有子模块',
+    notInitialized: '未初始化',
+    initialize: '初始化',
+    initialized: '已初始化 {{name}}',
+    updated: '已检出 {{name}} 记录的提交',
+    alreadyInSync: '{{name}} 已与记录的提交一致',
+    notFound: '“{{name}}” 不是此仓库的子模块',
+    failed: '无法更新 {{name}}',
+    synced: '已同步 {{name}} 的子模块地址'
+  },
   output: {
     title: '输出',
     clear: '清空',
@@ -560,7 +576,8 @@ export const zhHansResource: TranslationResource = {
     failed: '失败',
     showOutput: '显示输出',
     fetchTitle: '获取 — {{count}} 个仓库',
-    pullTitle: '拉取 — {{count}} 个仓库'
+    pullTitle: '拉取 — {{count}} 个仓库',
+    submodulesTitle: '子模块 — {{name}}'
   },
   errors: {
     authRequired: '需要向 {{remote}} 进行身份验证',
@@ -657,6 +674,7 @@ export const zhHansResource: TranslationResource = {
     stashes: '贮藏…',
     restoreBackup: '从备份恢复…',
     newWorktree: '新建工作树…',
+    updateSubmodules: '更新全部子模块',
     toggleOutput: '切换输出面板',
     categories: {
       workspace: '工作区',
@@ -682,6 +700,7 @@ export const zhHansResource: TranslationResource = {
     worktreePrunable: '工作树文件夹已不存在 — 清理以移除记录',
     bare: '裸仓库',
     submodule: '子模块',
+    submoduleAttention: '有子模块需要处理（未初始化或已漂移）',
     main: '主检出',
     external: '位于工作区之外'
   }

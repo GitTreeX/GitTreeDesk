@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { GitBatchResult, RepoOperationKind, RepoRecord } from '@gitreedesk/shared'
+import type {
+  GitBatchResult,
+  GitSubmoduleUpdateResult,
+  RepoOperationKind,
+  RepoRecord,
+  SubmoduleInfo,
+  SubmoduleOutputEvent
+} from '@gitreedesk/shared'
 import { BackupsDialog } from '../components/BackupsDialog'
 import { BranchPicker } from '../components/BranchPicker'
 import { ConfirmDialog } from '../components/ConfirmDialog'
@@ -22,9 +29,10 @@ import {
   notifyUndoable,
   stashNotice
 } from '../lib/reporting'
-import { notify } from '../notify'
+import { notify, notifyError } from '../notify'
 import { useUiState } from '../use-ui-state'
 import { useTreeUi } from './tree'
+import { useSubmodules } from './submodules'
 import { useWorkspace } from './workspace'
 import {
   OperationsContext,
@@ -107,6 +115,31 @@ function dedupeCheckouts(records: readonly RepoRecord[]): RepoRecord[] {
   return unique
 }
 
+/** Output line key of one submodule: its checkout key plus the path inside the repository. */
+function submoduleLineKey(gitDir: string, path: string): string {
+  return `${gitDir}\u0000${path}`
+}
+
+function appendSubmoduleChunk(
+  entries: readonly OutputEntry[],
+  event: SubmoduleOutputEvent
+): readonly OutputEntry[] {
+  const key = submoduleLineKey(event.gitDir, event.path)
+  let changed = false
+  const next = entries.map((entry) => {
+    if (entry.done) return entry
+    const index = entry.lines.findIndex((line) => line.key === key && line.state === 'running')
+    if (index === -1) return entry
+    const line = entry.lines[index]
+    if (line === undefined) return entry
+    const lines = [...entry.lines]
+    lines[index] = { ...line, output: line.output + event.chunk }
+    changed = true
+    return { ...entry, lines }
+  })
+  return changed ? next : entries
+}
+
 /**
  * Owns the Git operation dialogs, the stop/continue banner flows, the fetch/pull
  * batch summaries and the push confirmation flow. Every surface (palette, menus,
@@ -117,6 +150,7 @@ export function OperationsProvider({ children }: { children: ReactNode }): JSX.E
   const { t } = useTranslation()
   const { descriptor, statuses } = useWorkspace()
   const tree = useTreeUi()
+  const { submodulesFor, refresh: refreshSubmodules } = useSubmodules()
   const [dialog, setDialog] = useState<DialogState | null>(null)
   const [opAsk, setOpAsk] = useState<OpAsk | null>(null)
   const [rebaseAsk, setRebaseAsk] = useState<RebaseAsk | null>(null)
@@ -483,6 +517,152 @@ export function OperationsProvider({ children }: { children: ReactNode }): JSX.E
     [t]
   )
 
+  const startSubmoduleEntry = useCallback(
+    (title: string, gitDir: string, submodules: readonly SubmoduleInfo[]): number => {
+      const id = nextEntryId.current
+      nextEntryId.current += 1
+      const entry: OutputEntry = {
+        id,
+        title,
+        done: false,
+        lines: submodules.map((submodule) => ({
+          key: submoduleLineKey(gitDir, submodule.path),
+          name: submodule.path,
+          state: 'running',
+          error: null,
+          output: '',
+          stash: null
+        }))
+      }
+      setOutput((current) => [entry, ...current])
+      setOutputOpen(true)
+      return id
+    },
+    [setOutputOpen]
+  )
+
+  const applySubmoduleResults = useCallback(
+    (id: number, gitDir: string, results: readonly GitSubmoduleUpdateResult[]): void => {
+      setOutput((current) =>
+        current.map((entry) => {
+          if (entry.id !== id) return entry
+          return {
+            ...entry,
+            done: true,
+            lines: entry.lines.map((line) => {
+              const result = results.find(
+                (candidate) => submoduleLineKey(gitDir, candidate.path) === line.key
+              )
+              if (result === undefined) return line
+              return result.ok
+                ? { ...line, state: result.updated ? 'updated' : 'uptodate', output: result.output }
+                : { ...line, state: 'failed', error: result.error, output: result.output }
+            })
+          }
+        })
+      )
+    },
+    []
+  )
+
+  // Submodule updates stream their output into the running Output panel entry.
+  useEffect(() => {
+    return api.on('git:submoduleOutput', (event) => {
+      setOutput((current) => appendSubmoduleChunk(current, event))
+    })
+  }, [])
+
+  const updateSubmodules = useCallback(
+    (record: RepoRecord): void => {
+      const listed = submodulesFor(record)
+      if (record.gitDir === '' || record.kind === 'bare' || listed === null) return
+      if (listed.length === 0) {
+        notify({ message: t('submodule.none') })
+        return
+      }
+      if (!acquire(record)) return
+      const id = startSubmoduleEntry(
+        t('output.submodulesTitle', { name: record.name }),
+        record.gitDir,
+        listed
+      )
+      void (async () => {
+        try {
+          const { results } = await api.invoke('git:submoduleUpdate', {
+            gitDir: record.gitDir,
+            init: true,
+            recursive: true
+          })
+          applySubmoduleResults(id, record.gitDir, results)
+        } catch (failure) {
+          failEntry(id, failure)
+        } finally {
+          release(record)
+          void refreshSubmodules(record.gitDir)
+        }
+      })()
+    },
+    [applySubmoduleResults, failEntry, refreshSubmodules, startSubmoduleEntry, submodulesFor, t]
+  )
+
+  const updateSubmodule = useCallback(
+    (record: RepoRecord, path: string, options?: { init?: boolean }): void => {
+      if (record.gitDir === '' || record.kind === 'bare') return
+      if (!acquire(record)) return
+      void (async () => {
+        try {
+          const { results } = await api.invoke('git:submoduleUpdate', {
+            gitDir: record.gitDir,
+            paths: [path],
+            ...(options?.init === true ? { init: true } : {})
+          })
+          const result = results[0]
+          if (result === undefined) {
+            notifyError(t('submodule.notFound', { name: path }))
+          } else if (result.ok) {
+            const message =
+              options?.init === true
+                ? t('submodule.initialized', { name: path })
+                : result.updated
+                  ? t('submodule.updated', { name: path })
+                  : t('submodule.alreadyInSync', { name: path })
+            notify({ message })
+          } else {
+            const details = [result.error, result.output]
+              .filter((part): part is string => part !== null && part.length > 0)
+              .join('\n')
+            if (details.length > 0) notifyError(t('submodule.failed', { name: path }), details)
+            else notifyError(t('submodule.failed', { name: path }))
+          }
+        } catch (failure) {
+          notifyServiceError(failure, t)
+        } finally {
+          release(record)
+          void refreshSubmodules(record.gitDir)
+        }
+      })()
+    },
+    [refreshSubmodules, t]
+  )
+
+  const syncSubmoduleUrls = useCallback(
+    (record: RepoRecord): void => {
+      if (record.gitDir === '' || record.kind === 'bare') return
+      if (!acquire(record)) return
+      void (async () => {
+        try {
+          await api.invoke('git:submoduleSync', { gitDir: record.gitDir })
+          notify({ message: t('submodule.synced', { name: record.name }) })
+        } catch (failure) {
+          notifyServiceError(failure, t)
+        } finally {
+          release(record)
+        }
+      })()
+    },
+    [t]
+  )
+
   const fetchRepos = useCallback(
     (records: readonly RepoRecord[]) => {
       const targets = dedupeRepositories(records)
@@ -637,6 +817,9 @@ export function OperationsProvider({ children }: { children: ReactNode }): JSX.E
       pruneWorktrees,
       lockWorktree,
       unlockWorktree,
+      updateSubmodules,
+      updateSubmodule,
+      syncSubmoduleUrls,
       continueOperation,
       skipOperation,
       abortOperation,
@@ -668,6 +851,9 @@ export function OperationsProvider({ children }: { children: ReactNode }): JSX.E
       pruneWorktrees,
       lockWorktree,
       unlockWorktree,
+      updateSubmodules,
+      updateSubmodule,
+      syncSubmoduleUrls,
       continueOperation,
       skipOperation,
       abortOperation,

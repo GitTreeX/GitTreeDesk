@@ -18,6 +18,7 @@ import { OperationsProvider } from './contexts/operations'
 import { useOperations } from './contexts/operations-context'
 import { ReposUiProvider, useReposUi } from './contexts/repos'
 import { SettingsProvider, useSettings, type InitialSettings } from './contexts/settings'
+import { SubmodulesProvider, useSubmodules } from './contexts/submodules'
 import { TreeUiProvider, useTreeUi, type SidebarPanel } from './contexts/tree'
 import { WorkspaceProvider, useWorkspace } from './contexts/workspace'
 import { nextTheme } from './theme'
@@ -46,9 +47,11 @@ export function App({ initialSettings }: { initialSettings: InitialSettings }): 
         <TreeUiProvider>
           <EditorProvider>
             <ReposUiProvider>
-              <OperationsProvider>
-                <AppRoot />
-              </OperationsProvider>
+              <SubmodulesProvider>
+                <OperationsProvider>
+                  <AppRoot />
+                </OperationsProvider>
+              </SubmodulesProvider>
             </ReposUiProvider>
           </EditorProvider>
         </TreeUiProvider>
@@ -64,6 +67,7 @@ function AppRoot(): JSX.Element {
   const editor = useEditor()
   const repoUi = useReposUi()
   const operations = useOperations()
+  const submodules = useSubmodules()
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH)
@@ -207,8 +211,13 @@ function AppRoot(): JSX.Element {
     gitStashes: () => withActiveRecord((record) => operations.openStashes(record)),
     gitRestoreBackup: () => withActiveRecord((record) => operations.openBackupRestore(record)),
     gitNewWorktree: () => withActiveRecord((record) => operations.openCreateWorktree(record)),
+    gitUpdateSubmodules: () => withActiveRecord((record) => operations.updateSubmodules(record)),
     gitHasTarget: () => repoUi.activeRecord !== null,
     gitHasRepos: () => (workspace.descriptor?.records.length ?? 0) > 0,
+    gitHasSubmodules: () => {
+      const record = repoUi.activeRecord
+      return record !== null && (submodules.submodulesFor(record)?.length ?? 0) > 0
+    },
     gitCanSync: () => syncTarget() !== null,
     gitHasWorktree: () => {
       const record = repoUi.activeRecord

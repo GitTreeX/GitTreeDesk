@@ -75,7 +75,12 @@ const en = {
     removeWorktree: 'Remove Worktree…',
     lockWorktree: 'Lock Worktree',
     unlockWorktree: 'Unlock Worktree',
-    pruneWorktrees: 'Prune Worktrees'
+    pruneWorktrees: 'Prune Worktrees',
+    updateSubmodules: 'Update All Submodules',
+    syncSubmoduleUrls: 'Sync Submodule URLs',
+    updateSubmodule: 'Update This Submodule',
+    checkoutRecordedCommit: 'Checkout Recorded Commit',
+    openAsRepository: 'Open as Repository'
   },
   dialogs: {
     cancel: 'Cancel',
@@ -561,6 +566,17 @@ const en = {
     locked: 'Locked worktree {{name}}',
     unlocked: 'Unlocked worktree {{name}}'
   },
+  submodule: {
+    none: 'This repository has no submodules',
+    notInitialized: 'Not initialized',
+    initialize: 'Initialize',
+    initialized: 'Initialized {{name}}',
+    updated: 'Checked out the recorded commit of {{name}}',
+    alreadyInSync: '{{name}} already matches the recorded commit',
+    notFound: '“{{name}}” is not a submodule of this repository',
+    failed: 'Could not update {{name}}',
+    synced: 'Synced the submodule URLs of {{name}}'
+  },
   output: {
     title: 'Output',
     clear: 'Clear',
@@ -569,7 +585,8 @@ const en = {
     failed: 'Failed',
     showOutput: 'Show output',
     fetchTitle: 'Fetch — {{count}} repositories',
-    pullTitle: 'Pull — {{count}} repositories'
+    pullTitle: 'Pull — {{count}} repositories',
+    submodulesTitle: 'Submodules — {{name}}'
   },
   errors: {
     authRequired: 'Authentication required for {{remote}}',
@@ -668,6 +685,7 @@ const en = {
     stashes: 'Stashes…',
     restoreBackup: 'Restore from Backup…',
     newWorktree: 'New Worktree…',
+    updateSubmodules: 'Update All Submodules',
     toggleOutput: 'Toggle Output Panel',
     categories: {
       workspace: 'Workspace',
@@ -693,6 +711,7 @@ const en = {
     worktreePrunable: 'Worktree folder is gone — prune to clean up',
     bare: 'Bare repository',
     submodule: 'Submodule',
+    submoduleAttention: 'A submodule needs attention (uninitialized or drifted)',
     main: 'Main checkout',
     external: 'Outside the workspace'
   }

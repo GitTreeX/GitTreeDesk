@@ -23,6 +23,22 @@ export interface RepoNode {
 export type ReposRow =
   | { type: 'group'; key: string; label: string }
   | { type: 'repo'; key: string; node: RepoNode }
+  | {
+      type: 'pendingSubmodule'
+      key: string
+      /** Repo-relative path of the submodule inside its parent. */
+      path: string
+      name: string
+      depth: number
+      parent: RepoRecord
+    }
+
+/** An uninitialized submodule shown as a greyed placeholder row. */
+export interface PendingSubmodule {
+  /** Repo-relative path of the submodule inside its parent. */
+  path: string
+  name: string
+}
 
 export interface ReposTreeOptions {
   showExternal: boolean
@@ -31,6 +47,8 @@ export interface ReposTreeOptions {
   statusFor: (record: RepoRecord) => RepoStatus | null
   /** `null` expands everything that has children. */
   expanded: ReadonlySet<string> | null
+  /** Uninitialized submodule placeholders, keyed by the parent checkout path. */
+  pendingSubmodules?: ReadonlyMap<string, readonly PendingSubmodule[]>
 }
 
 export function isDirty(status: RepoStatus): boolean {
@@ -46,6 +64,21 @@ export function isAheadBehind(status: RepoStatus): boolean {
 /** Submodule checkouts live under `<superproject git dir>/modules/`. */
 export function isSubmoduleRecord(record: RepoRecord): boolean {
   return record.parentId !== null && record.id.startsWith(`${record.parentId}/modules/`)
+}
+
+/** The superproject checkout a submodule record is nested in; from the record set. */
+export function submoduleParentOf(
+  record: RepoRecord,
+  records: readonly RepoRecord[]
+): RepoRecord | null {
+  if (record.parentId === null) return null
+  let best: RepoRecord | null = null
+  for (const candidate of records) {
+    if (candidate.id !== record.parentId) continue
+    if (!record.path.startsWith(`${candidate.path}/`)) continue
+    if (best === null || candidate.path.length > best.path.length) best = candidate
+  }
+  return best
 }
 
 export function hasActiveFilters(filters: RepoFilters): boolean {
@@ -210,6 +243,7 @@ function pushRepoRow(
   const children = (childrenOf.get(record.path) ?? []).filter((child) =>
     isVisibleRecord(child, options)
   )
+  const pending = options.pendingSubmodules?.get(record.path) ?? []
   const expanded = options.expanded === null ? true : options.expanded.has(record.path)
 
   rows.push({
@@ -221,15 +255,25 @@ function pushRepoRow(
       depth,
       isMain: record.kind !== 'worktree',
       isSubmodule: isSubmoduleRecord(record),
-      hasChildren: children.length > 0,
+      hasChildren: children.length > 0 || pending.length > 0,
       hasWorktreeChildren: children.some((child) => child.kind === 'worktree'),
       expanded,
-      childCount: children.length
+      childCount: children.length + pending.length
     }
   })
 
   if (!expanded) return
   for (const child of children) pushRepoRow(rows, child, depth + 1, childrenOf, options)
+  for (const item of pending) {
+    rows.push({
+      type: 'pendingSubmodule',
+      key: `${record.path}\u0000${item.path}`,
+      path: item.path,
+      name: item.name,
+      depth: depth + 1,
+      parent: record
+    })
+  }
 }
 
 /** Checkout key used by the SCM selection: the git dir, or the path when unresolved. */

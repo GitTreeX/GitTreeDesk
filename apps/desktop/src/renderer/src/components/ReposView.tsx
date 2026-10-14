@@ -6,6 +6,7 @@ import { api } from '../api'
 import { isEditableTarget } from '../commands/keybinding'
 import { useOperations } from '../contexts/operations-context'
 import { useReposUi } from '../contexts/repos'
+import { useSubmodules } from '../contexts/submodules'
 import { useTreeUi } from '../contexts/tree'
 import { useWorkspace } from '../contexts/workspace'
 import { notifyError } from '../notify'
@@ -14,6 +15,9 @@ import {
   buildReposTree,
   checkoutKey,
   hasActiveFilters,
+  isSubmoduleRecord,
+  submoduleParentOf,
+  type PendingSubmodule,
   type RepoFilters,
   type RepoNode,
   type ReposRow
@@ -35,6 +39,7 @@ export function ReposView(): JSX.Element {
   const tree = useTreeUi()
   const repoUi = useReposUi()
   const operations = useOperations()
+  const { submodulesFor } = useSubmodules()
   const records = descriptor?.records ?? NO_RECORDS
 
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set())
@@ -52,6 +57,35 @@ export function ReposView(): JSX.Element {
     return new Set(records.filter((record) => !collapsed.has(record.path)).map((record) => record.path))
   }, [records, collapsed])
 
+  // Uninitialized submodules without a checkout render as placeholder rows.
+  const pendingSubmodules = useMemo(() => {
+    const map = new Map<string, PendingSubmodule[]>()
+    for (const record of records) {
+      const listed = submodulesFor(record)
+      if (listed === null) continue
+      const uninitialized = listed.filter((submodule) => submodule.checkout === 'uninitialized')
+      if (uninitialized.length === 0) continue
+      const covered = new Set(
+        records
+          .filter(
+            (child) =>
+              child.parentId === record.id &&
+              child.id !== record.id &&
+              child.path.startsWith(`${record.path}/`)
+          )
+          .map((child) => child.path.slice(record.path.length + 1))
+      )
+      const pending = uninitialized
+        .filter((submodule) => !covered.has(submodule.path))
+        .map((submodule) => ({
+          path: submodule.path,
+          name: submodule.path.split('/').pop() ?? submodule.path
+        }))
+      if (pending.length > 0) map.set(record.path, pending)
+    }
+    return map
+  }, [records, submodulesFor])
+
   const rows = useMemo(
     () =>
       buildReposTree(records, {
@@ -59,9 +93,18 @@ export function ReposView(): JSX.Element {
         filters: tree.filters,
         groups: descriptor?.config.groups ?? null,
         statusFor,
-        expanded
+        expanded,
+        pendingSubmodules
       }),
-    [records, tree.viewOptions.showExternalWorktrees, tree.filters, descriptor, statusFor, expanded]
+    [
+      records,
+      tree.viewOptions.showExternalWorktrees,
+      tree.filters,
+      descriptor,
+      statusFor,
+      expanded,
+      pendingSubmodules
+    ]
   )
 
   const cursorIndex = useMemo(() => {
@@ -270,6 +313,18 @@ export function ReposView(): JSX.Element {
     const pushable = record.kind !== 'bare' && branch !== null
     const canTarget = record.gitDir.length > 0
     const isWorktree = record.kind === 'worktree'
+    const isSubmodule = isSubmoduleRecord(record)
+    const submoduleParent = isSubmodule ? submoduleParentOf(record, records) : null
+    const submodulePath =
+      submoduleParent === null ? null : record.path.slice(submoduleParent.path.length + 1)
+    const listed = submodulesFor(record)
+    const hasSubmodules = listed !== null && listed.length > 0
+    const drifted =
+      submoduleParent !== null &&
+      submodulePath !== null &&
+      (submodulesFor(submoduleParent) ?? []).some(
+        (submodule) => submodule.path === submodulePath && submodule.checkout === 'different'
+      )
     const locked = isWorktree && record.worktreeLocked !== undefined && record.worktreeLocked !== null
     const prunable =
       isWorktree && record.worktreePrunable !== undefined && record.worktreePrunable !== null
@@ -315,6 +370,31 @@ export function ReposView(): JSX.Element {
           if (branch === null) return
           operations.pushBranch(record, branch, { hasUpstream: status !== null && status.upstream !== null })
         }
+      },
+      ...(isSubmodule && submoduleParent !== null && submodulePath !== null
+        ? [
+            {
+              label: drifted ? t('menu.checkoutRecordedCommit') : t('menu.updateSubmodule'),
+              onSelect: () => operations.updateSubmodule(submoduleParent, submodulePath)
+            },
+            {
+              label: t('menu.openAsRepository'),
+              onSelect: () => {
+                if (record.gitDir.length > 0) repoUi.setActiveKey(record.gitDir)
+                tree.requestRepoFocus(record.path)
+              }
+            }
+          ]
+        : []),
+      {
+        label: t('menu.updateSubmodules'),
+        disabled: !canTarget || record.kind === 'bare' || !hasSubmodules,
+        onSelect: () => operations.updateSubmodules(record)
+      },
+      {
+        label: t('menu.syncSubmoduleUrls'),
+        disabled: !canTarget || record.kind === 'bare' || !hasSubmodules,
+        onSelect: () => operations.syncSubmoduleUrls(record)
       },
       {
         label: t('menu.remotes'),
@@ -447,6 +527,52 @@ export function ReposView(): JSX.Element {
               )
             }
 
+            if (row.type === 'pendingSubmodule') {
+              return (
+                <div
+                  key={row.key}
+                  title={`${row.parent.path}/${row.path}`}
+                  className="flex cursor-default items-center gap-1.5 pr-2 text-sm opacity-60"
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: ROW_HEIGHT,
+                    transform: `translateY(${item.start}px)`,
+                    paddingLeft: 6 + row.depth * 14
+                  }}
+                >
+                  <button type="button" tabIndex={-1} aria-hidden className="invisible shrink-0 rounded p-0.5">
+                    <ChevronRightIcon className="size-3.5" />
+                  </button>
+                  <input
+                    type="checkbox"
+                    tabIndex={-1}
+                    aria-hidden
+                    disabled
+                    className="invisible shrink-0 accent-accent"
+                  />
+                  <span className="min-w-0 max-w-[50%] shrink-0 truncate font-medium text-ink">
+                    {row.name}
+                  </span>
+                  <span className="min-w-0 truncate text-xs text-muted">{t('submodule.notInitialized')}</span>
+                  <span className="min-w-0 flex-1" />
+                  <button
+                    type="button"
+                    className="shrink-0 rounded border border-line bg-panel px-1.5 py-0.5 text-xs text-muted hover:bg-ink/5 hover:text-ink"
+                    onMouseDown={(event) => event.stopPropagation()}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      operations.updateSubmodule(row.parent, row.path, { init: true })
+                    }}
+                  >
+                    {t('submodule.initialize')}
+                  </button>
+                </div>
+              )
+            }
+
             const node = row.node
             const record = node.record
             const status = statusFor(record)
@@ -457,6 +583,13 @@ export function ReposView(): JSX.Element {
               record.kind === 'worktree' &&
               record.worktreePrunable !== undefined &&
               record.worktreePrunable !== null
+            const listed = submodulesFor(record)
+            const submoduleAttention =
+              listed !== null &&
+              listed.some(
+                (submodule) =>
+                  submodule.checkout === 'uninitialized' || submodule.checkout === 'different'
+              )
 
             return (
               <div
@@ -528,6 +661,7 @@ export function ReposView(): JSX.Element {
                   status={status}
                   options={tree.viewOptions}
                   main={node.isMain && node.hasWorktreeChildren}
+                  submoduleAttention={submoduleAttention}
                 />
               </div>
             )

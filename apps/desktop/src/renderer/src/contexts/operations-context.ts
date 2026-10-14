@@ -8,7 +8,7 @@ export interface FetchOptions {
 }
 
 export interface OutputLine {
-  /** Checkout key the result belongs to. */
+  /** Checkout key the result belongs to; submodule lines append their repo-relative path. */
   key: string
   name: string
   state: 'running' | 'updated' | 'uptodate' | 'failed'
@@ -49,6 +49,12 @@ export interface OperationsValue {
   pruneWorktrees: (record: RepoRecord) => void
   lockWorktree: (record: RepoRecord) => void
   unlockWorktree: (record: RepoRecord) => void
+  /** Updates every submodule of `record`; progress streams into the Output panel. */
+  updateSubmodules: (record: RepoRecord) => void
+  /** Updates the submodule recorded at `path` inside `record`; a toast reports the outcome. */
+  updateSubmodule: (record: RepoRecord, path: string, options?: { init?: boolean }) => void
+  /** Re-copies the `.gitmodules` URLs of `record` into its git configuration. */
+  syncSubmoduleUrls: (record: RepoRecord) => void
   /** Validates unresolved conflicts, then continues the stopped operation. */
   continueOperation: (record: RepoRecord) => void
   skipOperation: (record: RepoRecord) => void

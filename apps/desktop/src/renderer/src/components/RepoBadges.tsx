@@ -17,18 +17,22 @@ export function RepoBadges({
   record,
   status,
   options,
-  main = false
+  main = false,
+  submoduleAttention = false
 }: {
   record: RepoRecord
   status: RepoStatus | null
   options: ViewOptions
   /** Marks the primary checkout when the repository has linked worktrees. */
   main?: boolean
+  /** A submodule of this repository is uninitialized or drifted. */
+  submoduleAttention?: boolean
 }): JSX.Element {
   const { t } = useTranslation()
   const chips: JSX.Element[] = []
 
   if (options.kindBadges) {
+    if (submoduleAttention) chips.push(chip('badges.submoduleAttention', '◇'))
     if (record.kind === 'worktree') {
       chips.push(chip('badges.worktree', '⧉'))
       if (record.worktreeLocked !== undefined && record.worktreeLocked !== null) {
@@ -46,7 +50,7 @@ export function RepoBadges({
         chips.push(chip('badges.worktreePrunable', 'prunable'))
       }
     } else if (record.kind === 'bare') chips.push(chip('badges.bare', 'bare'))
-    else if (isSubmoduleRecord(record)) chips.push(chip('badges.submodule', '◇'))
+    else if (isSubmoduleRecord(record) && !submoduleAttention) chips.push(chip('badges.submodule', '◇'))
     if (main) chips.push(chip('badges.main', 'main'))
   }
 

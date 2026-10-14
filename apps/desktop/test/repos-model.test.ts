@@ -51,9 +51,11 @@ function status(partial: Partial<RepoStatus> = {}): RepoStatus {
 const noStatus = (): RepoStatus | null => null
 
 function summarize(rows: ReposRow[]): string[] {
-  return rows.map((row) =>
-    row.type === 'group' ? `#${row.label}` : `${'  '.repeat(row.node.depth)}${row.node.record.name}`
-  )
+  return rows.map((row) => {
+    if (row.type === 'group') return `#${row.label}`
+    if (row.type === 'pendingSubmodule') return `${'  '.repeat(row.depth)}~${row.name}`
+    return `${'  '.repeat(row.node.depth)}${row.node.record.name}`
+  })
 }
 
 const baseOptions = {
@@ -129,6 +131,44 @@ describe('buildReposTree', () => {
     expect(repos[1]?.node.isSubmodule).toBe(true)
     expect(repos[1]?.node.depth).toBe(1)
     expect(isSubmoduleRecord(submodule)).toBe(true)
+  })
+
+  it('lists uninitialized submodules as placeholder rows under their parent', () => {
+    const superproject = record({ path: '/ws/super', hasSubmodules: true })
+    const submodule = record({
+      path: '/ws/super/lib/dep',
+      id: `${superproject.id}/modules/lib/dep`,
+      parentId: superproject.id,
+      commonDir: `${superproject.id}/modules/lib/dep`
+    })
+    const pending = new Map([['/ws/super', [{ path: 'libs/missing', name: 'missing' }]]])
+    const rows = buildReposTree([superproject, submodule], {
+      ...baseOptions,
+      pendingSubmodules: pending
+    })
+    expect(summarize(rows)).toEqual(['super', '  dep', '  ~missing'])
+    const node = rows.find((row) => row.type === 'repo')?.node
+    expect(node?.hasChildren).toBe(true)
+    expect(node?.childCount).toBe(2)
+    expect(rows.find((row) => row.type === 'pendingSubmodule')).toMatchObject({
+      path: 'libs/missing',
+      name: 'missing',
+      depth: 1
+    })
+  })
+
+  it('keeps placeholders expandable but hidden while the parent is collapsed', () => {
+    const superproject = record({ path: '/ws/super', hasSubmodules: true })
+    const pending = new Map([['/ws/super', [{ path: 'libs/missing', name: 'missing' }]]])
+    const rows = buildReposTree([superproject], {
+      ...baseOptions,
+      expanded: new Set<string>(),
+      pendingSubmodules: pending
+    })
+    expect(rows.filter((row) => row.type === 'pendingSubmodule')).toHaveLength(0)
+    const node = rows.find((row) => row.type === 'repo')?.node
+    expect(node?.hasChildren).toBe(true)
+    expect(node?.expanded).toBe(false)
   })
 
   it('hides external worktrees unless enabled', () => {
