@@ -6,6 +6,7 @@ const keyString = z.string().min(1).max(512)
 const keyPath = z.array(keyString).min(1).max(32)
 const scope = z.enum(['user', 'workspace'])
 const refString = z.string().min(1).max(1024)
+const sessionId = z.string().min(1).max(64)
 const branchName = z.string().min(1).max(255)
 const remoteName = z.string().min(1).max(255)
 const remoteUrl = z.string().min(1).max(2048)
@@ -312,6 +313,29 @@ export const invokeSchemas = {
   'commitmsg:setKey': z.object({ key: z.string().min(1).max(8192) }),
   'commitmsg:removeKey': z.undefined(),
   'commitmsg:keyStatus': z.undefined(),
+  'terminal:resolve': z.object({ dir: pathString }),
+  'terminal:create': z.object({
+    dir: pathString,
+    profileId: z.string().min(1).max(256),
+    cols: z.number().int().min(2).max(1000),
+    rows: z.number().int().min(1).max(1000)
+  }),
+  'terminal:quickRun': z.object({
+    dir: pathString,
+    name: z.string().min(1).max(256),
+    cols: z.number().int().min(2).max(1000),
+    rows: z.number().int().min(1).max(1000)
+  }),
+  'terminal:sessions': z.undefined(),
+  'terminal:attach': z.object({ id: sessionId }),
+  'terminal:write': z.object({ id: sessionId, data: z.string().max(1_000_000) }),
+  'terminal:resize': z.object({
+    id: sessionId,
+    cols: z.number().int().min(2).max(1000),
+    rows: z.number().int().min(1).max(1000)
+  }),
+  'terminal:kill': z.object({ id: sessionId }),
+  'terminal:dispose': z.object({ id: sessionId }),
   'fs:readDir': z.object({ path: pathString }),
   'fs:readFile': z.object({ path: pathString, allowLarge: z.boolean().optional() }),
   'fs:stat': z.object({ path: pathString }),

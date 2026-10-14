@@ -15,6 +15,11 @@ import type {
   StashEntry,
   SubmoduleInfo
 } from './git'
+import type {
+  TerminalHostFrame,
+  TerminalResolutionInfo,
+  TerminalSessionInfo
+} from './terminal'
 import type { DiscoveryStats, RepoRecord, WatchScopeKind, WorkspaceConfig } from './workspace'
 
 export type SettingsScope = 'user' | 'workspace'
@@ -1043,6 +1048,66 @@ export interface CommitMessageDoneEvent {
   error?: string
 }
 
+/** Everything an opened terminal resolves against one directory. */
+export interface TerminalResolveRequest {
+  dir: string
+}
+
+export interface TerminalSessionCreateRequest {
+  /** Directory the terminal starts in; must be inside the workspace. */
+  dir: string
+  /** A profile id from the resolution for the same directory. */
+  profileId: string
+  cols: number
+  rows: number
+}
+
+export interface TerminalQuickRunRequest {
+  /** Directory the command starts in; must be inside the workspace. */
+  dir: string
+  /** A quick command name from the resolution for the same directory. */
+  name: string
+  cols: number
+  rows: number
+}
+
+export interface TerminalSessionRefRequest {
+  id: string
+}
+
+export interface TerminalSessionsResponse {
+  /** Live and exited sessions, oldest first. */
+  sessions: TerminalSessionInfo[]
+}
+
+export interface TerminalSessionCreateResponse {
+  session: TerminalSessionInfo
+}
+
+export interface TerminalWriteRequest {
+  id: string
+  /** Keystrokes or pasted text, forwarded to the pty as-is. */
+  data: string
+}
+
+export interface TerminalResizeRequest {
+  id: string
+  cols: number
+  rows: number
+}
+
+/** Raw pty output for one session; `data` frames carry the bytes. */
+export interface TerminalFrameEvent {
+  id: string
+  frame: TerminalHostFrame
+}
+
+/** The shell behind a session ended; `code` is `null` when the terminal host died. */
+export interface TerminalExitedEvent {
+  id: string
+  code: number | null
+}
+
 /** Commands the main process asks the renderer to run (application menu, future accelerators). */
 export const HOST_COMMANDS = [
   'workspace.openFolder',
@@ -1143,6 +1208,15 @@ export interface InvokeMap {
   }
   'commitmsg:removeKey': { request: undefined; response: CommitMessageKeyStatusResponse }
   'commitmsg:keyStatus': { request: undefined; response: CommitMessageKeyStatusResponse }
+  'terminal:resolve': { request: TerminalResolveRequest; response: TerminalResolutionInfo }
+  'terminal:create': { request: TerminalSessionCreateRequest; response: TerminalSessionCreateResponse }
+  'terminal:quickRun': { request: TerminalQuickRunRequest; response: TerminalSessionCreateResponse }
+  'terminal:sessions': { request: undefined; response: TerminalSessionsResponse }
+  'terminal:attach': { request: TerminalSessionRefRequest; response: null }
+  'terminal:write': { request: TerminalWriteRequest; response: null }
+  'terminal:resize': { request: TerminalResizeRequest; response: null }
+  'terminal:kill': { request: TerminalSessionRefRequest; response: null }
+  'terminal:dispose': { request: TerminalSessionRefRequest; response: null }
   'fs:readDir': { request: FsReadDirRequest; response: { entries: FsEntry[] } }
   'fs:readFile': { request: FsReadFileRequest; response: FsReadFileResponse }
   'fs:stat': { request: FsPathRequest; response: FsStatResponse }
@@ -1182,6 +1256,8 @@ export interface EventMap {
   'settings:changed': SettingsChangedEvent
   'commitmsg:output': CommitMessageOutputEvent
   'commitmsg:done': CommitMessageDoneEvent
+  'terminal:frame': TerminalFrameEvent
+  'terminal:exited': TerminalExitedEvent
   'app:command': AppCommandEvent
 }
 
@@ -1278,6 +1354,15 @@ export const INVOKE_CHANNELS = [
   'commitmsg:setKey',
   'commitmsg:removeKey',
   'commitmsg:keyStatus',
+  'terminal:resolve',
+  'terminal:create',
+  'terminal:quickRun',
+  'terminal:sessions',
+  'terminal:attach',
+  'terminal:write',
+  'terminal:resize',
+  'terminal:kill',
+  'terminal:dispose',
   'fs:readDir',
   'fs:readFile',
   'fs:stat',
@@ -1317,6 +1402,8 @@ export const EVENT_CHANNELS = [
   'settings:changed',
   'commitmsg:output',
   'commitmsg:done',
+  'terminal:frame',
+  'terminal:exited',
   'app:command'
 ] as const satisfies readonly EventChannel[]
 
