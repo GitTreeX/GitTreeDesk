@@ -43,6 +43,7 @@ export const COMMAND_IDS = {
   stashCreate: 'git.stashCreate',
   stashes: 'git.stashes',
   restoreBackup: 'git.restoreBackup',
+  newWorktree: 'git.newWorktree',
   toggleOutput: 'view.toggleOutput'
 } as const
 
@@ -99,6 +100,7 @@ export interface BuiltinContext {
   gitStashCreate: () => void
   gitStashes: () => void
   gitRestoreBackup: () => void
+  gitNewWorktree: () => void
   gitHasTarget: () => boolean
   gitHasRepos: () => boolean
   gitCanSync: () => boolean
@@ -398,6 +400,13 @@ export function createBuiltinCommands(get: () => BuiltinContext): CommandDefinit
       categoryKey: 'commands.categories.git',
       enabled: () => get().gitHasTarget(),
       run: () => get().gitRestoreBackup()
+    },
+    {
+      id: COMMAND_IDS.newWorktree,
+      titleKey: 'commands.newWorktree',
+      categoryKey: 'commands.categories.git',
+      enabled: () => get().gitHasWorktree(),
+      run: () => get().gitNewWorktree()
     },
     {
       id: COMMAND_IDS.toggleOutput,

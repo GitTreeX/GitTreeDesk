@@ -70,7 +70,12 @@ const en = {
     tags: 'Tags…',
     stashCreate: 'Stash Changes…',
     stashes: 'Stashes…',
-    restoreBackup: 'Restore from Backup…'
+    restoreBackup: 'Restore from Backup…',
+    newWorktree: 'New Worktree…',
+    removeWorktree: 'Remove Worktree…',
+    lockWorktree: 'Lock Worktree',
+    unlockWorktree: 'Unlock Worktree',
+    pruneWorktrees: 'Prune Worktrees'
   },
   dialogs: {
     cancel: 'Cancel',
@@ -532,6 +537,30 @@ const en = {
       'The repository returns to the state captured by “{{op}}” from {{time}}. The current state is backed up first.',
     restored: 'Restored the “{{op}}” backup'
   },
+  worktree: {
+    createTitle: 'New worktree — {{name}}',
+    newBranch: 'New branch',
+    existingBranch: 'Existing branch',
+    branchName: 'Branch name',
+    baseLabel: 'Base ref',
+    branchLabel: 'Branch',
+    occupied: 'Already checked out in {{path}}',
+    pathLabel: 'Target path',
+    pathHint: 'Created if missing. Template: {{worktreeRoot}}/{{repo}}_{{branch-slug}}.',
+    created: 'Created worktree {{name}}',
+    removeTitle: 'Remove worktree “{{name}}”?',
+    removeBody:
+      '“{{path}}” is removed from disk and from the worktree list. The branch is left untouched, and this can be undone.',
+    removeAction: 'Remove',
+    removeDirtyTitle: 'Force remove worktree “{{name}}”?',
+    removeDirtyBody:
+      'The worktree has uncommitted changes. Forcing the removal discards them; the current state is backed up first, so it can be undone.',
+    forceAction: 'Force Remove',
+    removed: 'Removed worktree {{name}}',
+    pruned: 'Pruned stale worktree records',
+    locked: 'Locked worktree {{name}}',
+    unlocked: 'Unlocked worktree {{name}}'
+  },
   output: {
     title: 'Output',
     clear: 'Clear',
@@ -638,6 +667,7 @@ const en = {
     stashCreate: 'Stash Changes…',
     stashes: 'Stashes…',
     restoreBackup: 'Restore from Backup…',
+    newWorktree: 'New Worktree…',
     toggleOutput: 'Toggle Output Panel',
     categories: {
       workspace: 'Workspace',
@@ -659,6 +689,8 @@ const en = {
     detached: 'Detached HEAD',
     unborn: 'Unborn branch',
     worktree: 'Worktree',
+    worktreeLocked: 'Locked worktree',
+    worktreePrunable: 'Worktree folder is gone — prune to clean up',
     bare: 'Bare repository',
     submodule: 'Submodule',
     main: 'Main checkout',

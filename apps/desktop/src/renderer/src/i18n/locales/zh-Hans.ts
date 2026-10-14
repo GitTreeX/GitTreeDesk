@@ -72,7 +72,12 @@ export const zhHansResource: TranslationResource = {
     tags: '标签…',
     stashCreate: '贮藏更改…',
     stashes: '贮藏…',
-    restoreBackup: '从备份恢复…'
+    restoreBackup: '从备份恢复…',
+    newWorktree: '新建工作树…',
+    removeWorktree: '移除工作树…',
+    lockWorktree: '锁定工作树',
+    unlockWorktree: '解锁工作树',
+    pruneWorktrees: '清理工作树'
   },
   dialogs: {
     cancel: '取消',
@@ -525,6 +530,28 @@ export const zhHansResource: TranslationResource = {
     confirmBody: '仓库将回到“{{op}}”（{{time}}）时的状态。当前状态会先备份。',
     restored: '已恢复“{{op}}”备份'
   },
+  worktree: {
+    createTitle: '新建工作树 — {{name}}',
+    newBranch: '新建分支',
+    existingBranch: '已有分支',
+    branchName: '分支名称',
+    baseLabel: '起点',
+    branchLabel: '分支',
+    occupied: '已在 {{path}} 中检出',
+    pathLabel: '目标路径',
+    pathHint: '路径不存在时会自动创建。模板：{{worktreeRoot}}/{{repo}}_{{branch-slug}}。',
+    created: '已创建工作树 {{name}}',
+    removeTitle: '移除工作树“{{name}}”？',
+    removeBody: '“{{path}}” 将从磁盘和工作树列表中移除。分支保持不变，此操作可撤销。',
+    removeAction: '移除',
+    removeDirtyTitle: '强制移除工作树“{{name}}”？',
+    removeDirtyBody: '该工作树包含未提交的更改。强制移除会丢弃这些更改；当前状态会先备份，因此可以撤销。',
+    forceAction: '强制移除',
+    removed: '已移除工作树 {{name}}',
+    pruned: '已清理失效的工作树记录',
+    locked: '已锁定工作树 {{name}}',
+    unlocked: '已解锁工作树 {{name}}'
+  },
   output: {
     title: '输出',
     clear: '清空',
@@ -629,6 +656,7 @@ export const zhHansResource: TranslationResource = {
     stashCreate: '贮藏更改…',
     stashes: '贮藏…',
     restoreBackup: '从备份恢复…',
+    newWorktree: '新建工作树…',
     toggleOutput: '切换输出面板',
     categories: {
       workspace: '工作区',
@@ -650,6 +678,8 @@ export const zhHansResource: TranslationResource = {
     detached: '游离 HEAD',
     unborn: '尚无提交的分支',
     worktree: '工作树',
+    worktreeLocked: '工作树已锁定',
+    worktreePrunable: '工作树文件夹已不存在 — 清理以移除记录',
     bare: '裸仓库',
     submodule: '子模块',
     main: '主检出',

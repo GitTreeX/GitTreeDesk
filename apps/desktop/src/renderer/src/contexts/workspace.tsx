@@ -45,24 +45,31 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
+/** Records are keyed by repository identity plus checkout path; worktrees share one identity. */
+function recordKey(record: RepoRecord): string {
+  return `${record.id}\u0000${record.path}`
+}
+
 function mergeRecords(
   current: readonly RepoRecord[],
   event: { added: RepoRecord[]; removed: RepoRecord[]; updated: RepoRecord[] }
 ): RepoRecord[] {
-  const removed = new Set(event.removed.map((record) => record.id))
-  const updated = new Map(event.updated.map((record) => [record.id, record]))
+  const removed = new Set(event.removed.map((record) => recordKey(record)))
+  const updated = new Map(event.updated.map((record) => [recordKey(record), record]))
   const records: RepoRecord[] = []
   const present = new Set<string>()
   for (const record of current) {
-    if (removed.has(record.id)) continue
-    const next = updated.get(record.id) ?? record
+    const key = recordKey(record)
+    if (removed.has(key)) continue
+    const next = updated.get(key) ?? record
     records.push(next)
-    present.add(next.id)
+    present.add(key)
   }
   for (const record of event.added) {
-    if (present.has(record.id)) continue
+    const key = recordKey(record)
+    if (present.has(key)) continue
     records.push(record)
-    present.add(record.id)
+    present.add(key)
   }
   records.sort((a, b) => a.relPath.localeCompare(b.relPath))
   return records

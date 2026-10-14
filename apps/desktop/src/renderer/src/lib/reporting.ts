@@ -77,6 +77,11 @@ export function isOperationBlocked(error: unknown): boolean {
   return error instanceof GtdIpcError && error.code === 'operation-in-progress'
 }
 
+/** The service refused to remove a worktree because it has uncommitted changes. */
+export function isWorktreeDirtyRefusal(error: unknown): boolean {
+  return error instanceof GtdIpcError && error.code === 'worktree-dirty'
+}
+
 /** One-line notice for an auto-stash guard; `null` when no stash was involved. */
 export function stashNotice(stash: AutoStashReport, t: Translate): string | null {
   if (!stash.stashed) return null

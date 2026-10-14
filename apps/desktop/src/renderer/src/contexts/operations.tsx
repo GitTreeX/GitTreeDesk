@@ -1,10 +1,11 @@
-import { useCallback, useMemo, useRef, useState, type JSX, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { GitBatchResult, RepoOperationKind, RepoRecord } from '@gitreedesk/shared'
 import { BackupsDialog } from '../components/BackupsDialog'
 import { BranchPicker } from '../components/BranchPicker'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { CreateBranchDialog } from '../components/CreateBranchDialog'
+import { CreateWorktreeDialog } from '../components/CreateWorktreeDialog'
 import { InteractiveRebaseDialog } from '../components/InteractiveRebaseDialog'
 import { MergeDialog } from '../components/MergeDialog'
 import { RemotesDialog } from '../components/RemotesDialog'
@@ -16,12 +17,14 @@ import {
   errorText,
   isOperationBlocked,
   isRejectedPush,
+  isWorktreeDirtyRefusal,
   notifyServiceError,
   notifyUndoable,
   stashNotice
 } from '../lib/reporting'
 import { notify } from '../notify'
 import { useUiState } from '../use-ui-state'
+import { useTreeUi } from './tree'
 import { useWorkspace } from './workspace'
 import {
   OperationsContext,
@@ -40,6 +43,7 @@ type DialogState =
   | { kind: 'stashCreate'; record: RepoRecord; paths?: readonly string[] }
   | { kind: 'stashes'; record: RepoRecord }
   | { kind: 'backups'; record: RepoRecord }
+  | { kind: 'worktreeCreate'; record: RepoRecord }
 
 interface OpAsk {
   /** `abort` confirms aborting; `unresolved` lists conflicts; `blocked` explains a refusal. */
@@ -67,6 +71,12 @@ interface PushRunOptions {
   remote: string
   setUpstream: boolean
   forceWithLease: boolean
+}
+
+interface WorktreeAsk {
+  /** `confirm` removes a clean worktree; `dirty` asks to force-remove one with changes. */
+  phase: 'confirm' | 'dirty'
+  record: RepoRecord
 }
 
 function sanitizeBoolean(stored: unknown): boolean | null {
@@ -105,11 +115,14 @@ function dedupeCheckouts(records: readonly RepoRecord[]): RepoRecord[] {
  */
 export function OperationsProvider({ children }: { children: ReactNode }): JSX.Element {
   const { t } = useTranslation()
-  const { statuses } = useWorkspace()
+  const { descriptor, statuses } = useWorkspace()
+  const tree = useTreeUi()
   const [dialog, setDialog] = useState<DialogState | null>(null)
   const [opAsk, setOpAsk] = useState<OpAsk | null>(null)
   const [rebaseAsk, setRebaseAsk] = useState<RebaseAsk | null>(null)
   const [pushAsk, setPushAsk] = useState<PushAsk | null>(null)
+  const [worktreeAsk, setWorktreeAsk] = useState<WorktreeAsk | null>(null)
+  const [worktreeFocus, setWorktreeFocus] = useState<string | null>(null)
   const [output, setOutput] = useState<readonly OutputEntry[]>([])
   const [outputOpen, setOutputOpen] = useUiState<boolean>('output.open', false, sanitizeBoolean)
   const [prune, setPrune] = useUiState<boolean>('fetch.prune', true, sanitizeBoolean)
@@ -156,6 +169,10 @@ export function OperationsProvider({ children }: { children: ReactNode }): JSX.E
   const openStashes = useCallback((record: RepoRecord) => setDialog({ kind: 'stashes', record }), [])
   const openBackupRestore = useCallback(
     (record: RepoRecord) => setDialog({ kind: 'backups', record }),
+    []
+  )
+  const openCreateWorktree = useCallback(
+    (record: RepoRecord) => setDialog({ kind: 'worktreeCreate', record }),
     []
   )
   const closeDialog = useCallback(() => setDialog(null), [])
@@ -279,6 +296,101 @@ export function OperationsProvider({ children }: { children: ReactNode }): JSX.E
   const rebaseOnto = useCallback((record: RepoRecord, onto: string) => {
     setRebaseAsk({ record, onto })
   }, [])
+
+  const runWorktreeRemove = useCallback(
+    (record: RepoRecord, force: boolean): void => {
+      if (!acquire(record)) return
+      void (async () => {
+        try {
+          const result = await api.invoke('git:worktreeRemove', {
+            gitDir: record.gitDir,
+            path: record.path,
+            ...(force ? { force: true } : {})
+          })
+          notifyUndoable(t, record.gitDir, t('worktree.removed', { name: record.name }), result.undo)
+        } catch (failure) {
+          if (!force && isWorktreeDirtyRefusal(failure)) {
+            setWorktreeAsk({ phase: 'dirty', record })
+          } else {
+            notifyServiceError(failure, t)
+          }
+        } finally {
+          release(record)
+        }
+      })()
+    },
+    [t]
+  )
+
+  const removeWorktree = useCallback(
+    (record: RepoRecord) => setWorktreeAsk({ phase: 'confirm', record }),
+    []
+  )
+
+  const pruneWorktrees = useCallback(
+    (record: RepoRecord): void => {
+      if (!acquire(record)) return
+      void (async () => {
+        try {
+          await api.invoke('git:worktreePrune', { gitDir: record.gitDir })
+          notify({ message: t('worktree.pruned') })
+        } catch (failure) {
+          notifyServiceError(failure, t)
+        } finally {
+          release(record)
+        }
+      })()
+    },
+    [t]
+  )
+
+  const setWorktreeLock = useCallback(
+    (record: RepoRecord, locked: boolean): void => {
+      if (!acquire(record)) return
+      void (async () => {
+        try {
+          if (locked) {
+            await api.invoke('git:worktreeLock', { gitDir: record.gitDir, path: record.path })
+          } else {
+            await api.invoke('git:worktreeUnlock', { gitDir: record.gitDir, path: record.path })
+          }
+          notify({
+            message: locked
+              ? t('worktree.locked', { name: record.name })
+              : t('worktree.unlocked', { name: record.name })
+          })
+        } catch (failure) {
+          notifyServiceError(failure, t)
+        } finally {
+          release(record)
+        }
+      })()
+    },
+    [t]
+  )
+
+  const lockWorktree = useCallback(
+    (record: RepoRecord) => setWorktreeLock(record, true),
+    [setWorktreeLock]
+  )
+  const unlockWorktree = useCallback(
+    (record: RepoRecord) => setWorktreeLock(record, false),
+    [setWorktreeLock]
+  )
+
+  // A created worktree reaches the registry asynchronously; reveal its row once it arrives.
+  const root = descriptor?.root ?? null
+  useEffect(() => {
+    if (worktreeFocus === null) return
+    const records = descriptor?.records ?? []
+    if (!records.some((record) => record.path === worktreeFocus)) return
+    tree.requestRepoFocus(worktreeFocus)
+    setWorktreeFocus(null)
+  }, [worktreeFocus, descriptor, tree])
+
+  useEffect(() => {
+    setWorktreeFocus(null)
+  }, [root])
 
   const runRebase = useCallback(
     (record: RepoRecord, onto: string): void => {
@@ -520,6 +632,11 @@ export function OperationsProvider({ children }: { children: ReactNode }): JSX.E
       openStashCreate,
       openStashes,
       openBackupRestore,
+      openCreateWorktree,
+      removeWorktree,
+      pruneWorktrees,
+      lockWorktree,
+      unlockWorktree,
       continueOperation,
       skipOperation,
       abortOperation,
@@ -546,6 +663,11 @@ export function OperationsProvider({ children }: { children: ReactNode }): JSX.E
       openStashCreate,
       openStashes,
       openBackupRestore,
+      openCreateWorktree,
+      removeWorktree,
+      pruneWorktrees,
+      lockWorktree,
+      unlockWorktree,
       continueOperation,
       skipOperation,
       abortOperation,
@@ -598,6 +720,13 @@ export function OperationsProvider({ children }: { children: ReactNode }): JSX.E
       )}
       {dialog?.kind === 'stashes' && <StashesDialog record={dialog.record} onClose={closeDialog} />}
       {dialog?.kind === 'backups' && <BackupsDialog record={dialog.record} onClose={closeDialog} />}
+      {dialog?.kind === 'worktreeCreate' && (
+        <CreateWorktreeDialog
+          record={dialog.record}
+          onClose={closeDialog}
+          onCreated={(path) => setWorktreeFocus(path)}
+        />
+      )}
 
       {rebaseAsk !== null && (
         <ConfirmDialog
@@ -761,6 +890,35 @@ export function OperationsProvider({ children }: { children: ReactNode }): JSX.E
             })
           }}
           onClose={() => setPushAsk(null)}
+        />
+      )}
+
+      {worktreeAsk?.phase === 'confirm' && (
+        <ConfirmDialog
+          title={t('worktree.removeTitle', { name: worktreeAsk.record.name })}
+          body={t('worktree.removeBody', { path: worktreeAsk.record.path })}
+          confirmLabel={t('worktree.removeAction')}
+          danger
+          onConfirm={() => {
+            const ask = worktreeAsk
+            setWorktreeAsk(null)
+            runWorktreeRemove(ask.record, false)
+          }}
+          onClose={() => setWorktreeAsk(null)}
+        />
+      )}
+      {worktreeAsk?.phase === 'dirty' && (
+        <ConfirmDialog
+          title={t('worktree.removeDirtyTitle', { name: worktreeAsk.record.name })}
+          body={t('worktree.removeDirtyBody', { path: worktreeAsk.record.path })}
+          confirmLabel={t('worktree.forceAction')}
+          danger
+          onConfirm={() => {
+            const ask = worktreeAsk
+            setWorktreeAsk(null)
+            runWorktreeRemove(ask.record, true)
+          }}
+          onClose={() => setWorktreeAsk(null)}
         />
       )}
     </OperationsContext.Provider>

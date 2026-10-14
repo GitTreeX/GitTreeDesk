@@ -29,8 +29,23 @@ export function RepoBadges({
   const chips: JSX.Element[] = []
 
   if (options.kindBadges) {
-    if (record.kind === 'worktree') chips.push(chip('badges.worktree', '⧉'))
-    else if (record.kind === 'bare') chips.push(chip('badges.bare', 'bare'))
+    if (record.kind === 'worktree') {
+      chips.push(chip('badges.worktree', '⧉'))
+      if (record.worktreeLocked !== undefined && record.worktreeLocked !== null) {
+        chips.push(
+          chip(
+            'badges.worktreeLocked',
+            'locked',
+            record.worktreeLocked.length > 0
+              ? `${t('badges.worktreeLocked')} — ${record.worktreeLocked}`
+              : undefined
+          )
+        )
+      }
+      if (record.worktreePrunable !== undefined && record.worktreePrunable !== null) {
+        chips.push(chip('badges.worktreePrunable', 'prunable'))
+      }
+    } else if (record.kind === 'bare') chips.push(chip('badges.bare', 'bare'))
     else if (isSubmoduleRecord(record)) chips.push(chip('badges.submodule', '◇'))
     if (main) chips.push(chip('badges.main', 'main'))
   }
@@ -51,9 +66,9 @@ export function RepoBadges({
   if (chips.length === 0) return <></>
   return <span className="flex shrink-0 items-center gap-1">{chips}</span>
 
-  function chip(key: string, text: string): JSX.Element {
+  function chip(key: string, text: string, title?: string): JSX.Element {
     return (
-      <span key={key} title={t(key)} className="text-xs text-muted">
+      <span key={key} title={title ?? t(key)} className="text-xs text-muted">
         {text}
       </span>
     )

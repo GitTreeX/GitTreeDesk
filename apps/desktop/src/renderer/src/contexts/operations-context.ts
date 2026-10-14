@@ -41,6 +41,14 @@ export interface OperationsValue {
   openStashCreate: (record: RepoRecord, options?: { paths?: readonly string[] }) => void
   openStashes: (record: RepoRecord) => void
   openBackupRestore: (record: RepoRecord) => void
+  /** Opens the dialog that creates a linked worktree of `record`'s repository. */
+  openCreateWorktree: (record: RepoRecord) => void
+  /** Confirms, then removes the worktree row `record`; a dirty worktree asks for force. */
+  removeWorktree: (record: RepoRecord) => void
+  /** Runs `git worktree prune` for the repository `record` belongs to. */
+  pruneWorktrees: (record: RepoRecord) => void
+  lockWorktree: (record: RepoRecord) => void
+  unlockWorktree: (record: RepoRecord) => void
   /** Validates unresolved conflicts, then continues the stopped operation. */
   continueOperation: (record: RepoRecord) => void
   skipOperation: (record: RepoRecord) => void

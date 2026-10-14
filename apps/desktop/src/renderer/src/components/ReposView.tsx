@@ -269,6 +269,18 @@ export function ReposView(): JSX.Element {
     const branch = status?.head.ref ?? null
     const pushable = record.kind !== 'bare' && branch !== null
     const canTarget = record.gitDir.length > 0
+    const isWorktree = record.kind === 'worktree'
+    const locked = isWorktree && record.worktreeLocked !== undefined && record.worktreeLocked !== null
+    const prunable =
+      isWorktree && record.worktreePrunable !== undefined && record.worktreePrunable !== null
+    // A prunable row has no git dir of its own; prune runs from any live checkout of the repo.
+    const pruneAnchor =
+      canTarget && record.kind !== 'bare'
+        ? record
+        : (records.find(
+            (candidate) =>
+              candidate.id === record.id && candidate.gitDir.length > 0 && candidate.kind !== 'bare'
+          ) ?? null)
     return [
       {
         label: t('menu.checkoutBranch'),
@@ -345,6 +357,31 @@ export function ReposView(): JSX.Element {
         }
       },
       {
+        label: t('menu.newWorktree'),
+        disabled: !canTarget || record.kind === 'bare',
+        onSelect: () => {
+          repoUi.setActiveKey(record.gitDir)
+          operations.openCreateWorktree(record)
+        }
+      },
+      {
+        label: t('menu.removeWorktree'),
+        disabled: !isWorktree || !canTarget || prunable,
+        onSelect: () => operations.removeWorktree(record)
+      },
+      {
+        label: locked ? t('menu.unlockWorktree') : t('menu.lockWorktree'),
+        disabled: !isWorktree || !canTarget || prunable,
+        onSelect: () => (locked ? operations.unlockWorktree(record) : operations.lockWorktree(record))
+      },
+      {
+        label: t('menu.pruneWorktrees'),
+        disabled: pruneAnchor === null,
+        onSelect: () => {
+          if (pruneAnchor !== null) operations.pruneWorktrees(pruneAnchor)
+        }
+      },
+      {
         label: paths.length > 1 ? t('menu.copyPaths') : t('menu.copyPath'),
         onSelect: () => copyPath(paths.join('\n'))
       },
@@ -416,6 +453,10 @@ export function ReposView(): JSX.Element {
             const isCursor = node.key === cursorKey
             const isSelected = selected.has(node.key)
             const label = branchLabel(record, status)
+            const prunable =
+              record.kind === 'worktree' &&
+              record.worktreePrunable !== undefined &&
+              record.worktreePrunable !== null
 
             return (
               <div
@@ -427,7 +468,7 @@ export function ReposView(): JSX.Element {
                 title={record.path}
                 className={`flex cursor-default items-center gap-1.5 pr-2 text-sm ${
                   isCursor ? 'bg-accent/10' : isSelected ? 'bg-ink/5' : 'hover:bg-ink/5'
-                } ${record.external ? 'opacity-60' : ''}`}
+                } ${record.external || prunable ? 'opacity-60' : ''}`}
                 style={{
                   position: 'absolute',
                   top: 0,

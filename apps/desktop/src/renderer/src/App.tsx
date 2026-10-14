@@ -206,6 +206,7 @@ function AppRoot(): JSX.Element {
     gitStashCreate: () => withActiveRecord((record) => operations.openStashCreate(record)),
     gitStashes: () => withActiveRecord((record) => operations.openStashes(record)),
     gitRestoreBackup: () => withActiveRecord((record) => operations.openBackupRestore(record)),
+    gitNewWorktree: () => withActiveRecord((record) => operations.openCreateWorktree(record)),
     gitHasTarget: () => repoUi.activeRecord !== null,
     gitHasRepos: () => (workspace.descriptor?.records.length ?? 0) > 0,
     gitCanSync: () => syncTarget() !== null,
