@@ -105,10 +105,10 @@ describe('WorkspaceSession', () => {
         interval: 250
       })
 
-      await rm(join(root, 'group'), { recursive: true, force: true })
+      await removeDir(join(root, 'group'))
       await vi.waitFor(() => expect(relPaths(instance)).toEqual(['solo']), { timeout: 30_000, interval: 250 })
 
-      await rm(join(root, 'solo'), { recursive: true, force: true })
+      await removeDir(join(root, 'solo'))
       await vi.waitFor(() => expect(relPaths(instance)).toEqual([]), { timeout: 30_000, interval: 250 })
 
       expect(changes.some((change) => change.added.includes('group/team/app'))).toBe(true)
@@ -214,7 +214,7 @@ describe('WorkspaceSession', () => {
       await instance.rescan()
       expect(relPaths(instance)).toEqual(['app', 'solo'])
 
-      await rm(join(root, 'app'), { recursive: true, force: true })
+      await removeDir(join(root, 'app'))
       await instance.rescan([join(root, 'app')])
       expect(relPaths(instance)).toEqual(['solo'])
     },
