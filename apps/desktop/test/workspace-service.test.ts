@@ -158,6 +158,40 @@ describe('WorkspaceService', () => {
     expect(again.statuses[0]?.status.head.ref).toBe('main')
   })
 
+  it('paints a previously opened workspace from cache before the fresh scan lands', async () => {
+    const root = await tempDir('gtd-svc-cache-')
+    const userData = await tempDir('gtd-svc-data-')
+    await initRepo(join(root, 'api-server'))
+    await initRepo(join(root, 'site'))
+
+    const firstEvents: WorkspaceServiceEvent[] = []
+    const first = service(userData, firstEvents)
+    await first.open(root)
+    await vi.waitFor(() => {
+      expect(firstEvents.filter(isStatus)).toHaveLength(2)
+    })
+    await first.dispose()
+
+    await initRepo(join(root, 'tools'))
+    const secondEvents: WorkspaceServiceEvent[] = []
+    const second = service(userData, secondEvents)
+    const descriptor = await second.open(root)
+    // Cached records and statuses paint immediately; nothing has been scanned yet.
+    expect(descriptor.records.map((record) => record.relPath).sort()).toEqual(['api-server', 'site'])
+    expect(descriptor.stats.dirsScanned).toBe(0)
+    expect(descriptor.statuses).toHaveLength(2)
+
+    await vi.waitFor(() => {
+      expect(
+        secondEvents.some((event) => event.type === 'reposChanged' && event.stats !== undefined)
+      ).toBe(true)
+    }, 30_000)
+    const landed = secondEvents.find((event) => event.type === 'reposChanged' && event.stats !== undefined)
+    if (landed?.type !== 'reposChanged') throw new Error('the fresh scan did not land')
+    expect(landed.diff.added.map((record) => record.relPath)).toEqual(['tools'])
+    expect(landed.stats?.repos).toBe(3)
+  })
+
   it('reads a fresh status by git dir and rejects unknown checkouts', async () => {
     const root = await tempDir('gtd-svc-status-')
     const userData = await tempDir('gtd-svc-data-')
