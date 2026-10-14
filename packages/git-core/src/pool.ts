@@ -21,7 +21,7 @@ function abortError(): DOMException {
  * jumps ahead of background refreshes, and disposal cancels everything outstanding.
  */
 export class GitPool {
-  readonly #concurrency: number
+  #concurrency: number
   readonly #interactive: QueuedTask[] = []
   readonly #background: QueuedTask[] = []
   readonly #controller = new AbortController()
@@ -34,6 +34,13 @@ export class GitPool {
 
   get activeCount(): number {
     return this.#active
+  }
+
+  /** Applies a new limit live; queued work beyond it starts as running slots free up. */
+  setConcurrency(concurrency: number): void {
+    if (!Number.isFinite(concurrency)) return
+    this.#concurrency = Math.max(1, Math.floor(concurrency))
+    this.#pump()
   }
 
   get queuedCount(): number {
