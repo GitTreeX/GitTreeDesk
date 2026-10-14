@@ -895,6 +895,28 @@ export interface SettingsRemoveRequest {
   keyPath: string[]
 }
 
+export interface KeybindingsSetRequest {
+  command: string
+  /** Accelerator text; `null` unbinds the command. */
+  keys: string | null
+}
+
+export interface KeybindingsResetRequest {
+  command: string
+}
+
+export interface KeybindingsChangedEvent {
+  command: string
+  /** The new accelerator text; `null` means unbound; absent when the override was removed. */
+  keys?: string | null
+  /** True when the override entry was deleted, so the default applies again. */
+  removed: boolean
+}
+
+export interface AppOpenFolderRequest {
+  kind: 'logs' | 'userData'
+}
+
 export interface TrustGrantRequest {
   trusted: boolean
 }
@@ -1236,6 +1258,10 @@ export interface InvokeMap {
   'settings:getEffective': { request: SettingsGetEffectiveRequest; response: { value: unknown } }
   'settings:set': { request: SettingsSetRequest; response: null }
   'settings:remove': { request: SettingsRemoveRequest; response: null }
+  'keybindings:get': { request: undefined; response: { overrides: Record<string, string | null> } }
+  'keybindings:set': { request: KeybindingsSetRequest; response: null }
+  'keybindings:reset': { request: KeybindingsResetRequest; response: null }
+  'app:openFolder': { request: AppOpenFolderRequest; response: null }
   'trust:query': { request: undefined; response: { trusted: boolean } }
   'trust:grant': { request: TrustGrantRequest; response: { trusted: boolean } }
   'ui-state:get': { request: UiStateGetRequest; response: { value: unknown } }
@@ -1254,6 +1280,7 @@ export interface EventMap {
   'workspace:issues': IssuesEvent
   'watcher:degraded': WatcherDegradedEvent
   'settings:changed': SettingsChangedEvent
+  'keybindings:changed': KeybindingsChangedEvent
   'commitmsg:output': CommitMessageOutputEvent
   'commitmsg:done': CommitMessageDoneEvent
   'terminal:frame': TerminalFrameEvent
@@ -1382,6 +1409,10 @@ export const INVOKE_CHANNELS = [
   'settings:getEffective',
   'settings:set',
   'settings:remove',
+  'keybindings:get',
+  'keybindings:set',
+  'keybindings:reset',
+  'app:openFolder',
   'trust:query',
   'trust:grant',
   'ui-state:get',
@@ -1400,6 +1431,7 @@ export const EVENT_CHANNELS = [
   'workspace:issues',
   'watcher:degraded',
   'settings:changed',
+  'keybindings:changed',
   'commitmsg:output',
   'commitmsg:done',
   'terminal:frame',
