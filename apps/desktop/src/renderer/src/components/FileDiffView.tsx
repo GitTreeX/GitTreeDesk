@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import type { CommitInfo, DiffSource, GitDiffResponse, GitRef } from '@gitreedesk/shared'
 import { api } from '../api'
 import { useEditor, EMPTY_TREE_SHA, type CommitTab, type DiffTab } from '../contexts/editor'
+import { useTerminal } from '../contexts/terminal'
 import { ensureLanguage, languageIdForPath } from '../editor/languages'
 import { loadMonaco, type DiffEditor, type Monaco, type TextModel } from '../editor/monaco'
 import { parsePatch, singleHunkPatch, type ParsedPatch } from '../editor/patch'
@@ -69,6 +70,7 @@ function sourcesOf(tab: DiffTab | CommitTab): { from: DiffSource; to: DiffSource
 export function FileDiffView({ tab }: { tab: DiffTab | CommitTab }): JSX.Element {
   const { t } = useTranslation()
   const editorCtx = useEditor()
+  const terminal = useTerminal()
   const settings = editorCtx.settings
 
   const [load, setLoad] = useState<LoadState>({ status: 'loading' })
@@ -365,6 +367,9 @@ export function FileDiffView({ tab }: { tab: DiffTab | CommitTab }): JSX.Element
   const response = load.status === 'ready' ? load.response : null
   const headerPath =
     response !== null && response.origPath !== null ? `${response.origPath} → ${response.path}` : tab.path
+  const pathSlash = tab.path.lastIndexOf('/')
+  const terminalDir =
+    pathSlash > 0 ? `${tab.repo.repoPath}/${tab.path.slice(0, pathSlash)}` : tab.repo.repoPath
 
   return (
     <div className="flex min-h-0 flex-1">
@@ -407,6 +412,13 @@ export function FileDiffView({ tab }: { tab: DiffTab | CommitTab }): JSX.Element
               {t('diff.copyPatch')}
             </button>
           )}
+          <button
+            type="button"
+            className="rounded border border-line px-1.5 py-0.5 text-xs text-muted hover:bg-ink/5 hover:text-ink"
+            onClick={() => terminal.open(terminalDir)}
+          >
+            {t('menu.openTerminal')}
+          </button>
         </div>
 
         {stale && (

@@ -15,6 +15,7 @@ import { isEditableTarget } from '../commands/keybinding'
 import { repoInfoOf, scmDiffSpec, useEditor } from '../contexts/editor'
 import { useOperations } from '../contexts/operations-context'
 import { useReposUi } from '../contexts/repos'
+import { useTerminal } from '../contexts/terminal'
 import { useTreeUi, type ScmActions } from '../contexts/tree'
 import { useWorkspace } from '../contexts/workspace'
 import { notify, notifyError } from '../notify'
@@ -74,6 +75,17 @@ function absPath(record: RepoRecord, relPath: string): string {
   return `${record.path}/${relPath.replace(/\/$/, '')}`
 }
 
+/** Directory a row's terminal starts in: the folder itself for directory rows, else the file's parent. */
+function dirOf(item: FlatItem): string {
+  const record = item.section.record
+  if (item.row.path.endsWith('/')) {
+    return `${record.path}/${item.row.path.replace(/\/+$/, '')}`
+  }
+  const file = absPath(record, item.row.path)
+  const slash = file.lastIndexOf('/')
+  return slash <= 0 ? record.path : file.slice(0, slash)
+}
+
 interface RepoBatch {
   record: RepoRecord
   paths: Set<string>
@@ -117,6 +129,7 @@ export function ScmView(): JSX.Element {
   const editor = useEditor()
   const repoUi = useReposUi()
   const operations = useOperations()
+  const terminal = useTerminal()
   const records = descriptor?.records ?? NO_RECORDS
   const trusted = descriptor?.trusted ?? false
 
@@ -505,6 +518,7 @@ export function ScmView(): JSX.Element {
         { label: t('conflict.openInEditor'), onSelect: () => openConflictInEditor(item) },
         { label: t('conflict.openTool'), onSelect: () => openMergeTool(item) },
         { label: t('scm.resolve'), onSelect: () => runStage([item]) },
+        { label: t('menu.openTerminal'), onSelect: () => terminal.open(dirOf(item)) },
         { label: t('menu.copyPath'), onSelect: () => copyPathOf(item) }
       ]
     }
@@ -553,6 +567,7 @@ export function ScmView(): JSX.Element {
       label: t('stash.selectedMenu'),
       onSelect: () => operations.openStashCreate(item.section.record, { paths: stashPaths })
     })
+    menu.push({ label: t('menu.openTerminal'), onSelect: () => terminal.open(dirOf(item)) })
     menu.push({ label: t('menu.copyPath'), onSelect: () => copyPathOf(item) })
     return menu
   }

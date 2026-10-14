@@ -8,6 +8,7 @@ import { useGraph } from '../contexts/graph'
 import { useOperations } from '../contexts/operations-context'
 import { useReposUi } from '../contexts/repos'
 import { useSubmodules } from '../contexts/submodules'
+import { useTerminal } from '../contexts/terminal'
 import { useTreeUi } from '../contexts/tree'
 import { useWorkspace } from '../contexts/workspace'
 import { notifyError } from '../notify'
@@ -41,6 +42,7 @@ export function ReposView(): JSX.Element {
   const repoUi = useReposUi()
   const operations = useOperations()
   const graph = useGraph()
+  const terminal = useTerminal()
   const { submodulesFor } = useSubmodules()
   const records = descriptor?.records ?? NO_RECORDS
 
@@ -476,7 +478,12 @@ export function ReposView(): JSX.Element {
         onSelect: () => copyPath(paths.join('\n'))
       },
       { label: t('menu.reveal'), onSelect: () => reveal(node.record.path) },
-      { label: t('menu.openInEditor'), onSelect: () => openInEditor(node.record.path) }
+      { label: t('menu.openInEditor'), onSelect: () => openInEditor(node.record.path) },
+      {
+        label: t('menu.openTerminal'),
+        disabled: prunable,
+        onSelect: () => terminal.open(record.path)
+      }
     ]
   }
 

@@ -5,6 +5,7 @@ import type { FsEntry, RepoRecord } from '@gitreedesk/shared'
 import { api } from '../api'
 import { isEditableTarget } from '../commands/keybinding'
 import { useEditor } from '../contexts/editor'
+import { useTerminal } from '../contexts/terminal'
 import { useTreeUi } from '../contexts/tree'
 import { useWorkspace } from '../contexts/workspace'
 import { notify, notifyError } from '../notify'
@@ -46,6 +47,7 @@ export function ExplorerView(): JSX.Element {
   const { descriptor, statuses } = useWorkspace()
   const tree = useTreeUi()
   const editor = useEditor()
+  const terminal = useTerminal()
   const root = descriptor?.root ?? ''
 
   const [children, setChildren] = useState<ReadonlyMap<string, readonly FsEntry[]>>(EMPTY_CHILDREN)
@@ -429,6 +431,7 @@ export function ExplorerView(): JSX.Element {
         onSelect: () => setNewEntry({ dir: target, kind: 'dir' })
       },
       { label: t('menu.openInEditor'), onSelect: () => openInEditor(row.path) },
+      { label: t('menu.openTerminal'), onSelect: () => terminal.open(target) },
       { label: t('menu.reveal'), onSelect: () => reveal(row.path) },
       { label: t('menu.copyPath'), onSelect: () => copyPath(row.path) },
       { label: t('menu.rename'), onSelect: () => setRenaming(row) },
