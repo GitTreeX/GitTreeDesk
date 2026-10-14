@@ -15,16 +15,19 @@ import { notify } from '../notify'
 
 export function CreateTagDialog({
   record,
+  initialTarget,
   onClose
 }: {
   record: RepoRecord
+  /** Revision the tag points at; defaults to `HEAD`. */
+  initialTarget?: string
   onClose: () => void
 }): JSX.Element {
   const { t } = useTranslation()
   const [refs, setRefs] = useState<readonly GitRef[]>([])
   const [defaultRemote, setDefaultRemote] = useState<string | null>(null)
   const [name, setName] = useState('')
-  const [target, setTarget] = useState('HEAD')
+  const [target, setTarget] = useState(initialTarget ?? 'HEAD')
   const [message, setMessage] = useState('')
   const [push, setPush] = useState(false)
   const [busy, setBusy] = useState(false)

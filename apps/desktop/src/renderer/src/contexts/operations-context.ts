@@ -26,17 +26,38 @@ export interface OutputEntry {
   lines: OutputLine[]
 }
 
+/** One commit a graph action targets. */
+export interface CommitTarget {
+  sha: string
+  subject: string
+  parents: readonly string[]
+}
+
 export interface OperationsValue {
   openBranches: (record: RepoRecord) => void
   openCreateBranch: (record: RepoRecord, options?: { startPoint?: string; initialName?: string }) => void
   openRemotes: (record: RepoRecord) => void
   openTags: (record: RepoRecord) => void
+  /** Opens the tag dialog, optionally pointing the new tag at `target`. */
+  openCreateTag: (record: RepoRecord, options?: { target?: string }) => void
   /** Opens the merge dialog that merges `branch` into the current branch. */
   beginMerge: (record: RepoRecord, branch: string) => void
   /** Confirms, then rebases the current branch onto `onto`. */
   rebaseOnto: (record: RepoRecord, onto: string) => void
   /** Opens the interactive rebase planner based on `base`. */
   beginInteractiveRebase: (record: RepoRecord, base: string) => void
+  /** Opens the cherry-pick dialog for one commit. */
+  openCherryPick: (record: RepoRecord, target: CommitTarget) => void
+  /** Opens the revert dialog for one commit. */
+  openRevert: (record: RepoRecord, target: CommitTarget) => void
+  /** Opens the reset dialog that moves the current branch to `target`. */
+  openReset: (record: RepoRecord, target: CommitTarget) => void
+  /** Opens the history-rewrite dialog; `pushed` warns about published history. */
+  openEditCommits: (
+    record: RepoRecord,
+    targets: readonly CommitTarget[],
+    options?: { pushed?: boolean }
+  ) => void
   /** Opens the stash-creation dialog; `paths` restricts it to the picked paths. */
   openStashCreate: (record: RepoRecord, options?: { paths?: readonly string[] }) => void
   openStashes: (record: RepoRecord) => void

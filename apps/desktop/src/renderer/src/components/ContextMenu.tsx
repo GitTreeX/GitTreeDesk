@@ -4,6 +4,8 @@ export interface ContextMenuItem {
   label: string
   onSelect: () => void
   disabled?: boolean
+  /** Draws a divider above this item. */
+  divider?: boolean
 }
 
 export function ContextMenu({
@@ -57,19 +59,21 @@ export function ContextMenu({
       style={{ left: position.x, top: position.y }}
     >
       {items.map((item, index) => (
-        <button
-          key={index}
-          role="menuitem"
-          type="button"
-          disabled={item.disabled === true}
-          className="block w-full px-3 py-1.5 text-left text-sm text-ink hover:bg-ink/5 disabled:opacity-40"
-          onClick={() => {
-            onClose()
-            item.onSelect()
-          }}
-        >
-          {item.label}
-        </button>
+        <div key={index}>
+          {item.divider === true && <div className="my-1 border-t border-line" />}
+          <button
+            role="menuitem"
+            type="button"
+            disabled={item.disabled === true}
+            className="block w-full px-3 py-1.5 text-left text-sm text-ink hover:bg-ink/5 disabled:opacity-40"
+            onClick={() => {
+              onClose()
+              item.onSelect()
+            }}
+          >
+            {item.label}
+          </button>
+        </div>
       ))}
     </div>
   )

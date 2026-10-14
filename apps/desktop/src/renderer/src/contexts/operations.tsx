@@ -10,12 +10,16 @@ import type {
 } from '@gitreedesk/shared'
 import { BackupsDialog } from '../components/BackupsDialog'
 import { BranchPicker } from '../components/BranchPicker'
+import { CommitApplyDialog } from '../components/CommitApplyDialog'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { CreateBranchDialog } from '../components/CreateBranchDialog'
+import { CreateTagDialog } from '../components/CreateTagDialog'
 import { CreateWorktreeDialog } from '../components/CreateWorktreeDialog'
+import { EditCommitsDialog } from '../components/EditCommitsDialog'
 import { InteractiveRebaseDialog } from '../components/InteractiveRebaseDialog'
 import { MergeDialog } from '../components/MergeDialog'
 import { RemotesDialog } from '../components/RemotesDialog'
+import { ResetDialog } from '../components/ResetDialog'
 import { StashCreateDialog } from '../components/StashCreateDialog'
 import { StashesDialog } from '../components/StashesDialog'
 import { TagsDialog } from '../components/TagsDialog'
@@ -36,6 +40,7 @@ import { useSubmodules } from './submodules'
 import { useWorkspace } from './workspace'
 import {
   OperationsContext,
+  type CommitTarget,
   type FetchOptions,
   type OperationsValue,
   type OutputEntry
@@ -46,8 +51,13 @@ type DialogState =
   | { kind: 'createBranch'; record: RepoRecord; startPoint?: string; initialName?: string }
   | { kind: 'remotes'; record: RepoRecord }
   | { kind: 'tags'; record: RepoRecord }
+  | { kind: 'createTag'; record: RepoRecord; target?: string }
   | { kind: 'merge'; record: RepoRecord; branch: string }
   | { kind: 'interactiveRebase'; record: RepoRecord; base: string }
+  | { kind: 'cherryPick'; record: RepoRecord; target: CommitTarget }
+  | { kind: 'revert'; record: RepoRecord; target: CommitTarget }
+  | { kind: 'reset'; record: RepoRecord; target: CommitTarget }
+  | { kind: 'editCommits'; record: RepoRecord; targets: readonly CommitTarget[]; pushed: boolean }
   | { kind: 'stashCreate'; record: RepoRecord; paths?: readonly string[] }
   | { kind: 'stashes'; record: RepoRecord }
   | { kind: 'backups'; record: RepoRecord }
@@ -178,6 +188,11 @@ export function OperationsProvider({ children }: { children: ReactNode }): JSX.E
   const openBranches = useCallback((record: RepoRecord) => setDialog({ kind: 'branches', record }), [])
   const openRemotes = useCallback((record: RepoRecord) => setDialog({ kind: 'remotes', record }), [])
   const openTags = useCallback((record: RepoRecord) => setDialog({ kind: 'tags', record }), [])
+  const openCreateTag = useCallback(
+    (record: RepoRecord, options?: { target?: string }) =>
+      setDialog({ kind: 'createTag', record, ...options }),
+    []
+  )
   const openCreateBranch = useCallback(
     (record: RepoRecord, options?: { startPoint?: string; initialName?: string }) =>
       setDialog({ kind: 'createBranch', record, ...options }),
@@ -189,6 +204,23 @@ export function OperationsProvider({ children }: { children: ReactNode }): JSX.E
   )
   const beginInteractiveRebase = useCallback(
     (record: RepoRecord, base: string) => setDialog({ kind: 'interactiveRebase', record, base }),
+    []
+  )
+  const openCherryPick = useCallback(
+    (record: RepoRecord, target: CommitTarget) => setDialog({ kind: 'cherryPick', record, target }),
+    []
+  )
+  const openRevert = useCallback(
+    (record: RepoRecord, target: CommitTarget) => setDialog({ kind: 'revert', record, target }),
+    []
+  )
+  const openReset = useCallback(
+    (record: RepoRecord, target: CommitTarget) => setDialog({ kind: 'reset', record, target }),
+    []
+  )
+  const openEditCommits = useCallback(
+    (record: RepoRecord, targets: readonly CommitTarget[], options?: { pushed?: boolean }) =>
+      setDialog({ kind: 'editCommits', record, targets, pushed: options?.pushed === true }),
     []
   )
   const openStashCreate = useCallback(
@@ -806,9 +838,14 @@ export function OperationsProvider({ children }: { children: ReactNode }): JSX.E
       openCreateBranch,
       openRemotes,
       openTags,
+      openCreateTag,
       beginMerge,
       rebaseOnto,
       beginInteractiveRebase,
+      openCherryPick,
+      openRevert,
+      openReset,
+      openEditCommits,
       openStashCreate,
       openStashes,
       openBackupRestore,
@@ -840,9 +877,14 @@ export function OperationsProvider({ children }: { children: ReactNode }): JSX.E
       openCreateBranch,
       openRemotes,
       openTags,
+      openCreateTag,
       beginMerge,
       rebaseOnto,
       beginInteractiveRebase,
+      openCherryPick,
+      openRevert,
+      openReset,
+      openEditCommits,
       openStashCreate,
       openStashes,
       openBackupRestore,
@@ -891,11 +933,45 @@ export function OperationsProvider({ children }: { children: ReactNode }): JSX.E
       )}
       {dialog?.kind === 'remotes' && <RemotesDialog record={dialog.record} onClose={closeDialog} />}
       {dialog?.kind === 'tags' && <TagsDialog record={dialog.record} onClose={closeDialog} />}
+      {dialog?.kind === 'createTag' && (
+        <CreateTagDialog
+          record={dialog.record}
+          {...(dialog.target !== undefined ? { initialTarget: dialog.target } : {})}
+          onClose={closeDialog}
+        />
+      )}
       {dialog?.kind === 'merge' && (
         <MergeDialog record={dialog.record} branch={dialog.branch} onClose={closeDialog} />
       )}
       {dialog?.kind === 'interactiveRebase' && (
         <InteractiveRebaseDialog record={dialog.record} base={dialog.base} onClose={closeDialog} />
+      )}
+      {dialog?.kind === 'cherryPick' && (
+        <CommitApplyDialog
+          record={dialog.record}
+          mode="cherry-pick"
+          target={dialog.target}
+          onClose={closeDialog}
+        />
+      )}
+      {dialog?.kind === 'revert' && (
+        <CommitApplyDialog
+          record={dialog.record}
+          mode="revert"
+          target={dialog.target}
+          onClose={closeDialog}
+        />
+      )}
+      {dialog?.kind === 'reset' && (
+        <ResetDialog record={dialog.record} target={dialog.target} onClose={closeDialog} />
+      )}
+      {dialog?.kind === 'editCommits' && (
+        <EditCommitsDialog
+          record={dialog.record}
+          targets={dialog.targets}
+          pushed={dialog.pushed}
+          onClose={closeDialog}
+        />
       )}
       {dialog?.kind === 'stashCreate' && (
         <StashCreateDialog
