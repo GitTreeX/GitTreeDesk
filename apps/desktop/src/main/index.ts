@@ -5,7 +5,9 @@ import { createEventBroadcaster, registerIpcHandlers, type IpcBridge } from './i
 import { installApplicationMenu, resolveShellLocale, type ShellLocale } from './menu'
 import { CommitMessageService } from './services/commit-message'
 import { SecretsStore, type SecretCodec } from './services/secrets'
+import { TerminalService } from './services/terminal'
 import { WorkspaceService } from './services/workspace-service'
+import { electronTerminalRuntime } from './terminal-runtime'
 
 const devServerUrl = process.env['ELECTRON_RENDERER_URL']
 
@@ -122,14 +124,22 @@ if (!app.requestSingleInstanceLock()) {
         broadcaster.handleCommitMessage(event)
       }
     })
+    const terminals = new TerminalService({
+      workspace,
+      runtime: electronTerminalRuntime(),
+      emit: (event) => {
+        broadcaster.handleTerminal(event)
+      }
+    })
     installApplicationMenu(shellLocale, sendCommand)
     void syncShellLocale()
-    bridge = registerIpcHandlers(workspace, commitMessages)
+    bridge = registerIpcHandlers(workspace, commitMessages, terminals)
     app.on('will-quit', () => {
       bridge?.dispose()
       bridge = null
       broadcaster.dispose()
       commitMessages.dispose()
+      terminals.dispose()
       void service?.dispose()
       service = null
     })

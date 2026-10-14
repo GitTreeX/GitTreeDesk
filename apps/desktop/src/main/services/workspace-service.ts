@@ -240,6 +240,12 @@ import { ServiceError } from './errors'
 
 const toPosix = (value: string): string => value.replace(/\\/g, '/')
 
+function isInsidePath(path: string, base: string): boolean {
+  const target = process.platform === 'win32' ? path.toLowerCase() : path
+  const root = process.platform === 'win32' ? base.toLowerCase() : base
+  return target === root || target.startsWith(`${root}/`)
+}
+
 const RECENT_LIMIT = 10
 
 const INVALID_ENTRY_NAME = /[/\\\u0000-\u001f]/
@@ -504,6 +510,22 @@ export class WorkspaceService {
   /** Working-tree path for a checkout; rejects unknown and bare repositories. */
   resolveWorktreePath(gitDir: string): string {
     return this.#requireWriteCheckout(gitDir).path
+  }
+
+  /** Root of the open workspace. */
+  currentRoot(): string {
+    return this.#requireSession().root
+  }
+
+  /** Longest registered checkout containing `dir`; `null` when outside every checkout. */
+  findRepoRootFor(dir: string): string | null {
+    const session = this.#requireSession()
+    let best: string | null = null
+    for (const record of session.registry.all) {
+      if (record.path.length === 0 || !isInsidePath(dir, record.path)) continue
+      if (best === null || record.path.length > best.length) best = record.path
+    }
+    return best
   }
 
   /** Stages the current content of the paths (additions, edits, deletions). */

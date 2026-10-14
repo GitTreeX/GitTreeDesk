@@ -18,6 +18,7 @@ import { launchShell, nativePath, openInEditor } from './editor-launcher'
 import type { CommitMessageService, CommitMessageServiceEvent } from './services/commit-message'
 import { ServiceError } from './services/errors'
 import { StatusBatcher } from './services/status-batcher'
+import type { TerminalService, TerminalServiceEvent } from './services/terminal'
 import type { WorkspaceService, WorkspaceServiceEvent } from './services/workspace-service'
 
 const STATUS_FLUSH_MS = 33
@@ -25,6 +26,7 @@ const STATUS_FLUSH_MS = 33
 export interface EventBroadcaster {
   handle(event: WorkspaceServiceEvent): void
   handleCommitMessage(event: CommitMessageServiceEvent): void
+  handleTerminal(event: TerminalServiceEvent): void
   dispose(): void
 }
 
@@ -85,6 +87,10 @@ export function createEventBroadcaster(): EventBroadcaster {
       if (event.type === 'output') broadcast('commitmsg:output', event.payload)
       else broadcast('commitmsg:done', event.payload)
     },
+    handleTerminal(event) {
+      if (event.type === 'frame') broadcast('terminal:frame', { id: event.id, frame: event.frame })
+      else broadcast('terminal:exited', { id: event.id, code: event.code })
+    },
     dispose() {
       batcher.dispose()
     }
@@ -97,9 +103,10 @@ export interface IpcBridge {
 
 export function registerIpcHandlers(
   service: WorkspaceService,
-  commitMessages: CommitMessageService
+  commitMessages: CommitMessageService,
+  terminals: TerminalService
 ): IpcBridge {
-  const handlers = createHandlers(service, commitMessages)
+  const handlers = createHandlers(service, commitMessages, terminals)
 
   for (const channel of INVOKE_CHANNELS) {
     ipcMain.handle(channel, async (_event, payload: unknown): Promise<IpcResult<unknown>> => {
@@ -128,7 +135,8 @@ export function registerIpcHandlers(
 
 function createHandlers(
   service: WorkspaceService,
-  commitMessages: CommitMessageService
+  commitMessages: CommitMessageService,
+  terminals: TerminalService
 ): InvokeHandlers {
   return {
     'workspace:open': (request) => service.open(request.root),
@@ -214,6 +222,15 @@ function createHandlers(
     'commitmsg:setKey': (request) => commitMessages.setKey(request.key),
     'commitmsg:removeKey': () => commitMessages.removeKey(),
     'commitmsg:keyStatus': () => commitMessages.keyStatus(),
+    'terminal:resolve': (request) => terminals.resolve(request),
+    'terminal:create': (request) => terminals.createSession(request),
+    'terminal:quickRun': (request) => terminals.quickRun(request),
+    'terminal:sessions': () => terminals.sessions(),
+    'terminal:attach': (request) => terminals.attach(request),
+    'terminal:write': (request) => terminals.write(request),
+    'terminal:resize': (request) => terminals.resize(request),
+    'terminal:kill': (request) => terminals.kill(request),
+    'terminal:dispose': (request) => terminals.disposeSession(request),
     'fs:readDir': (request) => service.readDir(request.path),
     'fs:readFile': (request) => service.readFileForEditor(request),
     'fs:stat': (request) => service.statPath(request),

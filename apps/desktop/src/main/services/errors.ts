@@ -21,6 +21,12 @@ export type ServiceErrorCode =
   | 'merge-tool-missing'
   | 'nothing-staged'
   | 'llm-not-configured'
+  | 'unknown-profile'
+  | 'unknown-command'
+  | 'unknown-session'
+  | 'no-profiles'
+  | 'terminal-failed'
+  | 'terminal-unavailable'
   | 'disposed'
 
 /** Expected failures of the main-process services; surfaced to the renderer with their code. */
