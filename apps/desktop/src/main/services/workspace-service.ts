@@ -244,6 +244,7 @@ import {
   type SettingsChange
 } from '@gitreedesk/store'
 import { ServiceError } from './errors'
+import { recordScan, recordStatusRead, recordWarm } from '../perf-metrics'
 
 const toPosix = (value: string): string => value.replace(/\\/g, '/')
 
@@ -329,7 +330,7 @@ const OPERATION_LABELS: Record<ActiveOperation, string> = {
 }
 
 export type WorkspaceServiceEvent =
-  | { type: 'reposChanged'; root: string; diff: RepoDiff }
+  | { type: 'reposChanged'; root: string; diff: RepoDiff; stats?: DiscoveryStats }
   | { type: 'status'; root: string; update: RepoStatusSnapshot }
   | { type: 'commitOutput'; root: string; gitDir: string; chunk: string }
   | { type: 'submoduleOutput'; root: string; gitDir: string; path: string; chunk: string }
@@ -383,6 +384,9 @@ export class WorkspaceService {
   #gitExecutable: string | null = null
   #untrackedByRepo = new Map<string, 'normal' | 'all'>()
   #untrackedDefault: 'normal' | 'all' = 'normal'
+  #warmStart: number | null = null
+  #warmTarget = 0
+  #warmSeen = new Set<string>()
   #disposed = false
 
   constructor(options: WorkspaceServiceOptions) {
@@ -425,20 +429,25 @@ export class WorkspaceService {
     await this.#reloadUntrackedStrategy(root)
     const pollIntervalMs = await this.#resolvePollInterval(root)
 
+    const seedRecords = await this.#seedRecords(root)
     const session = new WorkspaceSession({
       root,
       pool: this.#pool,
       watchBackend: this.#watchBackend,
       pollIntervalMs,
+      seedRecords,
       untrackedStrategy: (record) => this.#untrackedFor(record),
       onStatus: (gitDir, status) => {
         this.#onStatus(gitDir, status)
       },
+      onStatusRead: (_key, ms, skipped) => {
+        recordStatusRead(ms, skipped)
+      },
       onError: (gitDir, error) => {
         console.warn(`[workspace] status read failed for ${gitDir}`, error)
       },
-      onReposChanged: (diff) => {
-        this.#onReposChanged(diff)
+      onReposChanged: (diff, records, stats) => {
+        this.#onReposChanged(diff, records, stats)
       },
       onIssues: (issues) => {
         this.#onIssues(issues)
@@ -453,6 +462,7 @@ export class WorkspaceService {
     this.#session = session
 
     let result: DiscoveryResult
+    const scanStarted = performance.now()
     try {
       result = await session.open()
     } catch (error) {
@@ -460,13 +470,76 @@ export class WorkspaceService {
       await session.close().catch(() => undefined)
       throw error
     }
+    const seeded = seedRecords.length > 0
+    if (!seeded) recordScan(performance.now() - scanStarted, result.repos.length)
 
     const row = this.#workspaces.upsert(session.root, { name: session.config.name ?? basename(session.root) })
     this.#workspaceId = row.id
     this.#syncRows(session.registry.all)
     this.#stats = result.stats
     this.#issues = [...result.issues]
+    this.#warmTarget = result.repos.filter((record) => record.gitDir.length > 0).length
+    this.#warmSeen.clear()
+    this.#warmStart = this.#warmTarget > 0 ? performance.now() : null
+
+    // The seeded tree came from cache; refresh it against the live filesystem in the
+    // background and fold the fresh scan in once it lands.
+    if (seeded) void this.#finishRescan(session, scanStarted)
     return this.#descriptor()
+  }
+
+  /**
+   * Records of the last session for this workspace, read from the cache so the tree
+   * can paint before the filesystem scan runs. Empty when the workspace is new.
+   */
+  async #seedRecords(root: string): Promise<RepoRecord[]> {
+    const workspace = this.#workspaces.findByRoot(root)
+    if (workspace === null) return []
+    const rows = this.#repos.list(workspace.id)
+    if (rows.length === 0) return []
+
+    const rootPosix = await realpath(root)
+      .then(toPosix)
+      .catch(() => toPosix(resolve(root)))
+    const rowById = new Map(rows.map((row) => [row.id, row]))
+    const records = rows.map((row): RepoRecord => {
+      const path = toPosix(resolve(rootPosix, row.relPath))
+      const parent = row.parentRowId === null ? undefined : rowById.get(row.parentRowId)
+      return {
+        id: row.commonDir,
+        root: rootPosix,
+        relPath: row.relPath,
+        path,
+        gitDir: row.gitDir,
+        commonDir: row.commonDir,
+        kind: row.kind,
+        parentId: parent === undefined ? null : parent.commonDir,
+        name: row.name,
+        external: path !== rootPosix && !path.startsWith(`${rootPosix}/`),
+        hasSubmodules: false
+      }
+    })
+
+    await Promise.all(
+      records.map(async (record) => {
+        if (record.kind === 'bare') return
+        record.hasSubmodules = await pathExists(join(record.path, '.gitmodules'))
+      })
+    )
+    records.sort((a, b) => a.relPath.localeCompare(b.relPath))
+    return records
+  }
+
+  /** Awaits a detached full rescan and folds its outcome into the descriptor state. */
+  async #finishRescan(session: WorkspaceSession, startedAt: number): Promise<void> {
+    try {
+      const result = await session.rescan()
+      if (result === null || this.#session !== session) return
+      recordScan(performance.now() - startedAt, result.repos.length)
+      this.#stats = result.stats
+    } catch (error) {
+      console.warn('[workspace] background repository refresh failed', error)
+    }
   }
 
   async close(): Promise<null> {
@@ -507,8 +580,12 @@ export class WorkspaceService {
       dirs === undefined || raiseBudget
         ? undefined
         : await Promise.all(dirs.map((dir) => this.resolveInside(dir)))
+    const scanStarted = performance.now()
     const result = await session.rescan(scoped)
-    if (result !== null) this.#stats = result.stats
+    if (result !== null) {
+      recordScan(performance.now() - scanStarted, result.repos.length)
+      this.#stats = result.stats
+    }
     return null
   }
 
@@ -2450,6 +2527,11 @@ export class WorkspaceService {
     return this.#gitVersionProbe
   }
 
+  /** Live watch scope counts of the open workspace; zeroes when nothing is open. */
+  watcherStats(): { scopes: number; subscribed: number; degraded: number } {
+    return this.#session?.watcherStats() ?? { scopes: 0, subscribed: 0, degraded: 0 }
+  }
+
   async dispose(): Promise<void> {
     if (this.#disposed) return
     this.#disposed = true
@@ -2478,6 +2560,9 @@ export class WorkspaceService {
     this.#rowIdByGitDir.clear()
     this.#statusAt.clear()
     this.#writes.clear()
+    this.#warmStart = null
+    this.#warmTarget = 0
+    this.#warmSeen.clear()
     if (session !== null) await session.close()
   }
 
@@ -2542,6 +2627,15 @@ export class WorkspaceService {
     const at = Date.now()
     this.#statusAt.set(gitDir, at)
 
+    if (this.#warmStart !== null && this.#warmTarget > 0) {
+      this.#warmSeen.add(gitDir)
+      if (this.#warmSeen.size >= this.#warmTarget) {
+        recordWarm(performance.now() - this.#warmStart)
+        this.#warmStart = null
+        this.#warmSeen.clear()
+      }
+    }
+
     const rowId = this.#rowIdByGitDir.get(gitDir)
     if (rowId !== undefined) this.#cache.saveStatus(rowId, status, at)
 
@@ -2550,11 +2644,14 @@ export class WorkspaceService {
     this.#emit({ type: 'status', root, update: { gitDir, status, updatedAt: at } })
   }
 
-  #onReposChanged(diff: RepoDiff): void {
+  #onReposChanged(diff: RepoDiff, records: readonly RepoRecord[], stats?: DiscoveryStats): void {
     const session = this.#session
     if (session === null) return
-    this.#syncRows(session.registry.all)
-    this.#emit({ type: 'reposChanged', root: session.root, diff })
+    this.#syncRows(records)
+    if (this.#warmStart !== null) {
+      this.#warmTarget = records.filter((record) => record.gitDir.length > 0).length
+    }
+    this.#emit({ type: 'reposChanged', root: session.root, diff, stats })
   }
 
   #onIssues(issues: string[]): void {

@@ -171,7 +171,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }): JSX.El
         setDescriptor((current) => {
           if (current === null) return current
           const records = mergeRecords(current.records, event)
-          return { ...current, records, stats: { ...current.stats, repos: records.length } }
+          const stats =
+            event.stats === undefined ? { ...current.stats, repos: records.length } : { ...event.stats, repos: records.length }
+          return { ...current, records, stats }
         })
       }),
       api.on('workspace:issues', (event) => {

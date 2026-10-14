@@ -54,7 +54,8 @@ export const COMMAND_IDS = {
   toggleOutput: 'view.toggleOutput',
   toggleTerminal: 'terminal.toggle',
   newTerminal: 'terminal.new',
-  closeTerminal: 'terminal.close'
+  closeTerminal: 'terminal.close',
+  togglePerf: 'dev.togglePerfOverlay'
 } as const
 
 /** Latest-value accessors: the commands read through this so they never go stale. */
@@ -132,6 +133,7 @@ export interface BuiltinContext {
   newTerminal: () => void
   closeTerminal: () => void
   terminalHasSession: () => boolean
+  togglePerfOverlay: () => void
 }
 
 export function createBuiltinCommands(get: () => BuiltinContext): CommandDefinition[] {
@@ -506,6 +508,16 @@ export function createBuiltinCommands(get: () => BuiltinContext): CommandDefinit
       categoryKey: 'commands.categories.terminal',
       enabled: () => get().terminalHasSession(),
       run: () => get().closeTerminal()
-    }
+    },
+    ...(import.meta.env.DEV
+      ? ([
+          {
+            id: COMMAND_IDS.togglePerf,
+            titleKey: 'commands.togglePerf',
+            categoryKey: 'commands.categories.view',
+            run: () => get().togglePerfOverlay()
+          }
+        ] satisfies CommandDefinition[])
+      : [])
   ]
 }

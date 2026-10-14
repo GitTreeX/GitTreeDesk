@@ -5,6 +5,7 @@ import { createBuiltinCommands, type BuiltinContext } from './commands/builtin'
 import { AppShell } from './components/AppShell'
 import { CommandPalette } from './components/CommandPalette'
 import { OutputPanel } from './components/OutputPanel'
+import { PerfOverlay } from './components/PerfOverlay'
 import { QuickOpen } from './components/QuickOpen'
 import { QuickPick } from './components/QuickPick'
 import { StatusBar } from './components/StatusBar'
@@ -84,6 +85,7 @@ function AppRoot(): JSX.Element {
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH)
   const [trustPrompted, setTrustPrompted] = useState(false)
   const [dropActive, setDropActive] = useState(false)
+  const [perfOpen, setPerfOpen] = useState(false)
   const dragDepth = useRef(0)
   const collapsedRef = useRef(sidebarCollapsed)
   collapsedRef.current = sidebarCollapsed
@@ -251,7 +253,8 @@ function AppRoot(): JSX.Element {
       const id = terminal.activeId
       if (id !== null) terminal.closeSession(id)
     },
-    terminalHasSession: () => terminal.sessions.length > 0
+    terminalHasSession: () => terminal.sessions.length > 0,
+    togglePerfOverlay: () => setPerfOpen((current) => !current)
   }
 
   const getBuiltin = useCallback((): BuiltinContext => {
@@ -385,6 +388,7 @@ function AppRoot(): JSX.Element {
       {tree.quickPickOpen && <QuickPick />}
       {editor.quickOpen && <QuickOpen />}
       <ToastHost />
+      {import.meta.env.DEV && perfOpen && <PerfOverlay />}
       {trustPrompt && descriptor !== null && (
         <TrustDialog
           root={descriptor.root}

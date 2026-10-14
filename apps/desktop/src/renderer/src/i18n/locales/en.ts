@@ -956,6 +956,7 @@ const en = {
     toggleTerminal: 'Toggle Terminal Panel',
     newTerminal: 'New Terminal',
     closeTerminal: 'Close Terminal',
+    togglePerf: 'Developer: Toggle Performance Overlay',
     categories: {
       workspace: 'Workspace',
       view: 'View',
@@ -985,6 +986,22 @@ const en = {
     submoduleAttention: 'A submodule needs attention (uninitialized or drifted)',
     main: 'Main checkout',
     external: 'Outside the workspace'
+  },
+  perf: {
+    title: 'Performance',
+    scan: 'Scan',
+    scanValue: '{{ms}} ms · {{repos}} repos',
+    status: 'Status reads',
+    statusValue: 'p50 {{p50}} ms · p95 {{p95}} ms · {{samples}} reads',
+    statusLast: 'last {{ms}} ms',
+    skips: '{{count}} skipped · avg {{avg}} ms',
+    warm: 'Warm-up',
+    warmPending: 'warming…',
+    watchers: 'Watchers',
+    watchersValue: '{{scopes}} scopes · {{subscribed}} active · {{degraded}} degraded',
+    ops: 'Recent operations',
+    opsEmpty: 'No operations yet',
+    opFailed: 'failed'
   }
 } as const
 

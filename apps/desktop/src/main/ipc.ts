@@ -18,6 +18,7 @@ import type { InvokeHandlers } from '@gitreedesk/shared'
 import type { KeybindingChange, SettingsChange } from '@gitreedesk/store'
 import { buildEditorCommand } from './editor-command'
 import { launchShell, nativePath, openInEditor } from './editor-launcher'
+import { perfSnapshot, recordOp } from './perf-metrics'
 import type { CommitMessageService, CommitMessageServiceEvent } from './services/commit-message'
 import { ServiceError } from './services/errors'
 import { StatusBatcher } from './services/status-batcher'
@@ -53,7 +54,8 @@ export function createEventBroadcaster(): EventBroadcaster {
             root: event.root,
             added: event.diff.added,
             removed: event.diff.removed,
-            updated: event.diff.updated
+            updated: event.diff.updated,
+            stats: event.stats
           })
           break
         case 'commitOutput':
@@ -120,6 +122,9 @@ export function registerIpcHandlers(
   const handlers = createHandlers(service, commitMessages, terminals, appPaths)
 
   for (const channel of INVOKE_CHANNELS) {
+    // Status reads report their own timing through the scheduler; keeping them out of the
+    // op ring leaves room for the operations that actually spawn git processes.
+    const timed = channel.startsWith('git:') ? channel !== 'git:status' : channel.startsWith('commitmsg:')
     ipcMain.handle(channel, async (_event, payload: unknown): Promise<IpcResult<unknown>> => {
       const parsed = invokeSchemas[channel].safeParse(payload)
       if (!parsed.success) {
@@ -128,10 +133,14 @@ export function registerIpcHandlers(
           error: { code: 'invalid-request', message: describeIssues(parsed.error.issues) }
         }
       }
+      const started = timed ? performance.now() : 0
       try {
         const handler = handlers[channel] as (request: unknown) => unknown
-        return { ok: true, value: await handler(parsed.data) }
+        const value = await handler(parsed.data)
+        if (timed) recordOp(channel, performance.now() - started, true)
+        return { ok: true, value }
       } catch (error) {
+        if (timed) recordOp(channel, performance.now() - started, false)
         return { ok: false, error: toErrorInfo(error) }
       }
     })
@@ -275,6 +284,7 @@ function createHandlers(
     'ui-state:keys': (request) => service.uiStateKeys(request.prefix),
     'ui-state:delete': (request) => service.uiStateDelete(request.key),
     'app:info': () => appInfo(service),
+    'app:perfStats': () => ({ ...perfSnapshot(), watchers: service.watcherStats() }),
     'app:openFolder': (request) => openAppFolder(appPaths, request)
   }
 }

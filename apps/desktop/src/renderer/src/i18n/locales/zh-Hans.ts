@@ -942,6 +942,7 @@ export const zhHansResource: TranslationResource = {
     toggleTerminal: '切换终端面板',
     newTerminal: '新建终端',
     closeTerminal: '关闭终端',
+    togglePerf: '开发者：切换性能覆盖层',
     categories: {
       workspace: '工作区',
       view: '视图',
@@ -971,5 +972,21 @@ export const zhHansResource: TranslationResource = {
     submoduleAttention: '有子模块需要处理（未初始化或已漂移）',
     main: '主检出',
     external: '位于工作区之外'
+  },
+  perf: {
+    title: '性能',
+    scan: '扫描',
+    scanValue: '{{ms}} ms · {{repos}} 个仓库',
+    status: '状态读取',
+    statusValue: 'p50 {{p50}} ms · p95 {{p95}} ms · {{samples}} 次读取',
+    statusLast: '最近 {{ms}} ms',
+    skips: '跳过 {{count}} 次 · 平均 {{avg}} ms',
+    warm: '预热',
+    warmPending: '预热中…',
+    watchers: '监听',
+    watchersValue: '{{scopes}} 个范围 · {{subscribed}} 个活跃 · {{degraded}} 个降级',
+    ops: '最近操作',
+    opsEmpty: '暂无操作',
+    opFailed: '失败'
   }
 }
