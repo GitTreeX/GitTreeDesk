@@ -12,6 +12,8 @@ export interface TerminalProfileInfo {
   icon: string | null
   color: string | null
   origin: 'detected' | 'config'
+  /** True when a config profile's shell cannot be resolved on this machine. */
+  missing?: boolean
 }
 
 /** A command offered by `.gitreedesk/terminal.json`; never runs on its own. */
