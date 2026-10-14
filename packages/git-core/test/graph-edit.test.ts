@@ -333,6 +333,38 @@ describe('editCommits', () => {
   )
 
   it(
+    'rewrites an empty root commit during a batch',
+    async () => {
+      const repo = await tempDir()
+      await git(repo, ['init', '-q', '-b', 'main'])
+      await git(repo, ['config', 'user.name', 'GitTreeDesk Test'])
+      await git(repo, ['config', 'user.email', 'test@gitreedesk.invalid'])
+      await git(repo, ['config', 'core.autocrlf', 'false'])
+      await git(repo, ['commit', '-q', '--allow-empty', '-m', 'empty root'])
+      const root = await headSha(repo)
+      await write(repo, 'b.txt', 'two\n')
+      const second = await commitAll(repo, 'second')
+
+      const result = await editCommits(repo, {
+        edits: [
+          { sha: root, authorName: 'Grace Hopper', authorEmail: 'grace@example.invalid' },
+          { sha: second, authorName: 'Grace Hopper', authorEmail: 'grace@example.invalid' }
+        ]
+      })
+
+      expect(result.stopped).toBe(false)
+      expect((await git(repo, ['rev-list', '--count', 'HEAD'])).trim()).toBe('2')
+      expect(await subjects(repo)).toEqual(['second', 'empty root'])
+      expect((await git(repo, ['ls-tree', 'HEAD~1'])).trim()).toBe('')
+      expect((await git(repo, ['log', '-1', '--format=%an|%ae'])).trim()).toBe(
+        'Grace Hopper|grace@example.invalid'
+      )
+      expect(await porcelain(repo)).toBe('')
+    },
+    30_000
+  )
+
+  it(
     'rewrites two commits of the middle in one pass',
     async () => {
       const repo = await initRepo()

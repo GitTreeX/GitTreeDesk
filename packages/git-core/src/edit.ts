@@ -216,12 +216,13 @@ function assertEdit(edit: CommitEdit): void {
 
 /**
  * Amends HEAD in place. `--only` keeps staged changes out of the rewritten
- * commit, so a dirty index can never leak into the history edit.
+ * commit so a dirty index can never leak into the history edit; `--allow-empty`
+ * lets commits that are already empty be amended at all.
  */
 function amendArgs(edit: CommitEdit, suppressHooks: boolean): string[] {
   const args: string[] = []
   if (suppressHooks) args.push('-c', 'core.hooksPath=')
-  args.push('commit', '--amend', '--only')
+  args.push('commit', '--amend', '--only', '--allow-empty')
   if (edit.message === undefined) args.push('--no-edit')
   else args.push('-m', edit.message)
   if (edit.authorName !== undefined && edit.authorEmail !== undefined) {
