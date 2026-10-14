@@ -61,6 +61,7 @@ const en = {
     delete: 'Move to Trash',
     checkoutBranch: 'Checkout Branch…',
     createBranch: 'New Branch…',
+    openGraph: 'Open Commit Graph',
     fetch: 'Fetch',
     fetchSelected: 'Fetch Selected',
     pull: 'Pull (Fast-forward Only)',
@@ -577,6 +578,13 @@ const en = {
     failed: 'Could not update {{name}}',
     synced: 'Synced the submodule URLs of {{name}}'
   },
+  graph: {
+    loading: 'Loading commits…',
+    loadingMore: 'Loading older commits…',
+    empty: 'No commits to show.',
+    retry: 'Retry',
+    loaded: '{{count}} commits'
+  },
   output: {
     title: 'Output',
     clear: 'Clear',
@@ -673,6 +681,7 @@ const en = {
     quickOpen: 'Go to File…',
     checkoutBranch: 'Checkout Branch…',
     createBranch: 'Create Branch…',
+    openGraph: 'Open Commit Graph',
     fetchRepo: 'Fetch',
     fetchAll: 'Fetch All Repositories',
     pullRepo: 'Pull (Fast-forward Only)',

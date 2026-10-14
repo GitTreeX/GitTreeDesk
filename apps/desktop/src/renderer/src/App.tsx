@@ -14,6 +14,7 @@ import { ToastHost } from './components/ToastHost'
 import { TrustDialog } from './components/TrustDialog'
 import { WelcomeView } from './components/WelcomeView'
 import { EditorProvider, useEditor } from './contexts/editor'
+import { GraphProvider, useGraph } from './contexts/graph'
 import { OperationsProvider } from './contexts/operations'
 import { useOperations } from './contexts/operations-context'
 import { ReposUiProvider, useReposUi } from './contexts/repos'
@@ -46,13 +47,15 @@ export function App({ initialSettings }: { initialSettings: InitialSettings }): 
       <WorkspaceProvider>
         <TreeUiProvider>
           <EditorProvider>
-            <ReposUiProvider>
-              <SubmodulesProvider>
-                <OperationsProvider>
-                  <AppRoot />
-                </OperationsProvider>
-              </SubmodulesProvider>
-            </ReposUiProvider>
+            <GraphProvider>
+              <ReposUiProvider>
+                <SubmodulesProvider>
+                  <OperationsProvider>
+                    <AppRoot />
+                  </OperationsProvider>
+                </SubmodulesProvider>
+              </ReposUiProvider>
+            </GraphProvider>
           </EditorProvider>
         </TreeUiProvider>
       </WorkspaceProvider>
@@ -65,6 +68,7 @@ function AppRoot(): JSX.Element {
   const workspace = useWorkspace()
   const tree = useTreeUi()
   const editor = useEditor()
+  const graph = useGraph()
   const repoUi = useReposUi()
   const operations = useOperations()
   const submodules = useSubmodules()
@@ -191,6 +195,7 @@ function AppRoot(): JSX.Element {
     editorQuickOpen: () => editor.openQuickOpen(),
     gitBranches: () => withActiveRecord((record) => operations.openBranches(record)),
     gitCreateBranch: () => withActiveRecord((record) => operations.openCreateBranch(record)),
+    gitOpenGraph: () => withActiveRecord((record) => graph.openGraph(record)),
     gitMergeInto: () => withActiveRecord((record) => operations.openBranches(record)),
     gitRebaseCurrent: () => withActiveRecord((record) => operations.openBranches(record)),
     gitFetch: () => operations.fetchRepos(fetchTargets()),
@@ -214,6 +219,10 @@ function AppRoot(): JSX.Element {
     gitUpdateSubmodules: () => withActiveRecord((record) => operations.updateSubmodules(record)),
     gitHasTarget: () => repoUi.activeRecord !== null,
     gitHasRepos: () => (workspace.descriptor?.records.length ?? 0) > 0,
+    gitHasGraph: () => {
+      const record = repoUi.activeRecord
+      return record !== null && record.gitDir.length > 0
+    },
     gitHasSubmodules: () => {
       const record = repoUi.activeRecord
       return record !== null && (submodules.submodulesFor(record)?.length ?? 0) > 0

@@ -59,7 +59,16 @@ export interface CommitTab {
   subject: string
 }
 
-export type EditorTab = FileTab | DiffTab | CommitTab
+export interface GraphTab {
+  kind: 'graph'
+  id: string
+  repo: RepoTabInfo
+}
+
+export type EditorTab = FileTab | DiffTab | CommitTab | GraphTab
+
+/** Graph tabs kept open at once; the least recently used one closes to make room. */
+export const GRAPH_TAB_LIMIT = 5
 
 /** Imperative surface a file tab advertises while its document is mounted. */
 export interface FileTabActions {
@@ -85,6 +94,10 @@ export function diffTabId(gitDir: string, path: string): string {
 
 export function commitTabId(gitDir: string, sha: string, path: string): string {
   return `commit:${gitDir}\u0000${sha}\u0000${path}`
+}
+
+export function graphTabId(gitDir: string): string {
+  return `graph:${gitDir}`
 }
 
 export function repoInfoOf(record: RepoRecord): RepoTabInfo {
@@ -116,6 +129,7 @@ export function scmDiffSpec(row: ScmRow): ScmDiffSpec | null {
 
 export function tabLabel(tab: EditorTab): string {
   if (tab.kind === 'file') return tab.name
+  if (tab.kind === 'graph') return `${tab.repo.name} (Graph)`
   if (tab.kind === 'diff') return baseName(tab.path)
   return `${baseName(tab.path)} @ ${tab.sha.slice(0, 7)}`
 }
@@ -148,6 +162,8 @@ interface EditorContextValue {
   openFile: (path: string, options?: { preview?: boolean; line?: number }) => void
   openDiff: (repo: RepoTabInfo, spec: ScmDiffSpec, options?: { preview?: boolean }) => void
   openCommitDiff: (input: OpenCommitInput) => void
+  /** Opens (or activates) the one graph tab of a repository. */
+  openGraph: (repo: RepoTabInfo) => void
   setDiffSource: (id: string, from: DiffSource) => void
   activateTab: (id: string) => void
   pinTab: (id: string) => void
@@ -212,6 +228,8 @@ export function EditorProvider({ children }: { children: ReactNode }): JSX.Eleme
   const [quickOpen, setQuickOpen] = useState(false)
   const fileActions = useRef<Map<string, FileTabActions>>(new Map())
   const settings = useEditorSettings()
+  /** Graph tab gitDirs, most recently used first; caps how many stay open. */
+  const graphOrder = useRef<string[]>([])
 
   const stateRef = useRef(state)
   stateRef.current = state
@@ -223,6 +241,7 @@ export function EditorProvider({ children }: { children: ReactNode }): JSX.Eleme
     setState(INITIAL_STATE)
     setClosePrompt(null)
     setQuickOpen(false)
+    graphOrder.current = []
   }, [root])
 
   const activeTab = useMemo(
@@ -309,6 +328,27 @@ export function EditorProvider({ children }: { children: ReactNode }): JSX.Eleme
     })
   }, [])
 
+  const touchGraph = useCallback((gitDir: string): void => {
+    graphOrder.current = [gitDir, ...graphOrder.current.filter((entry) => entry !== gitDir)]
+  }, [])
+
+  const openGraph = useCallback(
+    (repo: RepoTabInfo) => {
+      touchGraph(repo.gitDir)
+      setState((current) => {
+        const id = graphTabId(repo.gitDir)
+        const index = current.tabs.findIndex((tab) => tab.id === id)
+        if (index >= 0) {
+          const tabs = [...current.tabs]
+          tabs[index] = { kind: 'graph', id, repo }
+          return { ...current, tabs, activeId: id }
+        }
+        return insertTab(current, { kind: 'graph', id, repo }, false)
+      })
+    },
+    [touchGraph]
+  )
+
   const setDiffSource = useCallback((id: string, from: DiffSource) => {
     setState((current) => {
       const index = current.tabs.findIndex((tab) => tab.id === id)
@@ -320,9 +360,14 @@ export function EditorProvider({ children }: { children: ReactNode }): JSX.Eleme
     })
   }, [])
 
-  const activateTab = useCallback((id: string) => {
-    setState((current) => (current.activeId === id ? current : { ...current, activeId: id }))
-  }, [])
+  const activateTab = useCallback(
+    (id: string) => {
+      setState((current) => (current.activeId === id ? current : { ...current, activeId: id }))
+      const tab = stateRef.current.tabs.find((entry) => entry.id === id)
+      if (tab !== undefined && tab.kind === 'graph') touchGraph(tab.repo.gitDir)
+    },
+    [touchGraph]
+  )
 
   const pinTab = useCallback((id: string) => {
     setState((current) => (current.previewId === id ? { ...current, previewId: null } : current))
@@ -388,6 +433,15 @@ export function EditorProvider({ children }: { children: ReactNode }): JSX.Eleme
     requestClose(stateRef.current.tabs.map((tab) => tab.id))
   }, [requestClose])
 
+  // Graph tabs are capped: the least recently used one closes when another opens.
+  useEffect(() => {
+    const graphs = state.tabs.filter((tab) => tab.kind === 'graph')
+    if (graphs.length <= GRAPH_TAB_LIMIT) return
+    const keep = new Set(graphOrder.current.slice(0, GRAPH_TAB_LIMIT))
+    const stale = graphs.filter((tab) => !keep.has(tab.repo.gitDir)).map((tab) => tab.id)
+    if (stale.length > 0) requestClose(stale)
+  }, [state.tabs, requestClose])
+
   const saveActiveFile = useCallback(() => {
     const { activeId } = stateRef.current
     if (activeId === null) return
@@ -422,6 +476,7 @@ export function EditorProvider({ children }: { children: ReactNode }): JSX.Eleme
       openFile,
       openDiff,
       openCommitDiff,
+      openGraph,
       setDiffSource,
       activateTab,
       pinTab,
@@ -446,6 +501,7 @@ export function EditorProvider({ children }: { children: ReactNode }): JSX.Eleme
       openFile,
       openDiff,
       openCommitDiff,
+      openGraph,
       setDiffSource,
       activateTab,
       pinTab,

@@ -4,6 +4,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import type { RepoRecord, RepoStatus } from '@gitreedesk/shared'
 import { api } from '../api'
 import { isEditableTarget } from '../commands/keybinding'
+import { useGraph } from '../contexts/graph'
 import { useOperations } from '../contexts/operations-context'
 import { useReposUi } from '../contexts/repos'
 import { useSubmodules } from '../contexts/submodules'
@@ -39,6 +40,7 @@ export function ReposView(): JSX.Element {
   const tree = useTreeUi()
   const repoUi = useReposUi()
   const operations = useOperations()
+  const graph = useGraph()
   const { submodulesFor } = useSubmodules()
   const records = descriptor?.records ?? NO_RECORDS
 
@@ -351,6 +353,14 @@ export function ReposView(): JSX.Element {
         onSelect: () => {
           repoUi.setActiveKey(record.gitDir)
           operations.openCreateBranch(record)
+        }
+      },
+      {
+        label: t('menu.openGraph'),
+        disabled: !canTarget,
+        onSelect: () => {
+          repoUi.setActiveKey(record.gitDir)
+          graph.openGraph(record)
         }
       },
       {

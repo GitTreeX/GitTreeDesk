@@ -63,6 +63,7 @@ export const zhHansResource: TranslationResource = {
     delete: '移到回收站',
     checkoutBranch: '检出分支…',
     createBranch: '新建分支…',
+    openGraph: '打开提交图',
     fetch: '获取',
     fetchSelected: '获取（已选中）',
     pull: '拉取（仅快进）',
@@ -568,6 +569,13 @@ export const zhHansResource: TranslationResource = {
     failed: '无法更新 {{name}}',
     synced: '已同步 {{name}} 的子模块地址'
   },
+  graph: {
+    loading: '正在加载提交…',
+    loadingMore: '正在加载更早的提交…',
+    empty: '没有可显示的提交。',
+    retry: '重试',
+    loaded: '{{count}} 个提交'
+  },
   output: {
     title: '输出',
     clear: '清空',
@@ -662,6 +670,7 @@ export const zhHansResource: TranslationResource = {
     quickOpen: '转到文件…',
     checkoutBranch: '检出分支…',
     createBranch: '创建分支…',
+    openGraph: '打开提交图',
     fetchRepo: '获取',
     fetchAll: '获取全部仓库',
     pullRepo: '拉取（仅快进）',

@@ -10,6 +10,7 @@ import { resolveTheme } from '../theme'
 import { ContextMenu, type ContextMenuItem } from './ContextMenu'
 import { FileDiffView } from './FileDiffView'
 import { FileEditor } from './FileEditor'
+import { GraphView } from './GraphView'
 import { WorkspaceOverview } from './WorkspaceOverview'
 
 const THEME_DARK = 'gtd-dark'
@@ -71,6 +72,8 @@ export function EditorArea(): JSX.Element {
           >
             {tab.kind === 'file' ? (
               <FileEditor tab={tab} active={tab.id === editor.activeId} />
+            ) : tab.kind === 'graph' ? (
+              <GraphView tab={tab} />
             ) : (
               <FileDiffView tab={tab} />
             )}
@@ -96,6 +99,7 @@ function TabStrip(): JSX.Element {
 
   const absolutePath = useCallback((tab: EditorTab): string => {
     if (tab.kind === 'file') return tab.path
+    if (tab.kind === 'graph') return tab.repo.repoPath
     return `${tab.repo.repoPath}/${tab.path}`
   }, [])
 
