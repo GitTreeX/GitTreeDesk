@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type JSX } from 'react'
+import type { RepoRecord } from '@gitreedesk/shared'
 import { api } from './api'
 import { createBuiltinCommands, type BuiltinContext } from './commands/builtin'
 import { KeyBindingService, buildBindings } from './commands/defaults'
 import { CommandRegistry } from './commands/registry'
 import { AppShell } from './components/AppShell'
 import { CommandPalette } from './components/CommandPalette'
+import { OutputPanel } from './components/OutputPanel'
 import { QuickOpen } from './components/QuickOpen'
 import { QuickPick } from './components/QuickPick'
 import { StatusBar } from './components/StatusBar'
@@ -12,6 +14,9 @@ import { ToastHost } from './components/ToastHost'
 import { TrustDialog } from './components/TrustDialog'
 import { WelcomeView } from './components/WelcomeView'
 import { EditorProvider, useEditor } from './contexts/editor'
+import { OperationsProvider } from './contexts/operations'
+import { useOperations } from './contexts/operations-context'
+import { ReposUiProvider, useReposUi } from './contexts/repos'
 import { SettingsProvider, useSettings, type InitialSettings } from './contexts/settings'
 import { TreeUiProvider, useTreeUi, type SidebarPanel } from './contexts/tree'
 import { WorkspaceProvider, useWorkspace } from './contexts/workspace'
@@ -40,7 +45,11 @@ export function App({ initialSettings }: { initialSettings: InitialSettings }): 
       <WorkspaceProvider>
         <TreeUiProvider>
           <EditorProvider>
-            <AppRoot />
+            <ReposUiProvider>
+              <OperationsProvider>
+                <AppRoot />
+              </OperationsProvider>
+            </ReposUiProvider>
           </EditorProvider>
         </TreeUiProvider>
       </WorkspaceProvider>
@@ -53,6 +62,8 @@ function AppRoot(): JSX.Element {
   const workspace = useWorkspace()
   const tree = useTreeUi()
   const editor = useEditor()
+  const repoUi = useReposUi()
+  const operations = useOperations()
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH)
@@ -85,6 +96,28 @@ function AppRoot(): JSX.Element {
   }
 
   const builtinRef = useRef<BuiltinContext | null>(null)
+
+  // Fetch acts on the Repos-view selection; without one, on the active repo.
+  const fetchTargets = (): readonly RepoRecord[] => {
+    const selected = tree.reposActions.current?.selectedRecords() ?? []
+    if (selected.length > 0) return selected
+    return repoUi.activeRecord !== null ? [repoUi.activeRecord] : []
+  }
+
+  const syncTarget = (): { record: RepoRecord; branch: string; hasUpstream: boolean } | null => {
+    const record = repoUi.activeRecord
+    if (record === null || record.kind === 'bare' || record.gitDir.length === 0) return null
+    const status = workspace.statuses.get(record.gitDir)?.status ?? null
+    const branch = status?.head.ref ?? null
+    if (status === null || branch === null) return null
+    return { record, branch, hasUpstream: status.upstream !== null }
+  }
+
+  const withActiveRecord = (task: (record: RepoRecord) => void): void => {
+    const record = repoUi.activeRecord
+    if (record !== null) task(record)
+  }
+
   builtinRef.current = {
     openFolder: () => {
       void (async () => {
@@ -151,7 +184,27 @@ function AppRoot(): JSX.Element {
       const activeId = editor.activeId
       if (activeId !== null) editor.requestClose([activeId])
     },
-    editorQuickOpen: () => editor.openQuickOpen()
+    editorQuickOpen: () => editor.openQuickOpen(),
+    gitBranches: () => withActiveRecord((record) => operations.openBranches(record)),
+    gitCreateBranch: () => withActiveRecord((record) => operations.openCreateBranch(record)),
+    gitFetch: () => operations.fetchRepos(fetchTargets()),
+    gitFetchAll: () => operations.fetchRepos(workspace.descriptor?.records ?? []),
+    gitPull: () => {
+      const target = syncTarget()
+      if (target !== null) operations.pullRepos([target.record])
+    },
+    gitPush: () => {
+      const target = syncTarget()
+      if (target !== null) {
+        operations.pushBranch(target.record, target.branch, { hasUpstream: target.hasUpstream })
+      }
+    },
+    gitRemotes: () => withActiveRecord((record) => operations.openRemotes(record)),
+    gitTags: () => withActiveRecord((record) => operations.openTags(record)),
+    gitHasTarget: () => repoUi.activeRecord !== null,
+    gitHasRepos: () => (workspace.descriptor?.records.length ?? 0) > 0,
+    gitCanSync: () => syncTarget() !== null,
+    toggleOutput: () => operations.setOutputOpen(!operations.outputOpen)
   }
 
   const getBuiltin = useCallback((): BuiltinContext => {
@@ -243,13 +296,16 @@ function AppRoot(): JSX.Element {
       {descriptor === null ? (
         <WelcomeView />
       ) : (
-        <AppShell
-          sidebarCollapsed={sidebarCollapsed}
-          sidebarWidth={sidebarWidth}
-          onSelectPanel={selectPanel}
-          onResizeSidebar={setSidebarWidth}
-          onResizeCommit={onResizeCommit}
-        />
+        <>
+          <AppShell
+            sidebarCollapsed={sidebarCollapsed}
+            sidebarWidth={sidebarWidth}
+            onSelectPanel={selectPanel}
+            onResizeSidebar={setSidebarWidth}
+            onResizeCommit={onResizeCommit}
+          />
+          <OutputPanel />
+        </>
       )}
       <StatusBar />
       {paletteOpen && (

@@ -13,6 +13,8 @@ import type { RepoRecord, RepoStatus } from '@gitreedesk/shared'
 import { api } from '../api'
 import { isEditableTarget } from '../commands/keybinding'
 import { repoInfoOf, scmDiffSpec, useEditor } from '../contexts/editor'
+import { useOperations } from '../contexts/operations-context'
+import { useReposUi } from '../contexts/repos'
 import { useTreeUi, type ScmActions } from '../contexts/tree'
 import { useWorkspace } from '../contexts/workspace'
 import { notify, notifyError } from '../notify'
@@ -110,6 +112,8 @@ export function ScmView(): JSX.Element {
   const { descriptor, statuses } = useWorkspace()
   const tree = useTreeUi()
   const editor = useEditor()
+  const repoUi = useReposUi()
+  const operations = useOperations()
   const records = descriptor?.records ?? NO_RECORDS
   const trusted = descriptor?.trusted ?? false
 
@@ -349,6 +353,9 @@ export function ScmView(): JSX.Element {
 
   const onRowMouseDown = (event: MouseEvent<HTMLDivElement>, item: FlatItem): void => {
     if (event.button !== 0) return
+    if (item.section.record.gitDir.length > 0) {
+      repoUi.setActiveKey(item.section.record.gitDir)
+    }
     if (event.ctrlKey || event.metaKey) {
       setSelected((current) => {
         const next = new Set(current)
@@ -527,7 +534,20 @@ export function ScmView(): JSX.Element {
                   {section.record.name}
                 </span>
                 {branch !== '' && (
-                  <span className="min-w-0 truncate font-mono text-xs text-muted">{branch}</span>
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    title={t('scm.branchPicker')}
+                    className={`min-w-0 truncate rounded px-1 font-mono text-xs hover:bg-ink/10 hover:text-ink ${
+                      status?.head.detached === true ? 'text-warn' : 'text-muted'
+                    }`}
+                    onClick={() => {
+                      if (section.record.gitDir.length > 0) repoUi.setActiveKey(section.record.gitDir)
+                      operations.openBranches(section.record)
+                    }}
+                  >
+                    {branch}
+                  </button>
                 )}
                 <span className="min-w-0 flex-1" />
                 {stageableRows > 0 && (
@@ -567,6 +587,25 @@ export function ScmView(): JSX.Element {
                   </button>
                 )}
               </div>
+
+              {status !== null && status.head.detached && (
+                <div className="flex items-center gap-2 border-b border-line/60 bg-warn/10 px-3 py-1 text-xs text-warn">
+                  <span className="min-w-0 flex-1 truncate">
+                    {t('branches.detachedBanner', { sha: (status.head.sha ?? '').slice(0, 7) })}
+                  </span>
+                  <button
+                    type="button"
+                    className="shrink-0 rounded border border-warn/40 px-1.5 py-0.5 hover:bg-warn/15"
+                    onClick={() =>
+                      operations.openCreateBranch(section.record, {
+                        startPoint: status.head.sha ?? 'HEAD'
+                      })
+                    }
+                  >
+                    {t('branches.createHere')}
+                  </button>
+                </div>
+              )}
 
               {section.operation !== 'none' && (
                 <p className="px-3 py-1 text-xs text-warn">

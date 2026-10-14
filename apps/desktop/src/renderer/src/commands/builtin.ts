@@ -29,7 +29,16 @@ export const COMMAND_IDS = {
   closeTab: 'editor.closeTab',
   quickOpen: 'editor.quickOpen',
   cycleTheme: 'appearance.cycleTheme',
-  toggleLocale: 'appearance.toggleLocale'
+  toggleLocale: 'appearance.toggleLocale',
+  checkoutBranch: 'git.checkoutBranch',
+  createBranch: 'git.createBranch',
+  fetchRepo: 'git.fetchRepo',
+  fetchAll: 'git.fetchAll',
+  pullRepo: 'git.pullRepo',
+  pushBranch: 'git.pushBranch',
+  manageRemotes: 'git.remotes',
+  manageTags: 'git.tags',
+  toggleOutput: 'view.toggleOutput'
 } as const
 
 /** Latest-value accessors: the commands read through this so they never go stale. */
@@ -72,6 +81,18 @@ export interface BuiltinContext {
   editorHasTab: () => boolean
   editorCloseTab: () => void
   editorQuickOpen: () => void
+  gitBranches: () => void
+  gitCreateBranch: () => void
+  gitFetch: () => void
+  gitFetchAll: () => void
+  gitPull: () => void
+  gitPush: () => void
+  gitRemotes: () => void
+  gitTags: () => void
+  gitHasTarget: () => boolean
+  gitHasRepos: () => boolean
+  gitCanSync: () => boolean
+  toggleOutput: () => void
 }
 
 export function createBuiltinCommands(get: () => BuiltinContext): CommandDefinition[] {
@@ -275,6 +296,68 @@ export function createBuiltinCommands(get: () => BuiltinContext): CommandDefinit
       categoryKey: 'commands.categories.workspace',
       enabled: () => get().hasWorkspace() && get().isTrusted(),
       run: () => get().revokeTrust()
+    },
+    {
+      id: COMMAND_IDS.checkoutBranch,
+      titleKey: 'commands.checkoutBranch',
+      categoryKey: 'commands.categories.git',
+      enabled: () => get().gitHasTarget(),
+      run: () => get().gitBranches()
+    },
+    {
+      id: COMMAND_IDS.createBranch,
+      titleKey: 'commands.createBranch',
+      categoryKey: 'commands.categories.git',
+      enabled: () => get().gitHasTarget(),
+      run: () => get().gitCreateBranch()
+    },
+    {
+      id: COMMAND_IDS.fetchRepo,
+      titleKey: 'commands.fetchRepo',
+      categoryKey: 'commands.categories.git',
+      enabled: () => get().gitHasRepos(),
+      run: () => get().gitFetch()
+    },
+    {
+      id: COMMAND_IDS.fetchAll,
+      titleKey: 'commands.fetchAll',
+      categoryKey: 'commands.categories.git',
+      enabled: () => get().gitHasRepos(),
+      run: () => get().gitFetchAll()
+    },
+    {
+      id: COMMAND_IDS.pullRepo,
+      titleKey: 'commands.pullRepo',
+      categoryKey: 'commands.categories.git',
+      enabled: () => get().gitCanSync(),
+      run: () => get().gitPull()
+    },
+    {
+      id: COMMAND_IDS.pushBranch,
+      titleKey: 'commands.pushBranch',
+      categoryKey: 'commands.categories.git',
+      enabled: () => get().gitCanSync(),
+      run: () => get().gitPush()
+    },
+    {
+      id: COMMAND_IDS.manageRemotes,
+      titleKey: 'commands.manageRemotes',
+      categoryKey: 'commands.categories.git',
+      enabled: () => get().gitHasTarget(),
+      run: () => get().gitRemotes()
+    },
+    {
+      id: COMMAND_IDS.manageTags,
+      titleKey: 'commands.manageTags',
+      categoryKey: 'commands.categories.git',
+      enabled: () => get().gitHasTarget(),
+      run: () => get().gitTags()
+    },
+    {
+      id: COMMAND_IDS.toggleOutput,
+      titleKey: 'commands.toggleOutput',
+      categoryKey: 'commands.categories.view',
+      run: () => get().toggleOutput()
     }
   ]
 }

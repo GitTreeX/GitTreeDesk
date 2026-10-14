@@ -2,10 +2,12 @@ import { useEffect, useState, type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { AppInfo } from '@gitreedesk/shared'
 import { api } from '../api'
+import { useOperations } from '../contexts/operations-context'
+import { useReposUi } from '../contexts/repos'
 import { useSettings } from '../contexts/settings'
 import { useWorkspace } from '../contexts/workspace'
 import { nextTheme, type ThemePreference } from '../theme'
-import { AlertTriangleIcon, GlobeIcon, MonitorIcon, MoonIcon, SunIcon } from './icons'
+import { AlertTriangleIcon, BranchIcon, GlobeIcon, MonitorIcon, MoonIcon, SunIcon } from './icons'
 
 const THEME_ICONS: Record<ThemePreference, typeof SunIcon> = {
   system: MonitorIcon,
@@ -17,6 +19,8 @@ export function StatusBar(): JSX.Element {
   const { t } = useTranslation()
   const settings = useSettings()
   const workspace = useWorkspace()
+  const repoUi = useReposUi()
+  const operations = useOperations()
   const [appInfo, setAppInfo] = useState<AppInfo | null>(null)
 
   useEffect(() => {
@@ -55,6 +59,17 @@ export function StatusBar(): JSX.Element {
   const workspaceName =
     workspace.descriptor?.config.name ?? workspace.descriptor?.root.split('/').pop() ?? null
 
+  const activeRecord = repoUi.activeRecord
+  const activeStatus =
+    activeRecord !== null ? workspace.statuses.get(activeRecord.gitDir)?.status ?? null : null
+  const detached = activeStatus?.head.detached === true
+  const branchText =
+    activeStatus === null
+      ? null
+      : activeStatus.head.detached
+        ? t('statusbar.detached', { sha: (activeStatus.head.sha ?? '').slice(0, 7) })
+        : activeStatus.head.ref
+
   return (
     <footer className="flex h-6 shrink-0 items-center justify-between gap-3 border-t border-line bg-panel px-2 text-xs text-muted">
       <div className="flex min-w-0 items-center gap-3">
@@ -64,6 +79,29 @@ export function StatusBar(): JSX.Element {
         ) : workspace.refreshing ? (
           <span>{t('statusbar.refreshing')}</span>
         ) : null}
+        {activeRecord !== null && branchText !== null && (
+          <button
+            type="button"
+            title={t('statusbar.branchTitle')}
+            className={`flex min-w-0 items-center gap-1 rounded px-1.5 py-0.5 hover:bg-ink/5 hover:text-ink ${
+              detached ? 'text-warn' : ''
+            }`}
+            onClick={() => operations.openBranches(activeRecord)}
+          >
+            <BranchIcon className="size-3.5 shrink-0" />
+            <span className="truncate font-mono">{branchText}</span>
+            {activeStatus !== null && activeStatus.upstream !== null && (
+              <>
+                {activeStatus.upstream.behind > 0 && (
+                  <span className="shrink-0">↓{activeStatus.upstream.behind}</span>
+                )}
+                {activeStatus.upstream.ahead > 0 && (
+                  <span className="shrink-0">↑{activeStatus.upstream.ahead}</span>
+                )}
+              </>
+            )}
+          </button>
+        )}
         {workspace.lastError !== null && (
           <button
             type="button"

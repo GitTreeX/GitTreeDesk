@@ -4,6 +4,8 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import type { RepoRecord, RepoStatus } from '@gitreedesk/shared'
 import { api } from '../api'
 import { isEditableTarget } from '../commands/keybinding'
+import { useOperations } from '../contexts/operations-context'
+import { useReposUi } from '../contexts/repos'
 import { useTreeUi } from '../contexts/tree'
 import { useWorkspace } from '../contexts/workspace'
 import { notifyError } from '../notify'
@@ -31,6 +33,8 @@ export function ReposView(): JSX.Element {
   const { t } = useTranslation()
   const { descriptor, statuses } = useWorkspace()
   const tree = useTreeUi()
+  const repoUi = useReposUi()
+  const operations = useOperations()
   const records = descriptor?.records ?? NO_RECORDS
 
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set())
@@ -119,6 +123,22 @@ export function ReposView(): JSX.Element {
 
   const expandable = (node: RepoNode): boolean => node.hasChildren
 
+  // Commands consult the selection through this ref while the view is mounted.
+  useEffect(() => {
+    tree.reposActions.current = {
+      selectedRecords: () => {
+        const picked: RepoRecord[] = []
+        for (const row of rows) {
+          if (isRepoRow(row) && selected.has(row.node.key)) picked.push(row.node.record)
+        }
+        return picked
+      }
+    }
+    return () => {
+      tree.reposActions.current = null
+    }
+  }, [tree, rows, selected])
+
   const toggleCollapsed = (node: RepoNode): void => {
     if (!expandable(node)) return
     setCollapsed((current) => {
@@ -189,6 +209,7 @@ export function ReposView(): JSX.Element {
 
   const onRowMouseDown = (event: MouseEvent<HTMLDivElement>, node: RepoNode): void => {
     const key = node.key
+    if (node.record.gitDir.length > 0) repoUi.setActiveKey(node.record.gitDir)
     if (event.ctrlKey || event.metaKey) {
       setSelected((current) => {
         const next = new Set(current)
@@ -235,9 +256,70 @@ export function ReposView(): JSX.Element {
   }, [])
 
   const menuItems = (node: RepoNode): ContextMenuItem[] => {
+    const record = node.record
     // Row keys are checkout paths, so the selection is directly copyable.
-    const paths = selected.has(node.key) && selected.size > 0 ? [...selected] : [node.key]
+    const inSelection = selected.has(node.key) && selected.size > 0
+    const paths = inSelection ? [...selected] : [node.key]
+    const picked = inSelection
+      ? rows.filter(isRepoRow).filter((row) => selected.has(row.node.key)).map((row) => row.node.record)
+      : [record]
+    const syncTargets = picked.filter((candidate) => candidate.gitDir.length > 0)
+    const pullable = syncTargets.filter((candidate) => candidate.kind !== 'bare')
+    const status = statusFor(record)
+    const branch = status?.head.ref ?? null
+    const pushable = record.kind !== 'bare' && branch !== null
+    const canTarget = record.gitDir.length > 0
     return [
+      {
+        label: t('menu.checkoutBranch'),
+        disabled: !canTarget || record.kind === 'bare',
+        onSelect: () => {
+          repoUi.setActiveKey(record.gitDir)
+          operations.openBranches(record)
+        }
+      },
+      {
+        label: t('menu.createBranch'),
+        disabled: !canTarget || record.kind === 'bare',
+        onSelect: () => {
+          repoUi.setActiveKey(record.gitDir)
+          operations.openCreateBranch(record)
+        }
+      },
+      {
+        label: syncTargets.length > 1 ? t('menu.fetchSelected') : t('menu.fetch'),
+        disabled: syncTargets.length === 0,
+        onSelect: () => operations.fetchRepos(syncTargets)
+      },
+      {
+        label: syncTargets.length > 1 ? t('menu.pullSelected') : t('menu.pull'),
+        disabled: pullable.length === 0,
+        onSelect: () => operations.pullRepos(pullable)
+      },
+      {
+        label: t('menu.push'),
+        disabled: !pushable,
+        onSelect: () => {
+          if (branch === null) return
+          operations.pushBranch(record, branch, { hasUpstream: status !== null && status.upstream !== null })
+        }
+      },
+      {
+        label: t('menu.remotes'),
+        disabled: !canTarget,
+        onSelect: () => {
+          repoUi.setActiveKey(record.gitDir)
+          operations.openRemotes(record)
+        }
+      },
+      {
+        label: t('menu.tags'),
+        disabled: !canTarget,
+        onSelect: () => {
+          repoUi.setActiveKey(record.gitDir)
+          operations.openTags(record)
+        }
+      },
       {
         label: paths.length > 1 ? t('menu.copyPaths') : t('menu.copyPath'),
         onSelect: () => copyPath(paths.join('\n'))
@@ -336,6 +418,7 @@ export function ReposView(): JSX.Element {
                   event.preventDefault()
                   setCursorKey(node.key)
                   if (!selected.has(node.key)) setSelected(new Set([node.key]))
+                  if (record.gitDir.length > 0) repoUi.setActiveKey(record.gitDir)
                   setMenu({ x: event.clientX, y: event.clientY, node })
                 }}
               >

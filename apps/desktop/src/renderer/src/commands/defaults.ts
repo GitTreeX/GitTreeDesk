@@ -28,6 +28,7 @@ export const DEFAULT_BINDINGS: readonly DefaultBinding[] = [
   { command: 'editor.save', keys: 'Mod+S', allowInInput: true },
   { command: 'editor.closeTab', keys: 'Mod+W', allowInInput: true },
   { command: 'editor.quickOpen', keys: 'Mod+P', allowInInput: true },
+  { command: 'git.fetchRepo', keys: 'Mod+Shift+F', allowInInput: true },
   { command: 'explorer.rename', keys: 'F2' },
   { command: 'explorer.delete', keys: 'Delete' }
 ]

@@ -65,6 +65,16 @@ function ToastCard({ toast }: { toast: Toast }): JSX.Element {
             {t('notify.copyDetails')}
           </button>
         </div>
+        {toast.details !== undefined && (
+          <details className="mt-1">
+            <summary className="cursor-pointer text-xs text-muted hover:text-ink">
+              {t('notify.details')}
+            </summary>
+            <pre className="mt-1 max-h-32 overflow-auto rounded border border-line bg-canvas p-1.5 font-mono text-[11px] whitespace-pre-wrap text-muted">
+              {toast.details}
+            </pre>
+          </details>
+        )}
       </div>
       <button
         type="button"

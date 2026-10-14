@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type JSX, type KeyboardEvent 
 import { useTranslation } from 'react-i18next'
 import type { HeadCommit, RepoRecord, RepoStatus } from '@gitreedesk/shared'
 import { api } from '../api'
+import { useOperations } from '../contexts/operations-context'
 import { notify } from '../notify'
 import { ConfirmDialog } from './ConfirmDialog'
 import { ContextMenu, type ContextMenuItem } from './ContextMenu'
@@ -23,6 +24,7 @@ export function CommitBox({
   trusted: boolean
 }): JSX.Element | null {
   const { t } = useTranslation()
+  const operations = useOperations()
   const [message, setMessage] = useState('')
   const [signOff, setSignOff] = useState(false)
   const [amendSha, setAmendSha] = useState<string | null>(null)
@@ -60,7 +62,7 @@ export function CommitBox({
   }, [message])
 
   const run = useCallback(
-    async (input: { message: string; amend: boolean; stageAll: boolean }): Promise<void> => {
+    async (input: { message: string; amend: boolean; stageAll: boolean; push?: boolean }): Promise<void> => {
       if (runningRef.current) return
       runningRef.current = true
       setRunning(true)
@@ -80,6 +82,9 @@ export function CommitBox({
         setOutputOpen(false)
         setOutput([])
         notify({ message: t('commit.done', { sha: sha.slice(0, 7) }) })
+        if (input.push === true && status !== null && status.head.ref !== null) {
+          operations.pushBranch(record, status.head.ref, { hasUpstream: status.upstream !== null })
+        }
       } catch (failure) {
         setError(failure instanceof Error ? failure.message : String(failure))
         setOutputOpen(true)
@@ -88,7 +93,7 @@ export function CommitBox({
         setRunning(false)
       }
     },
-    [amendSha, gitDir, signOff, t]
+    [gitDir, operations, record, signOff, status, t]
   )
 
   const applyAmend = useCallback(
@@ -163,6 +168,11 @@ export function CommitBox({
 
   const menuItems: ContextMenuItem[] = [
     { label: t('commit.menuCommit'), disabled: !canPrimary, onSelect: () => void primary() },
+    {
+      label: t('commit.commitAndPush'),
+      disabled: !canPrimary || amendSha !== null || (status?.staged.length ?? 0) === 0,
+      onSelect: () => void run({ message, amend: false, stageAll: false, push: true })
+    },
     {
       label: t('commit.stageAllCommit'),
       disabled: !canPrimary,

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { RepoRecord } from '@gitreedesk/shared'
+import { useReposUi } from '../contexts/repos'
 import { useTreeUi } from '../contexts/tree'
 import { useWorkspace } from '../contexts/workspace'
 import { branchLabel } from './RepoBadges'
@@ -12,6 +13,7 @@ export function QuickPick(): JSX.Element {
   const { t } = useTranslation()
   const { descriptor, statuses } = useWorkspace()
   const tree = useTreeUi()
+  const repoUi = useReposUi()
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState(0)
   const inputRef = useRef<HTMLInputElement | null>(null)
@@ -45,6 +47,7 @@ export function QuickPick(): JSX.Element {
 
   const choose = (record: RepoRecord | undefined): void => {
     if (record === undefined) return
+    if (record.gitDir.length > 0) repoUi.setActiveKey(record.gitDir)
     tree.requestRepoFocus(record.path)
   }
 
