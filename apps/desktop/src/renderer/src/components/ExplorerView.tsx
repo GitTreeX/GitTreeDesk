@@ -45,7 +45,7 @@ interface NewEntryState {
 
 export function ExplorerView(): JSX.Element {
   const { t } = useTranslation()
-  const { descriptor, statuses } = useWorkspace()
+  const { descriptor, statuses, open: openWorkspace } = useWorkspace()
   const tree = useTreeUi()
   const editor = useEditor()
   const terminal = useTerminal()
@@ -254,6 +254,15 @@ export function ExplorerView(): JSX.Element {
       notifyError(message, details)
     })
   }, [])
+
+  const pickAndOpen = useCallback(async (): Promise<void> => {
+    try {
+      const { path } = await api.invoke('workspace:pick')
+      if (path !== null) await openWorkspace(path)
+    } catch (error) {
+      console.error('[explorer] open folder failed', error)
+    }
+  }, [openWorkspace])
 
   const copyPath = useCallback((text: string): void => {
     void api.invoke('app:copyText', { text }).catch((error: unknown) => {
@@ -482,7 +491,16 @@ export function ExplorerView(): JSX.Element {
           </div>
         )}
         {empty && rootError === null && (
-          <p className="px-3 py-4 text-sm text-muted">{t('explorer.empty')}</p>
+          <div className="px-3 py-4">
+            <p className="text-sm text-muted">{t('explorer.empty')}</p>
+            <button
+              type="button"
+              className="mt-2 rounded border border-line px-2 py-1 text-xs text-ink hover:bg-ink/5"
+              onClick={() => void pickAndOpen()}
+            >
+              {t('explorer.openFolder')}
+            </button>
+          </div>
         )}
         <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
           {virtualizer.getVirtualItems().map((item) => {

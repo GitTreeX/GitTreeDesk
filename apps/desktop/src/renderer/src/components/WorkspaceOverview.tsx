@@ -1,7 +1,7 @@
-import type { JSX } from 'react'
+import { useEffect, useState, type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useWorkspace } from '../contexts/workspace'
-import { AlertTriangleIcon } from './icons'
+import { AlertTriangleIcon, XIcon } from './icons'
 
 function Stat({ label, value }: { label: string; value: number }): JSX.Element {
   return (
@@ -15,6 +15,12 @@ function Stat({ label, value }: { label: string; value: number }): JSX.Element {
 export function WorkspaceOverview(): JSX.Element {
   const { t } = useTranslation()
   const { descriptor, degraded, rescan, setTrusted, refreshing } = useWorkspace()
+  const budgetExceeded = descriptor?.stats.budgetExceeded ?? false
+  const [budgetDismissed, setBudgetDismissed] = useState(false)
+
+  useEffect(() => {
+    if (!budgetExceeded) setBudgetDismissed(false)
+  }, [budgetExceeded])
 
   if (descriptor === null) return <div className="min-h-0 flex-1" />
 
@@ -51,13 +57,14 @@ export function WorkspaceOverview(): JSX.Element {
           </Notice>
         )}
 
-        {descriptor.stats.budgetExceeded && (
+        {descriptor.stats.budgetExceeded && !budgetDismissed && (
           <Notice
             action={{
               label: t('notices.raise'),
               busy: refreshing,
               onClick: () => void rescan({ raiseBudget: true })
             }}
+            onDismiss={() => setBudgetDismissed(true)}
           >
             {t('notices.budget')}
           </Notice>
@@ -92,26 +99,43 @@ export function WorkspaceOverview(): JSX.Element {
 
 function Notice({
   children,
-  action
+  action,
+  onDismiss
 }: {
   children: string
   action?: { label: string; busy?: boolean; onClick: () => void }
+  onDismiss?: () => void
 }): JSX.Element {
+  const { t } = useTranslation()
   return (
     <div className="flex items-start justify-between gap-3 rounded-md border border-warn/40 bg-warn/10 px-3 py-2.5">
       <span className="flex items-start gap-2 text-sm text-ink">
         <AlertTriangleIcon className="mt-0.5 size-4 shrink-0 text-warn" />
         {children}
       </span>
-      {action !== undefined && (
-        <button
-          type="button"
-          disabled={action.busy === true}
-          onClick={action.onClick}
-          className="shrink-0 rounded border border-line bg-panel px-2 py-1 text-xs text-ink hover:bg-ink/5 disabled:opacity-60"
-        >
-          {action.label}
-        </button>
+      {(action !== undefined || onDismiss !== undefined) && (
+        <div className="flex shrink-0 items-center gap-1.5">
+          {action !== undefined && (
+            <button
+              type="button"
+              disabled={action.busy === true}
+              onClick={action.onClick}
+              className="shrink-0 rounded border border-line bg-panel px-2 py-1 text-xs text-ink hover:bg-ink/5 disabled:opacity-60"
+            >
+              {action.label}
+            </button>
+          )}
+          {onDismiss !== undefined && (
+            <button
+              type="button"
+              aria-label={t('dialogs.close')}
+              onClick={onDismiss}
+              className="rounded p-0.5 text-muted hover:bg-ink/5 hover:text-ink"
+            >
+              <XIcon className="size-3.5" />
+            </button>
+          )}
+        </div>
       )}
     </div>
   )
