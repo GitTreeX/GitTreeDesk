@@ -16,7 +16,8 @@ const en = {
   },
   activity: {
     tree: 'Explorer',
-    scm: 'Source Control'
+    scm: 'Source Control',
+    settings: 'Settings'
   },
   viewOptions: {
     badges: 'Badges',
@@ -812,6 +813,69 @@ const en = {
     accept: 'Trust this workspace',
     decline: 'Continue without trust'
   },
+  settings: {
+    title: 'Settings',
+    searchPlaceholder: 'Search settings…',
+    noResults: 'No settings match',
+    scopeUser: 'User',
+    scopeWorkspace: 'Workspace',
+    copyToWorkspace: 'Copy to Workspace',
+    resetToUser: 'Reset to User',
+    auto: 'Auto',
+    groups: {
+      appearance: 'Appearance',
+      editor: 'Editor',
+      git: 'Git',
+      terminal: 'Terminal',
+      commitMessage: 'Commit message',
+      advanced: 'Advanced'
+    },
+    items: {
+      theme: 'Theme',
+      density: 'Density',
+      accent: 'Accent color',
+      locale: 'Language',
+      editorFontSize: 'Font size',
+      editorFontFamily: 'Font family',
+      editorTabSize: 'Tab size',
+      editorInsertSpaces: 'Insert spaces',
+      editorWordWrap: 'Word wrap',
+      editorMinimap: 'Minimap',
+      gitPath: 'Git executable',
+      gitConcurrency: 'Concurrent Git processes',
+      gitPollInterval: 'Fallback polling interval',
+      gitPullStrategy: 'Default pull strategy',
+      gitUntrackedStrategy: 'Untracked files',
+      terminalProfile: 'Default terminal profile',
+      terminalScrollback: 'Scrollback lines',
+      commitProvider: 'Commit-message provider',
+      commitBaseUrl: 'Provider base URL',
+      commitModel: 'Model',
+      commitTemperature: 'Temperature',
+      logLevel: 'Log level'
+    },
+    hints: {
+      theme: 'System follows the OS appearance.',
+      editorFontFamily: 'Leave empty for the default monospace font.',
+      editorInsertSpaces: 'Indent with spaces instead of tab characters.',
+      gitPath: 'Leave empty to use the Git found on PATH.',
+      gitPollInterval: 'Seconds between fallback refreshes when file watchers are unhealthy.',
+      gitUntrackedStrategy: 'List every untracked file, or keep untracked folders collapsed.',
+      terminalProfile: 'Leave empty to choose per folder.',
+      commitTemperature: 'Higher values make drafts more varied.',
+      logLevel: 'Applies to the log files in the logs folder.'
+    },
+    options: {
+      theme: { system: 'System', light: 'Light', dark: 'Dark' },
+      density: { comfortable: 'Comfortable', compact: 'Compact' },
+      accent: { blue: 'Blue', green: 'Green', violet: 'Violet', amber: 'Amber', rose: 'Rose' },
+      locale: { en: 'English', 'zh-Hans': '中文' },
+      pullStrategy: { 'ff-only': 'Fast-forward only', merge: 'Merge', rebase: 'Rebase' },
+      untrackedStrategy: { normal: 'Folders collapsed', all: 'List all files' },
+      provider: { offline: 'Offline (built-in)', 'openai-compatible': 'OpenAI-compatible API' },
+      logLevel: { error: 'Error', warn: 'Warning', info: 'Info', debug: 'Debug' }
+    }
+  },
   palette: {
     placeholder: 'Type a command…',
     noResults: 'No matching commands'
@@ -839,6 +903,7 @@ const en = {
     openInEditor: 'Open in VS Code',
     cycleTheme: 'Change Theme',
     toggleLocale: 'Switch Language',
+    openSettings: 'Open Settings',
     trust: 'Trust This Workspace',
     revokeTrust: 'Revoke Trust',
     palette: 'Show All Commands',
@@ -875,7 +940,8 @@ const en = {
       git: 'Git',
       appearance: 'Appearance',
       editor: 'Editor',
-      terminal: 'Terminal'
+      terminal: 'Terminal',
+      preferences: 'Preferences'
     }
   },
   badges: {

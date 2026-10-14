@@ -5,10 +5,12 @@ import type { FsEntry, RepoRecord } from '@gitreedesk/shared'
 import { api } from '../api'
 import { isEditableTarget } from '../commands/keybinding'
 import { useEditor } from '../contexts/editor'
+import { useSettings } from '../contexts/settings'
 import { useTerminal } from '../contexts/terminal'
 import { useTreeUi } from '../contexts/tree'
 import { useWorkspace } from '../contexts/workspace'
 import { notify, notifyError } from '../notify'
+import { rowHeightFor } from '../theme'
 import { ancestorsWithin, visibleRows, type ExplorerRow } from '../tree/explorer-model'
 import { ContextMenu, type ContextMenuItem } from './ContextMenu'
 import { ConfirmDialog } from './ConfirmDialog'
@@ -24,7 +26,6 @@ import {
   LinkIcon
 } from './icons'
 
-const ROW_HEIGHT = 28
 const EMPTY_CHILDREN: ReadonlyMap<string, readonly FsEntry[]> = new Map()
 
 function parentOf(path: string): string | null {
@@ -48,6 +49,8 @@ export function ExplorerView(): JSX.Element {
   const tree = useTreeUi()
   const editor = useEditor()
   const terminal = useTerminal()
+  const settings = useSettings()
+  const rowHeight = rowHeightFor(settings.density)
   const root = descriptor?.root ?? ''
 
   const [children, setChildren] = useState<ReadonlyMap<string, readonly FsEntry[]>>(EMPTY_CHILDREN)
@@ -86,9 +89,13 @@ export function ExplorerView(): JSX.Element {
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => ROW_HEIGHT,
+    estimateSize: () => rowHeight,
     overscan: 12
   })
+
+  useEffect(() => {
+    virtualizer.measure()
+  }, [rowHeight, virtualizer])
 
   const load = useCallback(
     async (dir: string, silent: boolean): Promise<void> => {
@@ -498,7 +505,7 @@ export function ExplorerView(): JSX.Element {
                   top: 0,
                   left: 0,
                   right: 0,
-                  height: ROW_HEIGHT,
+                  height: rowHeight,
                   transform: `translateY(${item.start}px)`,
                   paddingLeft: 6 + row.depth * 14
                 }}

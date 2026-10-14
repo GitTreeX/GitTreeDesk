@@ -165,6 +165,7 @@ function AppRoot(): JSX.Element {
       tree.setScmDeselected((workspace.descriptor?.records ?? []).map((record) => checkoutKey(record))),
     cycleTheme: () => void settings.setTheme(nextTheme(settings.theme)),
     toggleLocale: () => void settings.setLocale(settings.locale === 'en' ? 'zh-Hans' : 'en'),
+    openSettings: () => editor.openSettings(),
     trust: () => void workspace.setTrusted(true),
     revokeTrust: () => void workspace.setTrusted(false),
     togglePalette: () => setPaletteOpen((current) => !current),

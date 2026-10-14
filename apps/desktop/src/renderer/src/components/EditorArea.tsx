@@ -11,6 +11,7 @@ import { ContextMenu, type ContextMenuItem } from './ContextMenu'
 import { FileDiffView } from './FileDiffView'
 import { FileEditor } from './FileEditor'
 import { GraphView } from './GraphView'
+import { SettingsView } from './SettingsView'
 import { WorkspaceOverview } from './WorkspaceOverview'
 
 const THEME_DARK = 'gtd-dark'
@@ -74,6 +75,8 @@ export function EditorArea(): JSX.Element {
               <FileEditor tab={tab} active={tab.id === editor.activeId} />
             ) : tab.kind === 'graph' ? (
               <GraphView tab={tab} />
+            ) : tab.kind === 'settings' ? (
+              <SettingsView />
             ) : (
               <FileDiffView tab={tab} />
             )}
@@ -97,23 +100,28 @@ function TabStrip(): JSX.Element {
     })
   }, [])
 
-  const absolutePath = useCallback((tab: EditorTab): string => {
+  const absolutePath = useCallback((tab: EditorTab): string | null => {
     if (tab.kind === 'file') return tab.path
     if (tab.kind === 'graph') return tab.repo.repoPath
+    if (tab.kind === 'settings') return null
     return `${tab.repo.repoPath}/${tab.path}`
   }, [])
 
   const menuItems = useCallback(
     (tab: EditorTab): ContextMenuItem[] => {
-      return [
+      const items: ContextMenuItem[] = [
         { label: t('tabs.close'), onSelect: () => editor.requestClose([tab.id]) },
         { label: t('tabs.closeOthers'), onSelect: () => editor.closeOthers(tab.id) },
-        { label: t('tabs.closeAll'), onSelect: () => editor.closeAll() },
-        { label: t('menu.copyPath'), onSelect: () => copyPath(absolutePath(tab)) },
+        { label: t('tabs.closeAll'), onSelect: () => editor.closeAll() }
+      ]
+      const path = absolutePath(tab)
+      if (path === null) return items
+      return [
+        ...items,
+        { label: t('menu.copyPath'), onSelect: () => copyPath(path) },
         {
           label: t('menu.reveal'),
           onSelect: () => {
-            const path = absolutePath(tab)
             void api.invoke('fs:reveal', { path }).catch((error: unknown) => {
               notifyError(error instanceof Error ? error.message : String(error))
             })
@@ -121,7 +129,7 @@ function TabStrip(): JSX.Element {
         },
         {
           label: t('menu.revealInExplorer'),
-          onSelect: () => tree.requestExplorerReveal(absolutePath(tab))
+          onSelect: () => tree.requestExplorerReveal(path)
         }
       ]
     },
@@ -139,7 +147,7 @@ function TabStrip(): JSX.Element {
             key={tab.id}
             role="tab"
             aria-selected={active}
-            title={absolutePath(tab)}
+            title={absolutePath(tab) ?? t('settings.title')}
             className={`group flex max-w-56 shrink-0 cursor-default items-center gap-1.5 border-r border-line px-2.5 text-xs select-none ${
               active ? 'bg-canvas text-ink' : 'text-muted hover:bg-ink/5 hover:text-ink'
             }`}
@@ -157,7 +165,9 @@ function TabStrip(): JSX.Element {
             }}
           >
             {dirty && <span className="size-1.5 shrink-0 rounded-full bg-accent" />}
-            <span className={`min-w-0 truncate ${preview ? 'italic' : ''}`}>{tabLabel(tab)}</span>
+            <span className={`min-w-0 truncate ${preview ? 'italic' : ''}`}>
+              {tab.kind === 'settings' ? t('settings.title') : tabLabel(tab)}
+            </span>
             <button
               type="button"
               tabIndex={-1}
@@ -193,8 +203,11 @@ function ClosePrompt(): JSX.Element {
   const editor = useEditor()
   const ids = editor.closePrompt ?? []
   const names = useMemo(
-    () => editor.tabs.filter((tab) => ids.includes(tab.id)).map((tab) => tabLabel(tab)),
-    [editor.tabs, ids]
+    () =>
+      editor.tabs
+        .filter((tab) => ids.includes(tab.id))
+        .map((tab) => (tab.kind === 'settings' ? t('settings.title') : tabLabel(tab))),
+    [editor.tabs, ids, t]
   )
   const body =
     names.length === 1

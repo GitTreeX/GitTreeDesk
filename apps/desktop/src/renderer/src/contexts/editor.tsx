@@ -65,7 +65,14 @@ export interface GraphTab {
   repo: RepoTabInfo
 }
 
-export type EditorTab = FileTab | DiffTab | CommitTab | GraphTab
+export interface SettingsTab {
+  kind: 'settings'
+  id: string
+}
+
+export type EditorTab = FileTab | DiffTab | CommitTab | GraphTab | SettingsTab
+
+export const SETTINGS_TAB_ID = 'settings'
 
 /** Graph tabs kept open at once; the least recently used one closes to make room. */
 export const GRAPH_TAB_LIMIT = 5
@@ -130,6 +137,7 @@ export function scmDiffSpec(row: ScmRow): ScmDiffSpec | null {
 export function tabLabel(tab: EditorTab): string {
   if (tab.kind === 'file') return tab.name
   if (tab.kind === 'graph') return `${tab.repo.name} (Graph)`
+  if (tab.kind === 'settings') return 'Settings'
   if (tab.kind === 'diff') return baseName(tab.path)
   return `${baseName(tab.path)} @ ${tab.sha.slice(0, 7)}`
 }
@@ -164,6 +172,8 @@ interface EditorContextValue {
   openCommitDiff: (input: OpenCommitInput) => void
   /** Opens (or activates) the one graph tab of a repository. */
   openGraph: (repo: RepoTabInfo) => void
+  /** Opens (or activates) the singleton settings tab. */
+  openSettings: () => void
   setDiffSource: (id: string, from: DiffSource) => void
   activateTab: (id: string) => void
   pinTab: (id: string) => void
@@ -349,6 +359,15 @@ export function EditorProvider({ children }: { children: ReactNode }): JSX.Eleme
     [touchGraph]
   )
 
+  const openSettings = useCallback(() => {
+    setState((current) => {
+      if (current.tabs.some((tab) => tab.kind === 'settings')) {
+        return current.activeId === SETTINGS_TAB_ID ? current : { ...current, activeId: SETTINGS_TAB_ID }
+      }
+      return insertTab(current, { kind: 'settings', id: SETTINGS_TAB_ID }, false)
+    })
+  }, [])
+
   const setDiffSource = useCallback((id: string, from: DiffSource) => {
     setState((current) => {
       const index = current.tabs.findIndex((tab) => tab.id === id)
@@ -477,6 +496,7 @@ export function EditorProvider({ children }: { children: ReactNode }): JSX.Eleme
       openDiff,
       openCommitDiff,
       openGraph,
+      openSettings,
       setDiffSource,
       activateTab,
       pinTab,
@@ -502,6 +522,7 @@ export function EditorProvider({ children }: { children: ReactNode }): JSX.Eleme
       openDiff,
       openCommitDiff,
       openGraph,
+      openSettings,
       setDiffSource,
       activateTab,
       pinTab,

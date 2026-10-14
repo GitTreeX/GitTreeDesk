@@ -26,6 +26,39 @@
   --gtd-success: #4ade80;
 }
 
+/* Accent presets, keyed on `data-accent` (blue is the base value above). */
+:root[data-accent='green'] {
+  --gtd-accent: #16a34a;
+}
+
+:root[data-accent='violet'] {
+  --gtd-accent: #7c3aed;
+}
+
+:root[data-accent='amber'] {
+  --gtd-accent: #d97706;
+}
+
+:root[data-accent='rose'] {
+  --gtd-accent: #e11d48;
+}
+
+.dark[data-accent='green'] {
+  --gtd-accent: #4ade80;
+}
+
+.dark[data-accent='violet'] {
+  --gtd-accent: #a78bfa;
+}
+
+.dark[data-accent='amber'] {
+  --gtd-accent: #f59e0b;
+}
+
+.dark[data-accent='rose'] {
+  --gtd-accent: #f43f5e;
+}
+
 @theme inline {
   --color-canvas: var(--gtd-canvas);
   --color-panel: var(--gtd-panel);

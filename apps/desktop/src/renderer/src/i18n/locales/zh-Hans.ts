@@ -18,7 +18,8 @@ export const zhHansResource: TranslationResource = {
   },
   activity: {
     tree: '资源管理器',
-    scm: '源代码管理'
+    scm: '源代码管理',
+    settings: '设置'
   },
   viewOptions: {
     badges: '徽标',
@@ -798,6 +799,69 @@ export const zhHansResource: TranslationResource = {
     accept: '信任此工作区',
     decline: '不信任，继续打开'
   },
+  settings: {
+    title: '设置',
+    searchPlaceholder: '搜索设置…',
+    noResults: '没有匹配的设置',
+    scopeUser: '用户',
+    scopeWorkspace: '工作区',
+    copyToWorkspace: '复制到工作区',
+    resetToUser: '重置为用户设置',
+    auto: '自动',
+    groups: {
+      appearance: '外观',
+      editor: '编辑器',
+      git: 'Git',
+      terminal: '终端',
+      commitMessage: '提交信息',
+      advanced: '高级'
+    },
+    items: {
+      theme: '主题',
+      density: '密度',
+      accent: '强调色',
+      locale: '语言',
+      editorFontSize: '字号',
+      editorFontFamily: '字体',
+      editorTabSize: '制表符宽度',
+      editorInsertSpaces: '空格缩进',
+      editorWordWrap: '自动换行',
+      editorMinimap: '代码缩略图',
+      gitPath: 'Git 可执行文件',
+      gitConcurrency: 'Git 并发进程数',
+      gitPollInterval: '回退轮询间隔',
+      gitPullStrategy: '默认拉取策略',
+      gitUntrackedStrategy: '未跟踪文件',
+      terminalProfile: '默认终端配置',
+      terminalScrollback: '回滚缓冲行数',
+      commitProvider: '提交信息生成方式',
+      commitBaseUrl: '服务地址',
+      commitModel: '模型',
+      commitTemperature: '随机性',
+      logLevel: '日志级别'
+    },
+    hints: {
+      theme: '选择“跟随系统”时随操作系统外观切换。',
+      editorFontFamily: '留空使用默认等宽字体。',
+      editorInsertSpaces: '缩进时使用空格代替制表符。',
+      gitPath: '留空则使用 PATH 中的 Git。',
+      gitPollInterval: '文件监听不可用时的回退刷新间隔（秒）。',
+      gitUntrackedStrategy: '列出每个未跟踪文件，或保持未跟踪文件夹收起。',
+      terminalProfile: '留空则按目录选择。',
+      commitTemperature: '数值越高，生成的草稿越多样。',
+      logLevel: '作用于日志文件夹中的日志文件。'
+    },
+    options: {
+      theme: { system: '跟随系统', light: '浅色', dark: '深色' },
+      density: { comfortable: '宽松', compact: '紧凑' },
+      accent: { blue: '蓝色', green: '绿色', violet: '紫色', amber: '琥珀色', rose: '玫红' },
+      locale: { en: 'English', 'zh-Hans': '中文' },
+      pullStrategy: { 'ff-only': '仅快进', merge: '合并', rebase: '变基' },
+      untrackedStrategy: { normal: '文件夹收起', all: '列出全部文件' },
+      provider: { offline: '离线（内置）', 'openai-compatible': 'OpenAI 兼容接口' },
+      logLevel: { error: '错误', warn: '警告', info: '信息', debug: '调试' }
+    }
+  },
   palette: {
     placeholder: '输入命令…',
     noResults: '没有匹配的命令'
@@ -825,6 +889,7 @@ export const zhHansResource: TranslationResource = {
     openInEditor: '在 VS Code 中打开',
     cycleTheme: '切换主题',
     toggleLocale: '切换语言',
+    openSettings: '打开设置',
     trust: '信任此工作区',
     revokeTrust: '撤销信任',
     palette: '显示所有命令',
@@ -861,7 +926,8 @@ export const zhHansResource: TranslationResource = {
       git: 'Git',
       appearance: '外观',
       editor: '编辑器',
-      terminal: '终端'
+      terminal: '终端',
+      preferences: '偏好设置'
     }
   },
   badges: {

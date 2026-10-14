@@ -7,11 +7,13 @@ import { isEditableTarget } from '../commands/keybinding'
 import { useGraph } from '../contexts/graph'
 import { useOperations } from '../contexts/operations-context'
 import { useReposUi } from '../contexts/repos'
+import { useSettings } from '../contexts/settings'
 import { useSubmodules } from '../contexts/submodules'
 import { useTerminal } from '../contexts/terminal'
 import { useTreeUi } from '../contexts/tree'
 import { useWorkspace } from '../contexts/workspace'
 import { notifyError } from '../notify'
+import { rowHeightFor } from '../theme'
 import { nextSelectable } from '../tree/nav'
 import {
   buildReposTree,
@@ -28,7 +30,6 @@ import { ContextMenu, type ContextMenuItem } from './ContextMenu'
 import { branchLabel, RepoBadges } from './RepoBadges'
 import { CheckSquareIcon, ChevronRightIcon, SquareIcon } from './icons'
 
-const ROW_HEIGHT = 28
 const NO_RECORDS: readonly RepoRecord[] = []
 
 function isRepoRow(row: ReposRow): row is Extract<ReposRow, { type: 'repo' }> {
@@ -43,6 +44,8 @@ export function ReposView(): JSX.Element {
   const operations = useOperations()
   const graph = useGraph()
   const terminal = useTerminal()
+  const settings = useSettings()
+  const rowHeight = rowHeightFor(settings.density)
   const { submodulesFor } = useSubmodules()
   const records = descriptor?.records ?? NO_RECORDS
 
@@ -120,9 +123,13 @@ export function ReposView(): JSX.Element {
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => ROW_HEIGHT,
+    estimateSize: () => rowHeight,
     overscan: 12
   })
+
+  useEffect(() => {
+    virtualizer.measure()
+  }, [rowHeight, virtualizer])
 
   // Drop selections pointing at repositories that no longer exist.
   useEffect(() => {
@@ -532,7 +539,7 @@ export function ReposView(): JSX.Element {
                     top: 0,
                     left: 0,
                     right: 0,
-                    height: ROW_HEIGHT,
+                    height: rowHeight,
                     transform: `translateY(${item.start}px)`,
                     paddingLeft: 6
                   }}
@@ -555,7 +562,7 @@ export function ReposView(): JSX.Element {
                     top: 0,
                     left: 0,
                     right: 0,
-                    height: ROW_HEIGHT,
+                    height: rowHeight,
                     transform: `translateY(${item.start}px)`,
                     paddingLeft: 6 + row.depth * 14
                   }}
@@ -624,7 +631,7 @@ export function ReposView(): JSX.Element {
                   top: 0,
                   left: 0,
                   right: 0,
-                  height: ROW_HEIGHT,
+                  height: rowHeight,
                   transform: `translateY(${item.start}px)`,
                   paddingLeft: 6 + node.depth * 14
                 }}

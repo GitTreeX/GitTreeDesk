@@ -2,20 +2,28 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './App'
 import { api } from './api'
+import type { InitialSettings } from './contexts/settings'
 import { initI18n, normalizeLocale } from './i18n'
-import { normalizeTheme, type ThemePreference } from './theme'
-import { applyThemePreference } from './theme-dom'
+import { normalizeAccent, normalizeDensity, normalizeTheme } from './theme'
+import { applyAccentPreference, applyThemePreference } from './theme-dom'
 import './styles/index.css'
 
-async function loadInitialSettings(): Promise<{ theme: ThemePreference; locale: string }> {
+async function loadInitialSettings(): Promise<InitialSettings> {
   try {
-    const [theme, locale] = await Promise.all([
+    const [theme, locale, density, accent] = await Promise.all([
       api.invoke('settings:getEffective', { keyPath: ['appearance', 'theme'] }),
-      api.invoke('settings:getEffective', { keyPath: ['locale'] })
+      api.invoke('settings:getEffective', { keyPath: ['locale'] }),
+      api.invoke('settings:getEffective', { keyPath: ['appearance', 'density'] }),
+      api.invoke('settings:getEffective', { keyPath: ['appearance', 'accent'] })
     ])
-    return { theme: normalizeTheme(theme.value), locale: normalizeLocale(locale.value) }
+    return {
+      theme: normalizeTheme(theme.value),
+      locale: normalizeLocale(locale.value),
+      density: normalizeDensity(density.value),
+      accent: normalizeAccent(accent.value)
+    }
   } catch {
-    return { theme: 'system', locale: 'en' }
+    return { theme: 'system', locale: 'en', density: 'comfortable', accent: 'blue' }
   }
 }
 
@@ -25,6 +33,7 @@ async function bootstrap(): Promise<void> {
 
   const initialSettings = await loadInitialSettings()
   applyThemePreference(initialSettings.theme)
+  applyAccentPreference(initialSettings.accent)
   initI18n(initialSettings.locale)
 
   createRoot(container).render(

@@ -15,11 +15,13 @@ import { isEditableTarget } from '../commands/keybinding'
 import { repoInfoOf, scmDiffSpec, useEditor } from '../contexts/editor'
 import { useOperations } from '../contexts/operations-context'
 import { useReposUi } from '../contexts/repos'
+import { useSettings } from '../contexts/settings'
 import { useTerminal } from '../contexts/terminal'
 import { useTreeUi, type ScmActions } from '../contexts/tree'
 import { useWorkspace } from '../contexts/workspace'
 import { notify, notifyError } from '../notify'
 import { notifyServiceError } from '../lib/reporting'
+import { rowHeightFor } from '../theme'
 import { checkoutKey } from '../tree/repos-model'
 import {
   buildScmModel,
@@ -130,6 +132,8 @@ export function ScmView(): JSX.Element {
   const repoUi = useReposUi()
   const operations = useOperations()
   const terminal = useTerminal()
+  const settings = useSettings()
+  const rowHeight = rowHeightFor(settings.density)
   const records = descriptor?.records ?? NO_RECORDS
   const trusted = descriptor?.trusted ?? false
 
@@ -802,9 +806,10 @@ export function ScmView(): JSX.Element {
         role="treeitem"
         aria-selected={isSelected}
         title={`${row.dir}${row.dir === '' ? '' : '/'}${row.name}`}
-        className={`group/row flex h-6 cursor-default items-center gap-1.5 pr-1 pl-5 text-sm select-none ${
+        className={`group/row flex cursor-default items-center gap-1.5 pr-1 pl-5 text-sm select-none ${
           isCursor ? 'bg-accent/10' : isSelected ? 'bg-ink/5' : 'hover:bg-ink/5'
         }`}
+        style={{ height: rowHeight }}
         onMouseDown={(event) => onRowMouseDown(event, item)}
         onDoubleClick={() => openDiff(item, false)}
         onContextMenu={(event) => {

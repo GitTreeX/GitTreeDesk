@@ -30,6 +30,7 @@ export const COMMAND_IDS = {
   quickOpen: 'editor.quickOpen',
   cycleTheme: 'appearance.cycleTheme',
   toggleLocale: 'appearance.toggleLocale',
+  openSettings: 'settings.open',
   checkoutBranch: 'git.checkoutBranch',
   createBranch: 'git.createBranch',
   openGraph: 'git.openGraph',
@@ -66,6 +67,7 @@ export interface BuiltinContext {
   selectNoneRepos: () => void
   cycleTheme: () => void
   toggleLocale: () => void
+  openSettings: () => void
   trust: () => void
   revokeTrust: () => void
   togglePalette: () => void
@@ -302,6 +304,12 @@ export function createBuiltinCommands(get: () => BuiltinContext): CommandDefinit
       titleKey: 'commands.cycleTheme',
       categoryKey: 'commands.categories.appearance',
       run: () => get().cycleTheme()
+    },
+    {
+      id: COMMAND_IDS.openSettings,
+      titleKey: 'commands.openSettings',
+      categoryKey: 'commands.categories.preferences',
+      run: () => get().openSettings()
     },
     {
       id: COMMAND_IDS.toggleLocale,
