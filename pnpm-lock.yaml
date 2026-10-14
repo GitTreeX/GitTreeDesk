@@ -335,13 +335,16 @@ importers:
 
   packages/commit-msg:
     dependencies:
-      '@gitreedesk/git-core':
+      '@gitreedesk/shared':
         specifier: workspace:*
-        version: link:../git-core
+        version: link:../shared
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
         version: 24.19.2
+      vitest:
+        specifier: 'catalog:'
+        version: 5.0.4(@types/node@24.19.2)(vite@7.3.7(@types/node@24.19.2)(jiti@2.7.0)(lightningcss@1.32.0))
 
   packages/git-core:
     dependencies:
