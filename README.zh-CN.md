@@ -7,9 +7,15 @@
 
 ---
 
-# GitTreeDesk
+<p align="center">
+  <img src="brand/svg/gitreedesk-icon.svg" alt="GitTreeDesk 图标" width="128" height="128"/>
+</p>
 
-> 面向 monorepo 与 worktree 的工作区优先多仓库 Git 工作台，基于 Electron 构建。
+<h1 align="center">GitTreeDesk</h1>
+
+<p align="center">
+  <em>面向 monorepo 与 worktree 的工作区优先多仓库 Git 工作台，基于 Electron 构建。</em>
+</p>
 
 GitTreeDesk 让你将**任意文件夹作为工作区打开**，自动发现其中的所有 Git 仓库与 worktree，并在同一棵树中统一管理。
 

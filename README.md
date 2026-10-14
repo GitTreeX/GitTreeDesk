@@ -7,9 +7,15 @@ English | [简体中文](README.zh-CN.md)
 
 ---
 
-# GitTreeDesk
+<p align="center">
+  <img src="brand/svg/gitreedesk-icon.svg" alt="GitTreeDesk logo" width="128" height="128"/>
+</p>
 
-> A workspace-first multi-repo Git workbench for monorepos and worktrees. Built with Electron.
+<h1 align="center">GitTreeDesk</h1>
+
+<p align="center">
+  <em>A workspace-first multi-repo Git workbench for monorepos and worktrees. Built with Electron.</em>
+</p>
 
 GitTreeDesk lets you open **any folder as a workspace**, discover all Git repositories and worktrees inside it, and manage them from one tree.
 
