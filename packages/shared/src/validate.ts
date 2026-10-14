@@ -227,6 +227,35 @@ export const invokeSchemas = {
     limit: z.number().int().min(1).max(1000).optional(),
     skip: z.number().int().min(0).max(1_000_000).optional()
   }),
+  'git:graph': z.object({
+    gitDir: pathString,
+    revs: z.array(refString).max(64).optional(),
+    author: z.string().max(1000).optional(),
+    since: z.string().max(1000).optional(),
+    until: z.string().max(1000).optional(),
+    grep: z.string().max(1000).optional(),
+    path: repoRelPath.optional(),
+    limit: z.number().int().min(1).max(5000).optional(),
+    skip: z.number().int().min(0).max(1_000_000).optional(),
+    countTotal: z.boolean().optional()
+  }),
+  'git:commitDetails': z.object({ gitDir: pathString, sha: refString }),
+  'git:editCommit': z
+    .object({
+      gitDir: pathString,
+      targets: z.array(refString).min(1).max(100),
+      message: z.string().min(1).max(100_000).optional(),
+      authorName: z.string().min(1).max(1000).optional(),
+      authorEmail: z.string().min(1).max(1000).optional(),
+      authorDate: z.string().min(1).max(1000).optional(),
+      committerDate: z.string().min(1).max(1000).optional()
+    })
+    .refine((value) => value.targets.length === 1 || value.message === undefined, {
+      message: 'a replacement message is only valid for a single commit'
+    })
+    .refine((value) => (value.authorName === undefined) === (value.authorEmail === undefined), {
+      message: 'the author name and email go together'
+    }),
   'git:oplog': z.object({
     gitDir: pathString,
     limit: z.number().int().min(1).max(500).optional()

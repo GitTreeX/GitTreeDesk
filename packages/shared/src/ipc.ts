@@ -3,6 +3,7 @@ import type { ConflictSide } from './conflicts'
 import type {
   AutoStashReport,
   BackupRef,
+  CommitDetails,
   CommitInfo,
   FileChange,
   GitRef,
@@ -643,6 +644,80 @@ export interface GitLogResponse {
   hasMore: boolean
 }
 
+export interface GitGraphRequest {
+  /** Checkout key: the record's git dir. */
+  gitDir: string
+  /** Revisions or ranges to walk; omitted walks every branch, remote-tracking branch and tag. */
+  revs?: string[]
+  /** Literal substring of the author name or email. */
+  author?: string
+  /** `--since` boundary; any date git understands. */
+  since?: string
+  /** `--until` boundary. */
+  until?: string
+  /** Case-insensitive literal substring of the commit message. */
+  grep?: string
+  /** Repo-relative path restricting the history to one file or directory. */
+  path?: string
+  limit?: number
+  skip?: number
+  /** Counts the full matching history for the load-more footer. */
+  countTotal?: boolean
+}
+
+export interface GitGraphResponse {
+  commits: CommitInfo[]
+  hasMore: boolean
+  /** Upstream ref of the current branch; `null` when none is set. */
+  upstream: string | null
+  /** Commits on HEAD but not on the upstream — not pushed yet. */
+  outgoing: string[]
+  /** Commits on the upstream but not on HEAD — not pulled yet. */
+  incoming: string[]
+  /** Local branches, remote-tracking branches and tags for the lane labels. */
+  refs: GitRef[]
+  /** Size of the full matching history when `countTotal` was set; `null` otherwise. */
+  total: number | null
+}
+
+export interface GitCommitDetailsRequest {
+  /** Checkout key: the record's git dir. */
+  gitDir: string
+  /** Commit sha or revision to inspect. */
+  sha: string
+}
+
+export interface GitCommitDetailsResponse {
+  commit: CommitDetails
+}
+
+export interface GitEditCommitRequest {
+  /** Checkout key: the record's git dir. */
+  gitDir: string
+  /** Commits to rewrite, matched by sha. */
+  targets: string[]
+  /** Replacement message; a single target only. */
+  message?: string
+  /** Replacement author; the name and email go together. */
+  authorName?: string
+  authorEmail?: string
+  /** Replacement author date (ISO 8601), applied to every target. */
+  authorDate?: string
+  /** Replacement committer date (ISO 8601), applied to every target. */
+  committerDate?: string
+}
+
+export interface GitEditCommitResponse {
+  /** Conflicts stopped the rewrite; continue or abort through the operation banner. */
+  stopped: boolean
+  /** HEAD after the rewrite. */
+  sha: string
+  /** Safety ref taken before the rewrite. */
+  backup: BackupRef
+  /** Undo affordance of the recorded rewrite. */
+  undo: UndoHint
+}
+
 export interface GitOpLogRequest {
   gitDir: string
   limit?: number
@@ -968,6 +1043,9 @@ export interface InvokeMap {
   'git:stashPop': { request: GitStashRequest; response: GitOperationResponse }
   'git:stashDrop': { request: GitStashRequest; response: GitStashDropResponse }
   'git:log': { request: GitLogRequest; response: GitLogResponse }
+  'git:graph': { request: GitGraphRequest; response: GitGraphResponse }
+  'git:commitDetails': { request: GitCommitDetailsRequest; response: GitCommitDetailsResponse }
+  'git:editCommit': { request: GitEditCommitRequest; response: GitEditCommitResponse }
   'git:oplog': { request: GitOpLogRequest; response: GitOpLogResponse }
   'git:oplogUndo': { request: GitOpLogUndoRequest; response: null }
   'git:backups': { request: GitCheckoutRequest; response: GitBackupsResponse }
@@ -1092,6 +1170,9 @@ export const INVOKE_CHANNELS = [
   'git:stashPop',
   'git:stashDrop',
   'git:log',
+  'git:graph',
+  'git:commitDetails',
+  'git:editCommit',
   'git:oplog',
   'git:oplogUndo',
   'git:backups',

@@ -114,6 +114,28 @@ export interface HeadCommit {
   message: string
 }
 
+export interface CommitFileStat {
+  path: string
+  /** Previous path of a rename or copy. */
+  origPath?: string
+  kind: ChangeKind
+  /** Line counts; `null` for binary files. */
+  additions: number | null
+  deletions: number | null
+}
+
+export interface CommitDetails {
+  sha: string
+  /** Full commit message: subject line and body. */
+  message: string
+  author: PersonInfo
+  committer: PersonInfo
+  parents: string[]
+  files: CommitFileStat[]
+  /** True when a remote-tracking branch already contains the commit. */
+  pushed: boolean
+}
+
 export interface RepoWorktree {
   path: string
   sha: string | null

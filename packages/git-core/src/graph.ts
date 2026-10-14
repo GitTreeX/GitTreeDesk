@@ -1,4 +1,4 @@
-import type { ChangeKind, PersonInfo } from '@gitreedesk/shared'
+import type { CommitDetails, CommitFileStat } from '@gitreedesk/shared'
 import { isCommitPushed } from './commit'
 import { parseNameStatusZ } from './diff'
 import { runGit, runGitOrThrow } from './run'
@@ -51,26 +51,6 @@ async function revList(repoPath: string, range: string, signal?: AbortSignal): P
 
 const DETAILS_FORMAT = ['%H', '%P', '%an', '%ae', '%aI', '%cn', '%ce', '%cI', '%B'].join('%x00')
 const DETAILS_FIELDS = 8
-
-export interface CommitFileStat {
-  path: string
-  origPath?: string
-  kind: ChangeKind
-  /** `null` for binary files. */
-  additions: number | null
-  deletions: number | null
-}
-
-export interface CommitDetails {
-  sha: string
-  message: string
-  author: PersonInfo
-  committer: PersonInfo
-  parents: string[]
-  files: CommitFileStat[]
-  /** True when a remote-tracking branch already contains the commit. */
-  pushed: boolean
-}
 
 export interface CommitDetailsOptions {
   repoPath: string
