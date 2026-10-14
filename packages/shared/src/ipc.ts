@@ -968,6 +968,81 @@ export interface SettingsChangedEvent {
   value?: unknown
 }
 
+/** Where a commit-message draft came from. */
+export type CommitMessageSource = 'offline' | 'llm'
+
+export interface CommitDraftRequest {
+  /** Checkout key: the record's git dir. */
+  gitDir: string
+}
+
+/** One generated draft; `primary` marks the generator's best guess. */
+export interface CommitDraftVariant {
+  message: string
+  primary: boolean
+}
+
+/** The configured LLM endpoint and whether the user approved sending diffs to it. */
+export interface CommitMessageLlmInfo {
+  host: string
+  approved: boolean
+}
+
+export interface CommitDraftResponse {
+  source: CommitMessageSource
+  /** Set while an LLM generation is streaming; the text arrives through events. */
+  generationId: string | null
+  /** Offline drafts; empty while an LLM generation is running. */
+  drafts: CommitDraftVariant[]
+  /** True when the draft is a guess: no convention detected or an ambiguous type. */
+  weak: boolean
+  /** `null` unless an LLM provider is configured. */
+  llm: CommitMessageLlmInfo | null
+}
+
+export interface CommitMessageCancelRequest {
+  generationId: string
+}
+
+export interface CommitMessageApproveHostRequest {
+  host: string
+}
+
+export interface CommitMessageSetKeyRequest {
+  key: string
+}
+
+export interface CommitMessageKeyStatusResponse {
+  stored: boolean
+  /** False when the OS offers no encryption and the key lives for the session only. */
+  encrypted: boolean
+}
+
+export type CommitMessageDoneStatus = 'complete' | 'cancelled' | 'fallback' | 'failed'
+export type CommitMessageFallbackReason = 'timeout' | 'network'
+
+export interface CommitMessageOutputEvent {
+  gitDir: string
+  generationId: string
+  chunk: string
+}
+
+/** Final event of a generation; the optional fields depend on `status`. */
+export interface CommitMessageDoneEvent {
+  gitDir: string
+  generationId: string
+  status: CommitMessageDoneStatus
+  /** Cause of a fallback to the offline drafts. */
+  reason?: CommitMessageFallbackReason
+  /** Final trimmed message when `status` is `complete`. */
+  message?: string
+  /** Offline drafts to offer when `status` is `fallback`. */
+  drafts?: CommitDraftVariant[]
+  weak?: boolean
+  /** Human-readable failure when `status` is `failed`. */
+  error?: string
+}
+
 /** Commands the main process asks the renderer to run (application menu, future accelerators). */
 export const HOST_COMMANDS = [
   'workspace.openFolder',
@@ -1059,6 +1134,15 @@ export interface InvokeMap {
   'git:submodules': { request: GitCheckoutRequest; response: GitSubmodulesResponse }
   'git:submoduleUpdate': { request: GitSubmoduleUpdateRequest; response: GitSubmoduleUpdateResponse }
   'git:submoduleSync': { request: GitSubmoduleSyncRequest; response: GitSubmoduleSyncResponse }
+  'commitmsg:generate': { request: CommitDraftRequest; response: CommitDraftResponse }
+  'commitmsg:cancel': { request: CommitMessageCancelRequest; response: null }
+  'commitmsg:approveHost': { request: CommitMessageApproveHostRequest; response: null }
+  'commitmsg:setKey': {
+    request: CommitMessageSetKeyRequest
+    response: CommitMessageKeyStatusResponse
+  }
+  'commitmsg:removeKey': { request: undefined; response: CommitMessageKeyStatusResponse }
+  'commitmsg:keyStatus': { request: undefined; response: CommitMessageKeyStatusResponse }
   'fs:readDir': { request: FsReadDirRequest; response: { entries: FsEntry[] } }
   'fs:readFile': { request: FsReadFileRequest; response: FsReadFileResponse }
   'fs:stat': { request: FsPathRequest; response: FsStatResponse }
@@ -1096,6 +1180,8 @@ export interface EventMap {
   'workspace:issues': IssuesEvent
   'watcher:degraded': WatcherDegradedEvent
   'settings:changed': SettingsChangedEvent
+  'commitmsg:output': CommitMessageOutputEvent
+  'commitmsg:done': CommitMessageDoneEvent
   'app:command': AppCommandEvent
 }
 
@@ -1186,6 +1272,12 @@ export const INVOKE_CHANNELS = [
   'git:submodules',
   'git:submoduleUpdate',
   'git:submoduleSync',
+  'commitmsg:generate',
+  'commitmsg:cancel',
+  'commitmsg:approveHost',
+  'commitmsg:setKey',
+  'commitmsg:removeKey',
+  'commitmsg:keyStatus',
   'fs:readDir',
   'fs:readFile',
   'fs:stat',
@@ -1223,6 +1315,8 @@ export const EVENT_CHANNELS = [
   'workspace:issues',
   'watcher:degraded',
   'settings:changed',
+  'commitmsg:output',
+  'commitmsg:done',
   'app:command'
 ] as const satisfies readonly EventChannel[]
 

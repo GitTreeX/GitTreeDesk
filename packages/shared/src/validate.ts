@@ -306,6 +306,12 @@ export const invokeSchemas = {
     paths: z.array(repoRelPath).min(1).max(1024).optional(),
     recursive: z.boolean().optional()
   }),
+  'commitmsg:generate': z.object({ gitDir: pathString }),
+  'commitmsg:cancel': z.object({ generationId: z.string().min(1).max(64) }),
+  'commitmsg:approveHost': z.object({ host: z.string().min(1).max(255) }),
+  'commitmsg:setKey': z.object({ key: z.string().min(1).max(8192) }),
+  'commitmsg:removeKey': z.undefined(),
+  'commitmsg:keyStatus': z.undefined(),
   'fs:readDir': z.object({ path: pathString }),
   'fs:readFile': z.object({ path: pathString, allowLarge: z.boolean().optional() }),
   'fs:stat': z.object({ path: pathString }),
