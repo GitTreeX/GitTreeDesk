@@ -1,5 +1,5 @@
 import type { SubmoduleCheckout, SubmoduleInfo } from '@gitreedesk/shared'
-import { runGit } from './run'
+import { runGit, runGitOrThrow, type GitRunResult } from './run'
 
 const PREFIX_TO_CHECKOUT: Record<string, SubmoduleCheckout | undefined> = {
   ' ': 'in-sync',
@@ -45,4 +45,58 @@ export async function listSubmodules(options: ListSubmodulesOptions): Promise<Su
   const result = await runGit(['submodule', 'status'], { cwd: options.repoPath, signal: options.signal })
   if (result.code !== 0) return []
   return parseSubmoduleStatus(result.stdout)
+}
+
+function assertSubmodulePath(path: string): void {
+  if (path.length === 0) throw new Error('Submodule path is empty')
+  if (path.startsWith('-')) throw new Error(`Invalid submodule path: ${path}`)
+}
+
+export interface UpdateSubmodulesOptions {
+  repoPath: string
+  /** Repo-relative submodule paths; omitted updates every submodule of the repository. */
+  paths?: readonly string[]
+  /** Clones uninitialized submodules (`--init`). */
+  init?: boolean
+  /** Updates nested submodules too (`--recursive`). */
+  recursive?: boolean
+  signal?: AbortSignal
+  /** Streams stdout and stderr chunks while the update runs. */
+  onOutput?: (chunk: string) => void
+}
+
+export async function updateSubmodules(options: UpdateSubmodulesOptions): Promise<void> {
+  const args = ['submodule', 'update']
+  if (options.init === true) args.push('--init')
+  if (options.recursive === true) args.push('--recursive')
+  if (options.paths !== undefined && options.paths.length > 0) {
+    for (const path of options.paths) assertSubmodulePath(path)
+    args.push('--', ...options.paths)
+  }
+  await runGitOrThrow(args, {
+    cwd: options.repoPath,
+    signal: options.signal,
+    ...(options.onOutput === undefined
+      ? {}
+      : { onStdout: options.onOutput, onStderr: options.onOutput })
+  })
+}
+
+export interface SyncSubmoduleUrlsOptions {
+  repoPath: string
+  /** Repo-relative submodule paths; omitted syncs every submodule of the repository. */
+  paths?: readonly string[]
+  recursive?: boolean
+  signal?: AbortSignal
+}
+
+/** `git submodule sync`: re-copies `.gitmodules` URLs into the git configuration. */
+export async function syncSubmoduleUrls(options: SyncSubmoduleUrlsOptions): Promise<GitRunResult> {
+  const args = ['submodule', 'sync']
+  if (options.recursive === true) args.push('--recursive')
+  if (options.paths !== undefined && options.paths.length > 0) {
+    for (const path of options.paths) assertSubmodulePath(path)
+    args.push('--', ...options.paths)
+  }
+  return await runGitOrThrow(args, { cwd: options.repoPath, signal: options.signal })
 }

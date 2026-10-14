@@ -3,17 +3,18 @@ import { assertRefName } from './branches'
 import { resetRepo } from './reset'
 import { runGitOrThrow } from './run'
 import { stashStore } from './stashes'
+import { addWorktree } from './worktrees'
 
-export type UndoKind = 'reset' | 'rebase' | 'stash-drop' | 'branch-delete'
+export type UndoKind = 'reset' | 'rebase' | 'stash-drop' | 'branch-delete' | 'worktree-remove'
 
 /** What an operation-log row needs to restore the state before the operation. */
 export interface UndoDescriptor {
   kind: UndoKind
   /** `reset`: which reset to reverse. */
   mode?: ResetMode
-  /** Commit the branch pointed at before the operation (`reset`, `rebase`). */
+  /** Commit the branch pointed at before the operation (`reset`, `rebase`, `worktree-remove`). */
   before?: string
-  /** `branch-delete`: the deleted branch; `stash-drop`: the stash subject. */
+  /** `branch-delete`: the deleted branch; `stash-drop`: the stash subject; `worktree-remove`: the worktree path. */
   name?: string
   subject?: string
   /** Ref the operation acted on; recorded for display and restored state hints. */
@@ -29,7 +30,13 @@ export function parseUndoState(raw: string | null | undefined): UndoDescriptor |
   try {
     const value = JSON.parse(raw) as Record<string, unknown>
     const kind = value.kind
-    if (kind !== 'reset' && kind !== 'rebase' && kind !== 'stash-drop' && kind !== 'branch-delete') {
+    if (
+      kind !== 'reset' &&
+      kind !== 'rebase' &&
+      kind !== 'stash-drop' &&
+      kind !== 'branch-delete' &&
+      kind !== 'worktree-remove'
+    ) {
       return null
     }
     return {
@@ -90,6 +97,30 @@ export async function performUndo(repoPath: string, options: PerformUndoOptions)
       if (sha === null || sha.length === 0) throw new Error('Undo state is missing the branch commit')
       assertRefName(name)
       await runGitOrThrow(['branch', name, sha], { cwd: repoPath, signal: options.signal })
+      return
+    }
+    case 'worktree-remove': {
+      const path = descriptor.name
+      const sha = options.backupSha ?? descriptor.before ?? null
+      if (path === undefined || path.length === 0) throw new Error('Undo state is missing the worktree path')
+      if (sha === null || sha.length === 0) throw new Error('Undo state is missing the worktree commit')
+      const branch = descriptor.target
+      if (branch !== undefined && branch.length > 0 && branch !== 'HEAD') {
+        assertRefName(branch)
+        await addWorktree({
+          repoPath,
+          path,
+          mode: { kind: 'branch', branch },
+          signal: options.signal
+        })
+      } else {
+        await addWorktree({
+          repoPath,
+          path,
+          mode: { kind: 'detach', rev: sha },
+          signal: options.signal
+        })
+      }
       return
     }
   }
