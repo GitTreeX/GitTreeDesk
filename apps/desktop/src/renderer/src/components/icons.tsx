@@ -35,6 +35,43 @@ export function BranchIcon({ className }: IconProps): JSX.Element {
   )
 }
 
+export function UploadIcon({ className }: IconProps): JSX.Element {
+  return (
+    <svg {...iconProps(className)} aria-hidden="true">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <path d="m17 8-5-5-5 5" />
+      <line x1="12" x2="12" y1="3" y2="15" />
+    </svg>
+  )
+}
+
+export function TagIcon({ className }: IconProps): JSX.Element {
+  return (
+    <svg {...iconProps(className)} aria-hidden="true">
+      <path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z" />
+      <circle cx="7.5" cy="7.5" r=".5" fill="currentColor" />
+    </svg>
+  )
+}
+
+export function CloudIcon({ className }: IconProps): JSX.Element {
+  return (
+    <svg {...iconProps(className)} aria-hidden="true">
+      <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
+    </svg>
+  )
+}
+
+export function TrashIcon({ className }: IconProps): JSX.Element {
+  return (
+    <svg {...iconProps(className)} aria-hidden="true">
+      <path d="M3 6h18" />
+      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    </svg>
+  )
+}
+
 export function FolderOpenIcon({ className }: IconProps): JSX.Element {
   return (
     <svg {...iconProps(className)} aria-hidden="true">
