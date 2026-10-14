@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-// Boots the packaged Windows build with an isolated profile, opens the acme
-// fixture workspace through the recent list, and asserts over the Chrome
-// DevTools protocol that the window, tree, and the native-module services come
-// up. Also gates the installer size budget and checks that the unpacked native
-// binaries shipped.
+// Boots the packaged build with an isolated profile, opens the acme fixture
+// workspace through the recent list, and asserts over the Chrome DevTools
+// protocol that the window, tree, and the native-module services come up.
+// Also gates the Windows installer size budget and checks that the unpacked
+// native binaries shipped. Runs the platform's own build, so CI can drive it
+// on Windows, macOS (arm64 and x64), and headless Linux.
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
@@ -14,8 +15,6 @@ import { fileURLToPath } from 'node:url'
 const here = dirname(fileURLToPath(import.meta.url))
 const repoRoot = resolve(here, '..')
 const releaseDir = join(repoRoot, 'release')
-const unpackedDir = join(releaseDir, 'win-unpacked')
-const appExe = join(unpackedDir, 'GitTreeDesk.exe')
 const fixtureRoot = join(repoRoot, '.fixtures', 'acme')
 const profileDir = join(repoRoot, '.fixtures', 'packaged-profile')
 const port = 9336
@@ -30,9 +29,63 @@ function fail(message) {
   process.exit(1)
 }
 
-if (process.platform !== 'win32') fail('the packaged smoke targets the Windows build')
-if (!existsSync(appExe)) fail('packaged build missing — run `pnpm package:win` first')
+/** Main executable of the unpacked build for the current platform. */
+function resolveApp() {
+  if (process.platform === 'win32') {
+    const candidate = join(releaseDir, 'win-unpacked', 'GitTreeDesk.exe')
+    return existsSync(candidate) ? candidate : null
+  }
+  if (process.platform === 'darwin') {
+    for (const dir of ['mac-arm64', 'mac', 'mac-universal']) {
+      const candidate = join(releaseDir, dir, 'GitTreeDesk.app', 'Contents', 'MacOS', 'GitTreeDesk')
+      if (existsSync(candidate)) return candidate
+    }
+    return null
+  }
+  const unpacked = join(releaseDir, 'linux-unpacked')
+  if (!existsSync(unpacked)) return null
+  for (const name of ['GitTreeDesk', 'gitreedesk']) {
+    const candidate = join(unpacked, name)
+    if (existsSync(candidate)) return candidate
+  }
+  // Fall back to the one large executable: the Electron binary dwarfs every shim.
+  for (const name of readdirSync(unpacked)) {
+    const candidate = join(unpacked, name)
+    try {
+      const info = statSync(candidate)
+      if (info.isFile() && info.size > 50 * 1024 * 1024 && (info.mode & 0o111) !== 0) return candidate
+    } catch {
+      // not a regular file
+    }
+  }
+  return null
+}
+
+const appPath = resolveApp()
+if (appPath === null) fail('packaged build missing — run `pnpm package` first')
 if (!existsSync(fixtureRoot)) fail('fixture missing — run `pnpm fixture` first')
+
+const artifactMatchers =
+  process.platform === 'win32'
+    ? { installer: /^GitTreeDesk-.*-setup\.exe$/, zip: /^GitTreeDesk-.*-win\.zip$/ }
+    : process.platform === 'darwin'
+      ? { dmg: /\.dmg$/, zip: /\.zip$/ }
+      : { appimage: /\.AppImage$/, deb: /\.deb$/ }
+const primaryArtifact = Object.keys(artifactMatchers)[0]
+
+const resourcesDir =
+  process.platform === 'darwin'
+    ? resolve(dirname(appPath), '..', 'Resources')
+    : join(dirname(appPath), 'resources')
+const nodePtyPrebuild = join(
+  resourcesDir,
+  'app.asar.unpacked',
+  'node_modules',
+  'node-pty',
+  'prebuilds',
+  `${process.platform}-${process.arch}`,
+  'pty.node'
+)
 
 function findArtifact(pattern) {
   const name = readdirSync(releaseDir).find((file) => pattern.test(file))
@@ -198,19 +251,49 @@ async function drive(child, bornAt) {
   return result
 }
 
+/** Terminates the app and its helper processes on any platform. */
+async function stopChild(child) {
+  if (process.platform === 'win32') {
+    spawnSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore' })
+  } else {
+    try {
+      process.kill(-child.pid, 'SIGTERM')
+    } catch {
+      // process group already gone
+    }
+  }
+  await new Promise((done) => {
+    if (child.exitCode !== null || child.signalCode !== null) return done()
+    child.once('exit', done)
+    setTimeout(done, 5000)
+  })
+  if (process.platform !== 'win32' && child.exitCode === null && child.signalCode === null) {
+    try {
+      process.kill(-child.pid, 'SIGKILL')
+    } catch {
+      // reaped in the meantime
+    }
+  }
+  await sleep(500)
+}
+
 async function main() {
-  const installer = findArtifact(/^GitTreeDesk-.*-setup\.exe$/)
-  const zip = findArtifact(/^GitTreeDesk-.*-win\.zip$/)
-  const artifactsMb = {
-    installer: installer === null ? null : mb(statSync(installer).size),
-    zip: zip === null ? null : mb(statSync(zip).size)
+  const artifactsMb = {}
+  for (const [label, pattern] of Object.entries(artifactMatchers)) {
+    const artifact = findArtifact(pattern)
+    artifactsMb[label] = artifact === null ? null : mb(statSync(artifact).size)
   }
 
   seedProfile()
   const bornAt = performance.now()
-  const child = spawn(appExe, [`--user-data-dir=${profileDir}`, `--remote-debugging-port=${port}`], {
-    cwd: unpackedDir,
-    stdio: ['ignore', 'ignore', 'pipe']
+  const args = [`--user-data-dir=${profileDir}`, `--remote-debugging-port=${port}`]
+  // Shared Linux runners restrict unprivileged user namespaces (no Chromium
+  // sandbox) and xvfb has no GPU.
+  if (process.platform === 'linux' && process.env.CI) args.push('--no-sandbox', '--disable-gpu')
+  const child = spawn(appPath, args, {
+    cwd: dirname(appPath),
+    stdio: ['ignore', 'ignore', 'pipe'],
+    detached: process.platform !== 'win32'
   })
   let stderrTail = ''
   child.stderr.on('data', (chunk) => {
@@ -224,25 +307,20 @@ async function main() {
     console.error(`[smoke] ${String(error)}`)
     console.error(stderrTail)
   } finally {
-    spawnSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore' })
-    await new Promise((done) => {
-      if (child.exitCode !== null || child.signalCode !== null) return done()
-      child.once('exit', done)
-      setTimeout(done, 5000)
-    })
-    await sleep(500)
+    await stopChild(child)
   }
 
   const checks = {
     'window titled acme': runtime !== null && runtime.titleMs !== null,
     'tree rendered': runtime !== null && runtime.treeMs !== null && runtime.treeItems > 0,
-    'platform win32': runtime !== null && runtime.platform === 'win32',
+    [`platform ${process.platform}`]: runtime !== null && runtime.platform === process.platform,
     [`discovered ${String(expectedRepos)} repos`]: runtime !== null && runtime.scanRepos === expectedRepos,
     'watchers subscribed': runtime !== null && runtime.watchers !== null && runtime.watchers.subscribed > 0,
-    'node-pty prebuild unpacked': existsSync(
-      join(unpackedDir, 'resources', 'app.asar.unpacked', 'node_modules', 'node-pty', 'prebuilds', 'win32-x64', 'pty.node')
-    ),
-    [`installer ≤${String(installerBudgetMb)}MB`]:
+    'node-pty prebuild unpacked': existsSync(nodePtyPrebuild),
+    [`${primaryArtifact} built`]: artifactsMb[primaryArtifact] !== null
+  }
+  if (process.platform === 'win32') {
+    checks[`installer ≤${String(installerBudgetMb)}MB`] =
       artifactsMb.installer !== null && artifactsMb.installer <= installerBudgetMb
   }
 
@@ -258,8 +336,10 @@ async function main() {
     console.log(`${ok ? 'ok  ' : 'FAIL'}  ${name}`)
   }
   console.log(
-    `installer ${String(artifactsMb.installer)} MB · zip ${String(artifactsMb.zip)} MB · ` +
-      `repos ${String(runtime?.scanRepos)} · watchers ${String(runtime?.watchers?.subscribed)}`
+    Object.entries(artifactsMb)
+      .map(([label, size]) => `${label} ${String(size)} MB`)
+      .join(' · ') +
+      ` · repos ${String(runtime?.scanRepos)} · watchers ${String(runtime?.watchers?.subscribed)}`
   )
   console.log(
     `recent list ${String(runtime?.recentReadyMs)} ms · window ${String(runtime?.titleMs)} ms · ` +

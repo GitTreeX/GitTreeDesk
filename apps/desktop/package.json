@@ -3,13 +3,20 @@
   "version": "0.1.0",
   "private": true,
   "description": "GitTreeDesk desktop application (Electron)",
-  "author": "GitTreeX",
+  "author": {
+    "name": "GitTreeX",
+    "email": "codingzhang@126.com"
+  },
+  "homepage": "https://github.com/GitTreeX/GitTreeDesk",
   "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
-    "package:win": "node ../../scripts/package-win.mjs",
+    "package": "node ../../scripts/package.mjs",
+    "package:win": "node ../../scripts/package.mjs win",
+    "package:mac": "node ../../scripts/package.mjs mac",
+    "package:linux": "node ../../scripts/package.mjs linux",
     "test": "vitest run"
   },
   "dependencies": {
