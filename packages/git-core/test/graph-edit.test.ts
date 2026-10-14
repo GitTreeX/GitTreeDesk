@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { editCommits } from '../src/edit'
 import { parseNumstatZ, readCommitDetails, readUpstreamMarks } from '../src/graph'
-import { countCommits } from '../src/log'
+import { countCommits, logCommits } from '../src/log'
 import { runGitOrThrow } from '../src/run'
 import { readStatus } from '../src/status'
 
@@ -210,6 +210,40 @@ describe('countCommits', () => {
       const empty = await tempDir()
       await git(empty, ['init', '-q', '-b', 'main'])
       expect(await countCommits({ repoPath: empty })).toBe(0)
+    },
+    30_000
+  )
+})
+
+describe('all-refs walks', () => {
+  it(
+    'includes a detached HEAD that no branch points at',
+    async () => {
+      const repo = await initRepo()
+      await write(repo, 'b.txt', 'two\n')
+      await commitAll(repo, 'second')
+      await git(repo, ['checkout', '-q', '--detach'])
+      await write(repo, 'c.txt', 'three\n')
+      const detached = await commitAll(repo, 'detached work')
+
+      const { commits } = await logCommits({ repoPath: repo, all: true, topoOrder: true })
+      expect(commits.map((commit) => commit.sha)).toContain(detached)
+      expect(await countCommits({ repoPath: repo, all: true })).toBe(3)
+    },
+    30_000
+  )
+
+  it(
+    'walks the refs when HEAD is unborn',
+    async () => {
+      const repo = await initRepo()
+      await write(repo, 'b.txt', 'two\n')
+      await commitAll(repo, 'second')
+      await git(repo, ['checkout', '-q', '--orphan', 'fresh'])
+
+      const { commits } = await logCommits({ repoPath: repo, all: true })
+      expect(commits).toHaveLength(2)
+      expect(await countCommits({ repoPath: repo, all: true })).toBe(2)
     },
     30_000
   )

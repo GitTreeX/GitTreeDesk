@@ -631,6 +631,7 @@ export class WorkspaceService {
           ...start,
           ...filters,
           path: request.path,
+          topoOrder: true,
           maxCount: request.limit,
           skip: request.skip
         }),

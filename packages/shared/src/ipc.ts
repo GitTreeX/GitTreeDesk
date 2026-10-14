@@ -647,7 +647,7 @@ export interface GitLogResponse {
 export interface GitGraphRequest {
   /** Checkout key: the record's git dir. */
   gitDir: string
-  /** Revisions or ranges to walk; omitted walks every branch, remote-tracking branch and tag. */
+  /** Revisions or ranges to walk; omitted walks every branch, remote-tracking branch, tag and HEAD. */
   revs?: string[]
   /** Literal substring of the author name or email. */
   author?: string

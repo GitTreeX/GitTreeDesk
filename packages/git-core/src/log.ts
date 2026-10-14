@@ -73,6 +73,11 @@ function appendStartArgs(args: string[], options: { revs?: readonly string[]; al
   }
 }
 
+/** `HEAD` as a revision argument fails on an unborn branch. */
+function isAmbiguousHead(stderr: string): boolean {
+  return /ambiguous argument 'HEAD'/.test(stderr)
+}
+
 export interface LogOptions extends LogFilters {
   repoPath: string
   maxCount?: number
@@ -81,8 +86,10 @@ export interface LogOptions extends LogFilters {
   path?: string
   /** Oldest first; used to load replay plans. */
   reverse?: boolean
-  /** Walks every branch, remote-tracking branch and tag instead of `revs`. */
+  /** Walks every branch, remote-tracking branch, tag and HEAD instead of `revs`. */
   all?: boolean
+  /** Keeps the walk of each line of development contiguous for graph display. */
+  topoOrder?: boolean
   signal?: AbortSignal
 }
 
@@ -93,26 +100,36 @@ export interface LogResult {
 
 export async function logCommits(options: LogOptions): Promise<LogResult> {
   const maxCount = options.maxCount ?? 50
-  const args = ['log', '-z', `--max-count=${String(maxCount + 1)}`, `--format=${FORMAT}`]
-
-  if (options.reverse === true) args.push('--reverse')
-  appendFilterArgs(args, options)
-  appendStartArgs(args, options)
-  if (options.skip !== undefined && options.skip > 0) args.push(`--skip=${String(options.skip)}`)
-  if (options.path !== undefined) args.push('--', options.path)
-
-  const result = await runGit(args, {
+  const buildArgs = (withHead: boolean): string[] => {
+    const args = ['log', '-z', `--max-count=${String(maxCount + 1)}`, `--format=${FORMAT}`]
+    if (options.reverse === true) args.push('--reverse')
+    if (options.topoOrder === true) args.push('--topo-order')
+    appendFilterArgs(args, options)
+    appendStartArgs(args, options)
+    if (withHead) args.push('HEAD')
+    if (options.skip !== undefined && options.skip > 0) args.push(`--skip=${String(options.skip)}`)
+    if (options.path !== undefined) args.push('--', options.path)
+    return args
+  }
+  const runOptions = {
     cwd: options.repoPath,
     env: options.path === undefined ? undefined : LITERAL_PATHS_ENV,
     signal: options.signal
-  })
+  }
+
+  // `--branches --remotes --tags` misses a detached HEAD, but a plain `HEAD`
+  // argument fails on an unborn branch — one retry covers both readers.
+  let result = await runGit(buildArgs(options.all === true), runOptions)
+  if (result.code !== 0 && options.all === true && isAmbiguousHead(result.stderr)) {
+    result = await runGit(buildArgs(false), runOptions)
+  }
 
   if (result.code !== 0) {
     const explicitRevs = options.revs !== undefined && options.revs.length > 0
     const unborn = /does not have any commits yet|ambiguous argument 'HEAD'/.test(result.stderr)
     if (!explicitRevs && unborn) return { commits: [], hasMore: false }
     throw new GitCommandError(`git log failed (exit code ${String(result.code)})`, {
-      args,
+      args: buildArgs(options.all === true),
       cwd: options.repoPath,
       code: result.code,
       stdout: result.stdout,
@@ -128,7 +145,7 @@ export async function logCommits(options: LogOptions): Promise<LogResult> {
 export interface CountCommitsOptions extends LogFilters {
   repoPath: string
   revs?: readonly string[]
-  /** Counts every branch, remote-tracking branch and tag instead of `revs`. */
+  /** Counts every branch, remote-tracking branch, tag and HEAD instead of `revs`. */
   all?: boolean
   path?: string
   signal?: AbortSignal
@@ -136,25 +153,35 @@ export interface CountCommitsOptions extends LogFilters {
 
 /** Size of the history a matching `logCommits` call would walk, ignoring paging. */
 export async function countCommits(options: CountCommitsOptions): Promise<number> {
-  const args = ['rev-list', '--count']
-  appendFilterArgs(args, options)
-  // `log` defaults to HEAD on its own, but `rev-list` treats a missing start
-  // point as a usage error — the implicit HEAD is spelled out instead.
-  const explicitRevs = options.revs !== undefined && options.revs.length > 0
-  if (!explicitRevs && options.all !== true) args.push('HEAD')
-  appendStartArgs(args, options)
-  if (options.path !== undefined) args.push('--', options.path)
-
-  const result = await runGit(args, {
+  const buildArgs = (withHead: boolean): string[] => {
+    const args = ['rev-list', '--count']
+    appendFilterArgs(args, options)
+    // `log` defaults to HEAD on its own, but `rev-list` treats a missing start
+    // point as a usage error — the implicit HEAD is spelled out instead.
+    const explicitRevs = options.revs !== undefined && options.revs.length > 0
+    if (!explicitRevs && options.all !== true) args.push('HEAD')
+    appendStartArgs(args, options)
+    if (withHead) args.push('HEAD')
+    if (options.path !== undefined) args.push('--', options.path)
+    return args
+  }
+  const runOptions = {
     cwd: options.repoPath,
     env: options.path === undefined ? undefined : LITERAL_PATHS_ENV,
     signal: options.signal
-  })
+  }
+
+  let result = await runGit(buildArgs(options.all === true), runOptions)
+  if (result.code !== 0 && options.all === true && isAmbiguousHead(result.stderr)) {
+    result = await runGit(buildArgs(false), runOptions)
+  }
+
   if (result.code !== 0) {
+    const explicitRevs = options.revs !== undefined && options.revs.length > 0
     const unborn = /does not have any commits yet|ambiguous argument 'HEAD'/.test(result.stderr)
     if (!explicitRevs && unborn) return 0
     throw new GitCommandError(`git rev-list failed (exit code ${String(result.code)})`, {
-      args,
+      args: buildArgs(options.all === true),
       cwd: options.repoPath,
       code: result.code,
       stdout: result.stdout,
