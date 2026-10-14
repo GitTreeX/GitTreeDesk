@@ -6,6 +6,20 @@ export interface FileChange {
   kind: ChangeKind
 }
 
+/** A staged file with its churn; binary files carry `null` line counts. */
+export interface StagedFile extends FileChange {
+  additions: number | null
+  deletions: number | null
+}
+
+/** The staged change-set a commit message is written for. */
+export interface StagedSummary {
+  files: StagedFile[]
+  /** Unified diff of the staged changes, byte-capped by the producer. */
+  patch: string
+  patchTruncated: boolean
+}
+
 export interface ConflictedEntry {
   path: string
   /** Raw two-letter unmerged code from `git status` (e.g. `UU`, `AA`, `DU`). */
