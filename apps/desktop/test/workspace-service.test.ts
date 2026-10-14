@@ -538,7 +538,11 @@ describe('branch operations', () => {
 
       await instance.gitBranchCheckout({ gitDir, name: 'main' })
       const merged = await instance.gitBranchDelete({ gitDir, name: 'feature' })
-      expect(merged).toEqual({ merged: true, backup: null })
+      expect(merged).toEqual({
+        merged: true,
+        backup: null,
+        undo: expect.objectContaining({ op: 'branch-delete' })
+      })
       expect((await git(repo, ['branch', '--list', 'feature'])).trim()).toBe('')
 
       // An unmerged branch requires the force confirmation and leaves a backup ref.
@@ -559,6 +563,7 @@ describe('branch operations', () => {
       expect(forced.merged).toBe(false)
       expect(forced.backup?.op).toBe('branch-delete')
       expect(forced.backup?.sha).toBe(topicSha)
+      expect(forced.undo?.backupRef).toBe(forced.backup?.ref)
       expect((await git(repo, ['rev-parse', '--verify', forced.backup?.ref ?? ''])).trim()).toBe(topicSha)
       expect((await git(repo, ['branch', '--list', 'topic'])).trim()).toBe('')
 

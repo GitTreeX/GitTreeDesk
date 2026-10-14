@@ -17,15 +17,19 @@ import type {
   FsWriteFileRequest,
   FsWriteFileResponse,
   GitApplyHunkRequest,
+  GitBackupsResponse,
   GitBranchCheckoutRequest,
   GitBranchCreateRequest,
   GitBranchDeleteRequest,
+  GitBranchDeleteResponse,
   GitBranchRenameRequest,
   GitBranchSetUpstreamRequest,
   GitBatchResult,
   GitCheckoutDetachRequest,
   GitCheckoutRequest,
+  GitCherryPickRequest,
   GitCommitRequest,
+  GitConflictResolveRequest,
   GitDiffFilesRequest,
   GitDiffRequest,
   GitDiffResponse,
@@ -36,12 +40,25 @@ import type {
   GitHeadCommitRequest,
   GitHeadCommitResponse,
   GitIgnoreRequest,
+  GitLogRequest,
+  GitLogResponse,
+  GitMergeRequest,
+  GitMergeResponse,
+  GitOpLogRequest,
+  GitOpLogResponse,
+  GitOpLogUndoRequest,
+  GitOperationResponse,
+  GitOpRequest,
   GitPathsRequest,
   GitPullManyRequest,
   GitPullRequest,
   GitPullResponse,
   GitPushRequest,
   GitPushResponse,
+  GitRebaseInteractiveRequest,
+  GitRebasePlanRequest,
+  GitRebasePlanResponse,
+  GitRebaseRequest,
   GitRef,
   GitRefsRequest,
   GitRemoteAddRequest,
@@ -51,6 +68,18 @@ import type {
   GitRemoteSetUrlRequest,
   GitRemoteTagsRequest,
   GitRemoteTagsResponse,
+  GitResetRequest,
+  GitResetResponse,
+  GitRestoreBackupRequest,
+  GitRevertRequest,
+  GitStashCreateRequest,
+  GitStashCreateResponse,
+  GitStashDiffRequest,
+  GitStashDiffResponse,
+  GitStashDropResponse,
+  GitStashFilesResponse,
+  GitStashListResponse,
+  GitStashRequest,
   GitStatusRequest,
   GitTagCreateRequest,
   GitTagDeleteRemoteRequest,
@@ -61,6 +90,7 @@ import type {
   GitVersionInfo,
   PullStrategy,
   RemoteInfo,
+  RepoOperationKind,
   RepoRecord,
   RepoStatus,
   RepoStatusSnapshot,
@@ -70,6 +100,7 @@ import type {
   SettingsSetRequest,
   SettingsRemoveRequest,
   TrustGrantRequest,
+  UndoHint,
   WorkspaceDescriptor,
   WorkspaceListFilesResponse,
   WatchScopeKind
@@ -77,45 +108,78 @@ import type {
 import {
   addRemote,
   applyPatch,
+  applyStash,
+  cherryPick,
+  cherryPickAction,
   checkoutBranch,
   checkoutDetach,
   commit as createCommit,
   createBackupRef,
   createBranch,
+  createStash,
   createTag,
   deleteBranch,
   deleteRemoteTag,
   deleteTag,
+  detectOperation,
   discardWorktreePaths,
+  dropStash,
+  encodeUndoState,
   fetchRemote,
   GitCommandError,
   GitPool,
   isBranchMerged,
   isHeadPushed,
+  listBackupRefs,
   listChangedFiles,
   listRefs,
   listRemoteTags,
   listRemotes,
+  listStashes,
+  loadRebasePlan,
   logCommits,
+  mergeAbort,
+  mergeContinue,
+  mergeRepo,
+  parseBackupRefName,
+  parseUndoState,
   pathExists,
+  performUndo,
+  popStash,
   probeGitVersion,
   pullRepo,
   pushAllTags,
   pushBranch,
   pushTag,
+  readBackupSha,
+  readBranchTip,
   readDiff,
   readFileSnapshot,
   readHeadCommit,
+  readHeadRef,
   readHeadSha,
+  readStashDiff,
+  readStashEntry,
+  readStatus,
+  rebaseAction,
+  rebaseInteractive,
+  rebaseOnto,
   removeRemote,
   renameBranch,
+  resetRepo,
+  resolveConflict,
   resolveDefaultRemote,
+  revertAction,
+  revertCommit,
   setRemoteUrl,
   setUpstream,
   stageAll as gitStageAll,
+  stashFileChanges,
   stagePaths as gitStagePaths,
   unstageAll as gitUnstageAll,
-  unstagePaths as gitUnstagePaths
+  unstagePaths as gitUnstagePaths,
+  verifyRevision,
+  type UndoDescriptor
 } from '@gitreedesk/git-core'
 import {
   createPathMatcher,
@@ -126,12 +190,14 @@ import {
 } from '@gitreedesk/workspace-core'
 import {
   CacheStore,
+  OpLogStore,
   RepoStore,
   SettingsStore,
   UiStateStore,
   WorkspaceStore,
   normalizeWorkspaceRoot,
   openCacheDatabase,
+  type OperationRow,
   type SettingsChange
 } from '@gitreedesk/store'
 import { ServiceError } from './errors'
@@ -202,6 +268,17 @@ function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
+type ActiveOperation = Exclude<RepoOperationKind, 'none'>
+
+const OPERATION_LABELS: Record<ActiveOperation, string> = {
+  merge: 'merge',
+  rebase: 'rebase',
+  'rebase-interactive': 'interactive rebase',
+  'cherry-pick': 'cherry-pick',
+  revert: 'revert',
+  bisect: 'bisect'
+}
+
 export type WorkspaceServiceEvent =
   | { type: 'reposChanged'; root: string; diff: RepoDiff }
   | { type: 'status'; root: string; update: RepoStatusSnapshot }
@@ -240,6 +317,7 @@ export class WorkspaceService {
   readonly #cache: CacheStore
   readonly #settings: SettingsStore
   readonly #uiState: UiStateStore
+  readonly #oplog: OpLogStore
   #session: WorkspaceSession | null = null
   #workspaceId: number | null = null
   #stats: DiscoveryStats | null = null
@@ -265,6 +343,7 @@ export class WorkspaceService {
     this.#cache = new CacheStore(this.#db)
     this.#settings = new SettingsStore({ userDataDir: options.userDataDir })
     this.#uiState = new UiStateStore(this.#db)
+    this.#oplog = new OpLogStore(this.#db)
 
     this.#settings.onDidChange((change) => {
       this.#emit({ type: 'settingsChanged', change })
@@ -512,9 +591,435 @@ export class WorkspaceService {
     }
   }
 
+  /** Merges a revision into the current branch; conflicts leave the merge stopped. */
+  async gitMerge(request: GitMergeRequest): Promise<GitMergeResponse> {
+    const record = this.#requireWriteCheckout(request.gitDir)
+    await this.#assertNoOperation(record, 'Merge')
+    return await this.#gitOperation(record, (repoPath) =>
+      mergeRepo(repoPath, { rev: request.rev, mode: request.mode })
+    )
+  }
+
+  /** Rebases the current branch onto a ref; the pre-rebase tip is backed up first. */
+  async gitRebase(request: GitRebaseRequest): Promise<GitOperationResponse> {
+    const record = this.#requireWriteCheckout(request.gitDir)
+    await this.#assertNoOperation(record, 'Rebase')
+    return await this.#gitOperation(record, async (repoPath) => {
+      await verifyRevision(repoPath, request.onto)
+      const backup = await createBackupRef({ repoPath, op: 'rebase', target: 'HEAD' })
+      const result = await rebaseOnto(repoPath, { onto: request.onto })
+      const undo = this.#recordOperation(record, 'rebase', {
+        backupRef: backup.ref,
+        undoState: encodeUndoState({
+          kind: 'rebase',
+          before: backup.sha,
+          target: await this.#headRef(repoPath)
+        })
+      })
+      return { ...result, undo }
+    })
+  }
+
+  /** Commits an interactive rebase would replay, oldest first. */
+  async gitRebasePlan(request: GitRebasePlanRequest): Promise<GitRebasePlanResponse> {
+    const record = this.#requireCheckout(this.#requireSession(), request.gitDir)
+    try {
+      return { commits: await loadRebasePlan({ repoPath: record.path, base: request.base }) }
+    } catch (error) {
+      throw toGitServiceError(error)
+    }
+  }
+
+  /** Runs the list editor's plan; reword and squash messages are applied as git replays. */
+  async gitRebaseInteractive(request: GitRebaseInteractiveRequest): Promise<GitOperationResponse> {
+    const record = this.#requireWriteCheckout(request.gitDir)
+    await this.#assertNoOperation(record, 'Rebase')
+    return await this.#gitOperation(record, async (repoPath) => {
+      const plan = new Map(
+        (await loadRebasePlan({ repoPath, base: request.base })).map((commit) => [
+          commit.sha,
+          commit.subject
+        ])
+      )
+      const steps = request.steps.map((step) => ({
+        sha: step.sha,
+        action: step.action,
+        subject: plan.get(step.sha),
+        message: step.message
+      }))
+      for (const step of steps) {
+        if (
+          step.action === 'reword' &&
+          (step.subject === undefined ||
+            step.subject.length === 0 ||
+            step.message === undefined ||
+            step.message.length === 0)
+        ) {
+          throw new ServiceError(
+            'invalid-request',
+            'A reword step needs the original commit and the new message'
+          )
+        }
+      }
+      const backup = await createBackupRef({ repoPath, op: 'rebase-interactive', target: 'HEAD' })
+      const result = await rebaseInteractive(repoPath, { base: request.base, steps })
+      const undo = this.#recordOperation(record, 'rebase-interactive', {
+        backupRef: backup.ref,
+        undoState: encodeUndoState({
+          kind: 'rebase',
+          before: backup.sha,
+          target: await this.#headRef(repoPath)
+        })
+      })
+      return { ...result, undo }
+    })
+  }
+
+  /** Continues the stopped merge, rebase, cherry-pick or revert. */
+  async gitOpContinue(request: GitOpRequest): Promise<GitOperationResponse> {
+    const record = this.#requireWriteCheckout(request.gitDir)
+    const kind = await this.#requireOperation(record)
+    return await this.#gitOperation(record, async (repoPath) => {
+      switch (kind) {
+        case 'merge':
+          return { ...(await mergeContinue(repoPath)), undo: null }
+        case 'rebase':
+        case 'rebase-interactive':
+          return {
+            ...(await rebaseAction('continue', repoPath)),
+            undo: this.#latestUndo(record, ['rebase-interactive', 'rebase'])
+          }
+        case 'cherry-pick':
+          return { ...(await cherryPickAction('continue', repoPath)), undo: null }
+        case 'revert':
+          return { ...(await revertAction('continue', repoPath)), undo: null }
+        default:
+          throw new ServiceError(
+            'invalid-request',
+            `A ${OPERATION_LABELS[kind]} cannot be continued here`
+          )
+      }
+    })
+  }
+
+  /** Skips the current commit of a stopped rebase or cherry-pick. */
+  async gitOpSkip(request: GitOpRequest): Promise<GitOperationResponse> {
+    const record = this.#requireWriteCheckout(request.gitDir)
+    const kind = await this.#requireOperation(record)
+    return await this.#gitOperation(record, async (repoPath) => {
+      switch (kind) {
+        case 'rebase':
+        case 'rebase-interactive':
+          return {
+            ...(await rebaseAction('skip', repoPath)),
+            undo: this.#latestUndo(record, ['rebase-interactive', 'rebase'])
+          }
+        case 'cherry-pick':
+          return { ...(await cherryPickAction('skip', repoPath)), undo: null }
+        case 'revert':
+          return { ...(await revertAction('skip', repoPath)), undo: null }
+        case 'merge':
+          throw new ServiceError(
+            'invalid-request',
+            'A merge has nothing to skip; continue or abort it instead'
+          )
+        default:
+          throw new ServiceError('invalid-request', `A ${OPERATION_LABELS[kind]} cannot be skipped here`)
+      }
+    })
+  }
+
+  /** Aborts the operation in progress, restoring the pre-operation state exactly. */
+  async gitOpAbort(request: GitOpRequest): Promise<null> {
+    const record = this.#requireWriteCheckout(request.gitDir)
+    const kind = await this.#requireOperation(record)
+    await this.#gitOperation(record, async (repoPath) => {
+      switch (kind) {
+        case 'merge':
+          await mergeAbort(repoPath)
+          return
+        case 'rebase':
+        case 'rebase-interactive':
+          await rebaseAction('abort', repoPath)
+          return
+        case 'cherry-pick':
+          await cherryPickAction('abort', repoPath)
+          return
+        case 'revert':
+          await revertAction('abort', repoPath)
+          return
+        default:
+          throw new ServiceError('invalid-request', `A ${OPERATION_LABELS[kind]} cannot be aborted here`)
+      }
+    })
+    return null
+  }
+
+  /** Applies a commit (or `A..B` range) onto the current branch. */
+  async gitCherryPick(request: GitCherryPickRequest): Promise<GitOperationResponse> {
+    const record = this.#requireWriteCheckout(request.gitDir)
+    await this.#assertNoOperation(record, 'Cherry-pick')
+    return await this.#gitOperation(record, async (repoPath) => ({
+      ...(await cherryPick(repoPath, {
+        rev: request.rev,
+        noCommit: request.noCommit,
+        mainline: request.mainline
+      })),
+      undo: null
+    }))
+  }
+
+  /** Reverts a commit (or range), staging the inverse change. */
+  async gitRevert(request: GitRevertRequest): Promise<GitOperationResponse> {
+    const record = this.#requireWriteCheckout(request.gitDir)
+    await this.#assertNoOperation(record, 'Revert')
+    return await this.#gitOperation(record, async (repoPath) => ({
+      ...(await revertCommit(repoPath, {
+        rev: request.rev,
+        noCommit: request.noCommit,
+        mainline: request.mainline
+      })),
+      undo: null
+    }))
+  }
+
+  /** Moves the current branch to a revision; `hard` takes a backup ref first. */
+  async gitReset(request: GitResetRequest): Promise<GitResetResponse> {
+    const record = this.#requireWriteCheckout(request.gitDir)
+    await this.#assertNoOperation(record, 'Reset')
+    return await this.#gitOperation(record, async (repoPath) => {
+      const before = await verifyRevision(repoPath, 'HEAD')
+      await verifyRevision(repoPath, request.target)
+      const backup =
+        request.mode === 'hard'
+          ? await createBackupRef({ repoPath, op: 'reset-hard', target: 'HEAD' })
+          : null
+      await resetRepo(repoPath, { target: request.target, mode: request.mode })
+      const after = await readHeadSha(repoPath)
+      const undo = this.#recordOperation(record, `reset-${request.mode}`, {
+        backupRef: backup?.ref ?? null,
+        undoState: encodeUndoState({
+          kind: 'reset',
+          mode: request.mode,
+          before,
+          target: await this.#headRef(repoPath)
+        })
+      })
+      return { before, after, backup, undo }
+    })
+  }
+
+  /** Resolves one conflicted path onto a side and stages the result. */
+  async gitConflictResolve(request: GitConflictResolveRequest): Promise<null> {
+    const record = this.#requireWriteCheckout(request.gitDir)
+    await this.#gitOperation(record, async (repoPath) => {
+      const status = await readStatus({ repoPath, untracked: 'no' })
+      const entry = status.conflicted.find((row) => row.path === request.path)
+      if (entry === undefined) {
+        throw new ServiceError('not-conflicted', `Not an unresolved conflict: ${request.path}`)
+      }
+      await resolveConflict(repoPath, {
+        path: request.path,
+        code: entry.code,
+        resolution: request.resolution
+      })
+    })
+    return null
+  }
+
+  /** Stashes working-tree changes, all of them or a path subset. */
+  async gitStashCreate(request: GitStashCreateRequest): Promise<GitStashCreateResponse> {
+    const record = this.#requireWriteCheckout(request.gitDir)
+    await this.#assertNoOperation(record, 'Stash')
+    return await this.#gitOperation(record, (repoPath) =>
+      createStash(repoPath, {
+        message: request.message,
+        includeUntracked: request.includeUntracked,
+        keepIndex: request.keepIndex,
+        paths: request.paths
+      })
+    )
+  }
+
+  async gitStashList(request: GitCheckoutRequest): Promise<GitStashListResponse> {
+    const record = this.#requireCheckout(this.#requireSession(), request.gitDir)
+    try {
+      return { stashes: await listStashes({ repoPath: record.path }) }
+    } catch (error) {
+      throw toGitServiceError(error)
+    }
+  }
+
+  async gitStashFiles(request: GitStashRequest): Promise<GitStashFilesResponse> {
+    const record = this.#requireCheckout(this.#requireSession(), request.gitDir)
+    try {
+      return { files: await stashFileChanges(record.path, { stash: request.stash }) }
+    } catch (error) {
+      throw toGitServiceError(error)
+    }
+  }
+
+  async gitStashDiff(request: GitStashDiffRequest): Promise<GitStashDiffResponse> {
+    const record = this.#requireCheckout(this.#requireSession(), request.gitDir)
+    try {
+      return { diff: await readStashDiff(record.path, { stash: request.stash, path: request.path }) }
+    } catch (error) {
+      throw toGitServiceError(error)
+    }
+  }
+
+  /** Applies a stash, keeping the entry; conflicts remain in the working tree. */
+  async gitStashApply(request: GitStashRequest): Promise<GitOperationResponse> {
+    const record = this.#requireWriteCheckout(request.gitDir)
+    await this.#assertNoOperation(record, 'Stash apply')
+    return await this.#gitOperation(record, async (repoPath) => ({
+      ...(await applyStash(repoPath, { stash: request.stash })),
+      undo: null
+    }))
+  }
+
+  /** Applies a stash and drops it; a conflicted pop keeps the entry. */
+  async gitStashPop(request: GitStashRequest): Promise<GitOperationResponse> {
+    const record = this.#requireWriteCheckout(request.gitDir)
+    await this.#assertNoOperation(record, 'Stash pop')
+    return await this.#gitOperation(record, async (repoPath) => ({
+      ...(await popStash(repoPath, { stash: request.stash })),
+      undo: null
+    }))
+  }
+
+  /** Drops a stash entry after backing it up, so the drop stays undoable. */
+  async gitStashDrop(request: GitStashRequest): Promise<GitStashDropResponse> {
+    const record = this.#requireWriteCheckout(request.gitDir)
+    await this.#assertNoOperation(record, 'Stash drop')
+    return await this.#gitOperation(record, async (repoPath) => {
+      const entry = await readStashEntry(repoPath, { stash: request.stash })
+      if (entry === null) {
+        throw new ServiceError('invalid-request', `No stash entry named ${request.stash}`)
+      }
+      const backup = await createBackupRef({ repoPath, op: 'stash-drop', target: entry.sha })
+      const undo = this.#recordOperation(record, 'stash-drop', {
+        backupRef: backup.ref,
+        undoState: encodeUndoState({ kind: 'stash-drop', before: entry.sha, subject: entry.subject })
+      })
+      await dropStash(repoPath, { stash: request.stash })
+      return { backup, undo }
+    })
+  }
+
+  /** Commit walk used by history surfaces; `revs` narrows it to ranges. */
+  async gitLog(request: GitLogRequest): Promise<GitLogResponse> {
+    const record = this.#requireCheckout(this.#requireSession(), request.gitDir)
+    try {
+      return await logCommits({
+        repoPath: record.path,
+        revs: request.revs,
+        maxCount: request.limit,
+        skip: request.skip
+      })
+    } catch (error) {
+      throw toGitServiceError(error)
+    }
+  }
+
+  /** Operation log of the repository, newest first. */
+  gitOpLog(request: GitOpLogRequest): GitOpLogResponse {
+    const record = this.#requireCheckout(this.#requireSession(), request.gitDir)
+    const rowId = this.#rowIdByGitDir.get(record.gitDir)
+    if (rowId === undefined) return { entries: [] }
+    return {
+      entries: this.#oplog.list({ repoId: rowId, limit: request.limit }).map((row) => ({
+        id: row.id,
+        op: row.op,
+        backupRef: row.backupRef,
+        at: row.at,
+        target: this.#undoTarget(row.undoState)
+      }))
+    }
+  }
+
+  /** Reverses one logged operation through its undo state (or its backup ref). */
+  async gitOpLogUndo(request: GitOpLogUndoRequest): Promise<null> {
+    const record = this.#requireWriteCheckout(request.gitDir)
+    await this.#assertNoOperation(record, 'Undo')
+    const rowId = this.#rowIdByGitDir.get(record.gitDir) ?? null
+    const row = this.#oplog.get(request.entryId)
+    if (row === null || row.repoId !== rowId) {
+      throw new ServiceError('invalid-request', 'Unknown operation-log entry')
+    }
+    await this.#gitOperation(record, async (repoPath) => {
+      const backupSha = row.backupRef === null ? null : await readBackupSha(repoPath, row.backupRef)
+      const descriptor =
+        parseUndoState(row.undoState) ?? this.#fallbackDescriptor(row.backupRef, backupSha)
+      if (descriptor === null) {
+        throw new ServiceError('invalid-request', 'This operation has nothing to restore')
+      }
+      await performUndo(repoPath, { descriptor, backupSha })
+      this.#oplog.updateUndoState(row.id, null)
+    })
+    return null
+  }
+
+  /** Recent backup refs with the operation, time and target they restore. */
+  async gitBackups(request: GitCheckoutRequest): Promise<GitBackupsResponse> {
+    const record = this.#requireCheckout(this.#requireSession(), request.gitDir)
+    try {
+      const refs = await listBackupRefs({ repoPath: record.path })
+      return {
+        entries: refs.map((backup) => ({
+          ref: backup.ref,
+          op: backup.op,
+          sha: backup.sha,
+          createdAt: backup.createdAt,
+          target: this.#undoTarget(this.#oplog.findByBackupRef(backup.ref)?.undoState ?? null)
+        }))
+      }
+    } catch (error) {
+      throw toGitServiceError(error)
+    }
+  }
+
+  /** Restores the state captured by a backup ref; the current state is backed up first. */
+  async gitRestoreBackup(request: GitRestoreBackupRequest): Promise<null> {
+    const record = this.#requireWriteCheckout(request.gitDir)
+    await this.#assertNoOperation(record, 'Restore')
+    await this.#gitOperation(record, async (repoPath) => {
+      const backupSha = await readBackupSha(repoPath, request.ref)
+      if (backupSha === null) {
+        throw new ServiceError('invalid-request', 'Unknown backup ref')
+      }
+      const row = this.#oplog.findByBackupRef(request.ref)
+      const descriptor =
+        parseUndoState(row?.undoState ?? null) ?? this.#fallbackDescriptor(request.ref, backupSha)
+      if (descriptor === null) {
+        throw new ServiceError('invalid-request', 'This backup cannot be restored automatically')
+      }
+      const before = await readHeadSha(repoPath)
+      const destructive =
+        descriptor.kind === 'rebase' ||
+        (descriptor.kind === 'reset' && (descriptor.mode ?? 'mixed') === 'hard')
+      if (destructive && before !== null && before !== backupSha) {
+        const guard = await createBackupRef({ repoPath, op: 'restore', target: 'HEAD' })
+        this.#recordOperation(record, 'restore', {
+          backupRef: guard.ref,
+          undoState: encodeUndoState({
+            kind: 'reset',
+            mode: 'hard',
+            before,
+            target: await this.#headRef(repoPath)
+          })
+        })
+      }
+      await performUndo(repoPath, { descriptor, backupSha })
+      if (row !== null) this.#oplog.updateUndoState(row.id, null)
+    })
+    return null
+  }
+
   /** Switches to a branch; a remote-only name creates the tracking branch (git DWIM). */
   async gitBranchCheckout(request: GitBranchCheckoutRequest): Promise<{ stash: AutoStashReport }> {
     const record = this.#requireWriteCheckout(request.gitDir)
+    await this.#assertNoOperation(record, 'Checkout')
     const stash = await this.#gitOperation(record, (repoPath) => checkoutBranch(repoPath, request.name))
     return { stash }
   }
@@ -522,6 +1027,7 @@ export class WorkspaceService {
   /** Checks out a commit, tag or remote branch into detached HEAD. */
   async gitCheckoutDetach(request: GitCheckoutDetachRequest): Promise<{ stash: AutoStashReport }> {
     const record = this.#requireWriteCheckout(request.gitDir)
+    await this.#assertNoOperation(record, 'Checkout')
     const stash = await this.#gitOperation(record, (repoPath) => checkoutDetach(repoPath, request.rev))
     return { stash }
   }
@@ -531,6 +1037,7 @@ export class WorkspaceService {
     request: GitBranchCreateRequest
   ): Promise<{ upstream: string | null; stash: AutoStashReport }> {
     const record = this.#requireWriteCheckout(request.gitDir)
+    if (request.checkout === true) await this.#assertNoOperation(record, 'Checkout')
     const upstream =
       request.upstream !== undefined && request.upstream.length > 0 ? request.upstream : null
     const stash = await this.#gitOperation(record, async (repoPath) => {
@@ -555,13 +1062,15 @@ export class WorkspaceService {
 
   /**
    * Deletes a local branch. An unmerged branch requires `force` and gets a
-   * backup ref first, so the deletion stays undoable.
+   * backup ref first, so the deletion stays undoable either way.
    */
-  async gitBranchDelete(
-    request: GitBranchDeleteRequest
-  ): Promise<{ merged: boolean; backup: BackupRef | null }> {
+  async gitBranchDelete(request: GitBranchDeleteRequest): Promise<GitBranchDeleteResponse> {
     const record = this.#requireWriteCheckout(request.gitDir)
     return await this.#gitOperation(record, async (repoPath) => {
+      const tip = await readBranchTip(repoPath, { name: request.name })
+      if (tip === null) {
+        throw new ServiceError('invalid-name', `No branch named "${request.name}"`)
+      }
       const merged = await isBranchMerged(repoPath, request.name)
       if (!merged && request.force !== true) {
         throw new ServiceError(
@@ -578,7 +1087,16 @@ export class WorkspaceService {
         })
       }
       await deleteBranch(repoPath, request.name, { force: !merged })
-      return { merged, backup }
+      const undo = this.#recordOperation(record, 'branch-delete', {
+        backupRef: backup?.ref ?? null,
+        undoState: encodeUndoState({
+          kind: 'branch-delete',
+          name: request.name,
+          before: tip,
+          target: request.name
+        })
+      })
+      return { merged, backup, undo }
     })
   }
 
@@ -636,6 +1154,7 @@ export class WorkspaceService {
   /** Pulls with the strategy resolved from settings (per-repo override first). */
   async gitPull(request: GitPullRequest): Promise<GitPullResponse> {
     const record = this.#requireWriteCheckout(request.gitDir)
+    await this.#assertNoOperation(record, 'Pull')
     const strategy = await this.#pullStrategy(record)
     const label = request.remote ?? this.#upstreamRemoteHint(record) ?? ''
     const before = await readHeadSha(record.path)
@@ -722,6 +1241,7 @@ export class WorkspaceService {
     if (record === null) return this.#batchFailure(gitDir, gitDir, new ServiceError('unknown-repo', `No checkout with git dir: ${gitDir}`))
     try {
       const writeRecord = this.#requireWritable(record)
+      await this.#assertNoOperation(writeRecord, 'Pull')
       const strategy = await this.#pullStrategy(writeRecord)
       const label = this.#upstreamRemoteHint(writeRecord) ?? ''
       const before = await readHeadSha(writeRecord.path)
@@ -900,6 +1420,77 @@ export class WorkspaceService {
       throw new ServiceError('git-failed', `${record.name} is a bare repository and has no working tree`)
     }
     return record
+  }
+
+  /** Blocks conflicting write operations while another operation is in progress. */
+  async #assertNoOperation(record: RepoRecord, action: string): Promise<void> {
+    const operation = await detectOperation(record.gitDir)
+    if (operation === 'none') return
+    throw new ServiceError(
+      'operation-in-progress',
+      `${action} is not available while a ${OPERATION_LABELS[operation]} is in progress; continue or abort it first.`
+    )
+  }
+
+  async #requireOperation(record: RepoRecord): Promise<ActiveOperation> {
+    const operation = await detectOperation(record.gitDir)
+    if (operation === 'none') throw new ServiceError('no-operation', 'No operation is in progress')
+    return operation
+  }
+
+  /** Branch the operation acted on; `HEAD` is recorded while detached. */
+  async #headRef(repoPath: string): Promise<string> {
+    return (await readHeadRef(repoPath)) ?? 'HEAD'
+  }
+
+  /** Appends an operation-log row and returns its undo affordance. */
+  #recordOperation(
+    record: RepoRecord,
+    op: string,
+    options: { backupRef?: string | null; undoState?: string | null } = {}
+  ): UndoHint {
+    const entryId = this.#oplog.record({
+      repoId: this.#rowIdByGitDir.get(record.gitDir) ?? null,
+      op,
+      backupRef: options.backupRef ?? null,
+      undoState: options.undoState ?? null
+    })
+    return { entryId, op, backupRef: options.backupRef ?? null }
+  }
+
+  /** Latest still-undoable entry among the given operation names. */
+  #latestUndo(record: RepoRecord, ops: readonly string[]): UndoHint | null {
+    const rowId = this.#rowIdByGitDir.get(record.gitDir) ?? null
+    let best: OperationRow | null = null
+    for (const op of ops) {
+      const row = this.#oplog.latest(rowId, { op })
+      if (row !== null && parseUndoState(row.undoState) !== null && (best === null || row.id > best.id)) {
+        best = row
+      }
+    }
+    return best === null ? null : { entryId: best.id, op: best.op, backupRef: best.backupRef }
+  }
+
+  /** Rebuilds an undo descriptor from a backup ref when no stored state exists. */
+  #fallbackDescriptor(backupRef: string | null, backupSha: string | null): UndoDescriptor | null {
+    if (backupRef === null || backupSha === null) return null
+    const slug = parseBackupRefName(backupRef)?.op ?? ''
+    if (slug === 'reset-hard') return { kind: 'reset', mode: 'hard', before: backupSha }
+    if (slug === 'rebase' || slug === 'rebase-interactive') {
+      return { kind: 'rebase', before: backupSha }
+    }
+    if (slug === 'stash-drop') return { kind: 'stash-drop', before: backupSha }
+    return null
+  }
+
+  /** Human-readable target of an operation-log entry. */
+  #undoTarget(raw: string | null): string | null {
+    const descriptor = parseUndoState(raw)
+    if (descriptor === null) return null
+    if (descriptor.target !== undefined && descriptor.target.length > 0) return descriptor.target
+    if (descriptor.name !== undefined && descriptor.name.length > 0) return descriptor.name
+    if (descriptor.subject !== undefined && descriptor.subject.length > 0) return descriptor.subject
+    return descriptor.before !== undefined ? descriptor.before.slice(0, 7) : null
   }
 
   /**

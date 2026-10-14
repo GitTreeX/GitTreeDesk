@@ -10,6 +10,11 @@ export type ServiceErrorCode =
   | 'auth-required'
   | 'auth-ssh'
   | 'branch-unmerged'
+  | 'invalid-request'
+  | 'operation-in-progress'
+  | 'no-operation'
+  | 'unresolved-conflicts'
+  | 'not-conflicted'
   | 'disposed'
 
 /** Expected failures of the main-process services; surfaced to the renderer with their code. */

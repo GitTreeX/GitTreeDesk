@@ -161,6 +161,78 @@ export const invokeSchemas = {
   }),
   'git:remoteTags': z.object({ gitDir: pathString, remote: remoteName.optional() }),
   'git:diffFiles': z.object({ gitDir: pathString, from: refString, to: refString }),
+  'git:merge': z.object({
+    gitDir: pathString,
+    rev: refString,
+    mode: z.enum(['default', 'no-ff', 'ff-only', 'squash']).optional()
+  }),
+  'git:rebase': z.object({ gitDir: pathString, onto: refString }),
+  'git:rebasePlan': z.object({ gitDir: pathString, base: refString }),
+  'git:rebaseInteractive': z.object({
+    gitDir: pathString,
+    base: refString,
+    steps: z
+      .array(
+        z.object({
+          sha: refString,
+          action: z.enum(['pick', 'reword', 'edit', 'squash', 'fixup', 'drop']),
+          message: z.string().max(100_000).optional()
+        })
+      )
+      .min(1)
+      .max(1000)
+  }),
+  'git:opContinue': z.object({ gitDir: pathString }),
+  'git:opSkip': z.object({ gitDir: pathString }),
+  'git:opAbort': z.object({ gitDir: pathString }),
+  'git:cherryPick': z.object({
+    gitDir: pathString,
+    rev: refString,
+    noCommit: z.boolean().optional(),
+    mainline: z.number().int().min(1).max(100).optional()
+  }),
+  'git:revert': z.object({
+    gitDir: pathString,
+    rev: refString,
+    noCommit: z.boolean().optional(),
+    mainline: z.number().int().min(1).max(100).optional()
+  }),
+  'git:reset': z.object({
+    gitDir: pathString,
+    target: refString,
+    mode: z.enum(['soft', 'mixed', 'hard'])
+  }),
+  'git:conflictResolve': z.object({
+    gitDir: pathString,
+    path: repoRelPath,
+    resolution: z.enum(['ours', 'theirs', 'both'])
+  }),
+  'git:stashCreate': z.object({
+    gitDir: pathString,
+    message: z.string().max(10_000).optional(),
+    includeUntracked: z.boolean().optional(),
+    keepIndex: z.boolean().optional(),
+    paths: z.array(repoRelPath).min(1).max(1024).optional()
+  }),
+  'git:stashList': z.object({ gitDir: pathString }),
+  'git:stashFiles': z.object({ gitDir: pathString, stash: refString }),
+  'git:stashDiff': z.object({ gitDir: pathString, stash: refString, path: repoRelPath.optional() }),
+  'git:stashApply': z.object({ gitDir: pathString, stash: refString }),
+  'git:stashPop': z.object({ gitDir: pathString, stash: refString }),
+  'git:stashDrop': z.object({ gitDir: pathString, stash: refString }),
+  'git:log': z.object({
+    gitDir: pathString,
+    revs: z.array(refString).max(64).optional(),
+    limit: z.number().int().min(1).max(1000).optional(),
+    skip: z.number().int().min(0).max(1_000_000).optional()
+  }),
+  'git:oplog': z.object({
+    gitDir: pathString,
+    limit: z.number().int().min(1).max(500).optional()
+  }),
+  'git:oplogUndo': z.object({ gitDir: pathString, entryId: z.number().int().positive() }),
+  'git:backups': z.object({ gitDir: pathString }),
+  'git:restoreBackup': z.object({ gitDir: pathString, ref: refString }),
   'fs:readDir': z.object({ path: pathString }),
   'fs:readFile': z.object({ path: pathString, allowLarge: z.boolean().optional() }),
   'fs:stat': z.object({ path: pathString }),

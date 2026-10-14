@@ -1,4 +1,5 @@
 import type { AppInfo } from './api'
+import type { ConflictSide } from './conflicts'
 import type {
   AutoStashReport,
   BackupRef,
@@ -8,7 +9,8 @@ import type {
   HeadCommit,
   RemoteInfo,
   RemoteTag,
-  RepoStatus
+  RepoStatus,
+  StashEntry
 } from './git'
 import type { DiscoveryStats, RepoRecord, WatchScopeKind, WorkspaceConfig } from './workspace'
 
@@ -287,6 +289,8 @@ export interface GitBranchDeleteResponse {
   merged: boolean
   /** Safety ref taken before an unmerged branch was deleted. */
   backup: BackupRef | null
+  /** Undo affordance of the recorded deletion. */
+  undo: UndoHint | null
 }
 
 export interface GitBranchSetUpstreamRequest {
@@ -461,6 +465,221 @@ export interface GitDiffFilesResponse {
   files: FileChange[]
 }
 
+export type MergeMode = 'default' | 'no-ff' | 'ff-only' | 'squash'
+
+export interface GitMergeRequest {
+  gitDir: string
+  /** Revision to merge into the current branch. */
+  rev: string
+  /** Omitted merges with git's default: fast-forward when possible. */
+  mode?: MergeMode
+}
+
+export interface GitMergeResponse {
+  /** Conflicts stopped the merge; the operation banner takes over. */
+  stopped: boolean
+  upToDate: boolean
+  fastForward: boolean
+  /** Raw combined output for the details drawer. */
+  output: string
+}
+
+export interface GitRebaseRequest {
+  gitDir: string
+  /** Ref to rebase the current branch onto. */
+  onto: string
+}
+
+export interface GitRebasePlanRequest {
+  gitDir: string
+  /** Commits after this revision are replayed; the plan lists them oldest first. */
+  base: string
+}
+
+export interface GitRebasePlanResponse {
+  /** Non-merge commits above `base`, oldest first. */
+  commits: CommitInfo[]
+}
+
+export type RebaseAction = 'pick' | 'reword' | 'edit' | 'squash' | 'fixup' | 'drop'
+
+export interface GitRebaseStep {
+  sha: string
+  action: RebaseAction
+  /** Replacement message of a `reword`; message of a `squash` group when provided. */
+  message?: string
+}
+
+export interface GitRebaseInteractiveRequest {
+  gitDir: string
+  /** Revision whose descendants are replayed (`git rebase -i <base>`). */
+  base: string
+  steps: GitRebaseStep[]
+}
+
+export interface GitOperationResponse {
+  /** The operation stopped: conflicts or an edit point left it in progress. */
+  stopped: boolean
+  output: string
+  /** Undo affordance of the safety ref taken before the operation. */
+  undo: UndoHint | null
+}
+
+/** Addresses the operation in progress (merge, rebase, cherry-pick or revert). */
+export interface GitOpRequest {
+  gitDir: string
+}
+
+export interface GitCherryPickRequest {
+  gitDir: string
+  /** Commit or `A..B` range. */
+  rev: string
+  /** Stages the changes and stops before committing. */
+  noCommit?: boolean
+  /** Parent number when picking a merge commit (1-based). */
+  mainline?: number
+}
+
+export interface GitRevertRequest {
+  gitDir: string
+  rev: string
+  noCommit?: boolean
+  /** Parent number when reverting a merge commit (1-based). */
+  mainline?: number
+}
+
+export type ResetMode = 'soft' | 'mixed' | 'hard'
+
+export interface GitResetRequest {
+  gitDir: string
+  /** Revision the branch is moved to. */
+  target: string
+  mode: ResetMode
+}
+
+export interface GitResetResponse {
+  before: string | null
+  after: string | null
+  /** Safety ref taken before a `hard` reset; `null` for soft and mixed. */
+  backup: BackupRef | null
+  /** Undo affordance of the recorded operation. */
+  undo: UndoHint | null
+}
+
+/** Points at the operation-log row that an Undo action restores. */
+export interface UndoHint {
+  entryId: number
+  op: string
+  backupRef: string | null
+}
+
+export interface GitConflictResolveRequest {
+  gitDir: string
+  path: string
+  resolution: ConflictSide
+}
+
+export interface GitStashCreateRequest {
+  gitDir: string
+  message?: string
+  includeUntracked?: boolean
+  keepIndex?: boolean
+  /** Repo-relative paths to stash; omitted stashes everything. */
+  paths?: string[]
+}
+
+export interface GitStashCreateResponse {
+  /** False when the working tree had nothing to stash. */
+  created: boolean
+  output: string
+}
+
+export interface GitStashListResponse {
+  stashes: StashEntry[]
+}
+
+export interface GitStashRequest {
+  gitDir: string
+  /** Stash selector, e.g. `stash@{0}`. */
+  stash: string
+}
+
+export interface GitStashDropResponse {
+  backup: BackupRef | null
+  undo: UndoHint | null
+}
+
+export interface GitStashFilesResponse {
+  files: FileChange[]
+}
+
+export interface GitStashDiffRequest extends GitStashRequest {
+  /** Restricts the diff to one repo-relative path. */
+  path?: string
+}
+
+export interface GitStashDiffResponse {
+  diff: string
+}
+
+export interface GitLogRequest {
+  gitDir: string
+  /** Extra revisions or ranges, e.g. `A..B`; omitted walks from HEAD. */
+  revs?: string[]
+  limit?: number
+  skip?: number
+}
+
+export interface GitLogResponse {
+  commits: CommitInfo[]
+  hasMore: boolean
+}
+
+export interface GitOpLogRequest {
+  gitDir: string
+  limit?: number
+}
+
+export interface OpLogEntryInfo {
+  id: number
+  op: string
+  backupRef: string | null
+  /** Epoch milliseconds. */
+  at: number
+  /** Ref or name the operation acted on, when known. */
+  target: string | null
+}
+
+export interface GitOpLogResponse {
+  entries: OpLogEntryInfo[]
+}
+
+export interface BackupEntry {
+  ref: string
+  op: string
+  sha: string
+  /** ISO 8601 timestamp parsed from the ref name. */
+  createdAt: string
+  /** Ref the backup can restore, when known (e.g. the deleted branch). */
+  target: string | null
+}
+
+export interface GitBackupsResponse {
+  entries: BackupEntry[]
+}
+
+export interface GitRestoreBackupRequest {
+  gitDir: string
+  /** Full backup ref name, e.g. `refs/gitreedesk/backup/reset-hard/…`. */
+  ref: string
+}
+
+export interface GitOpLogUndoRequest {
+  gitDir: string
+  /** Operation-log row recorded by the operation that should be undone. */
+  entryId: number
+}
+
 export interface WorkspaceListFilesRequest {
   limit?: number
 }
@@ -623,6 +842,29 @@ export interface InvokeMap {
   'git:tagDeleteRemote': { request: GitTagDeleteRemoteRequest; response: GitTagPushResponse }
   'git:remoteTags': { request: GitRemoteTagsRequest; response: GitRemoteTagsResponse }
   'git:diffFiles': { request: GitDiffFilesRequest; response: GitDiffFilesResponse }
+  'git:merge': { request: GitMergeRequest; response: GitMergeResponse }
+  'git:rebase': { request: GitRebaseRequest; response: GitOperationResponse }
+  'git:rebasePlan': { request: GitRebasePlanRequest; response: GitRebasePlanResponse }
+  'git:rebaseInteractive': { request: GitRebaseInteractiveRequest; response: GitOperationResponse }
+  'git:opContinue': { request: GitOpRequest; response: GitOperationResponse }
+  'git:opSkip': { request: GitOpRequest; response: GitOperationResponse }
+  'git:opAbort': { request: GitOpRequest; response: null }
+  'git:cherryPick': { request: GitCherryPickRequest; response: GitOperationResponse }
+  'git:revert': { request: GitRevertRequest; response: GitOperationResponse }
+  'git:reset': { request: GitResetRequest; response: GitResetResponse }
+  'git:conflictResolve': { request: GitConflictResolveRequest; response: null }
+  'git:stashCreate': { request: GitStashCreateRequest; response: GitStashCreateResponse }
+  'git:stashList': { request: GitCheckoutRequest; response: GitStashListResponse }
+  'git:stashFiles': { request: GitStashRequest; response: GitStashFilesResponse }
+  'git:stashDiff': { request: GitStashDiffRequest; response: GitStashDiffResponse }
+  'git:stashApply': { request: GitStashRequest; response: GitOperationResponse }
+  'git:stashPop': { request: GitStashRequest; response: GitOperationResponse }
+  'git:stashDrop': { request: GitStashRequest; response: GitStashDropResponse }
+  'git:log': { request: GitLogRequest; response: GitLogResponse }
+  'git:oplog': { request: GitOpLogRequest; response: GitOpLogResponse }
+  'git:oplogUndo': { request: GitOpLogUndoRequest; response: null }
+  'git:backups': { request: GitCheckoutRequest; response: GitBackupsResponse }
+  'git:restoreBackup': { request: GitRestoreBackupRequest; response: null }
   'fs:readDir': { request: FsReadDirRequest; response: { entries: FsEntry[] } }
   'fs:readFile': { request: FsReadFileRequest; response: FsReadFileResponse }
   'fs:stat': { request: FsPathRequest; response: FsStatResponse }
@@ -713,6 +955,29 @@ export const INVOKE_CHANNELS = [
   'git:tagDeleteRemote',
   'git:remoteTags',
   'git:diffFiles',
+  'git:merge',
+  'git:rebase',
+  'git:rebasePlan',
+  'git:rebaseInteractive',
+  'git:opContinue',
+  'git:opSkip',
+  'git:opAbort',
+  'git:cherryPick',
+  'git:revert',
+  'git:reset',
+  'git:conflictResolve',
+  'git:stashCreate',
+  'git:stashList',
+  'git:stashFiles',
+  'git:stashDiff',
+  'git:stashApply',
+  'git:stashPop',
+  'git:stashDrop',
+  'git:log',
+  'git:oplog',
+  'git:oplogUndo',
+  'git:backups',
+  'git:restoreBackup',
   'fs:readDir',
   'fs:readFile',
   'fs:stat',
