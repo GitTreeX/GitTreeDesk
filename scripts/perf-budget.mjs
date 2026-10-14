@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Measures the performance budgets of spec §7 against the generated acme fixture:
+// Measures the release performance budgets against the generated acme fixture:
 // tree first frame, status warm-up, per-read latency, fingerprint skip cost, and RSS.
 // Drives a built app through an isolated profile and the Chrome DevTools protocol.
 import { spawn, spawnSync } from 'node:child_process'
