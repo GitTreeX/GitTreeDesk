@@ -2,11 +2,13 @@ import { BrowserWindow, app, nativeTheme, safeStorage, shell } from 'electron'
 import { join } from 'node:path'
 import type { HostCommandId } from '@gitreedesk/shared'
 import { createEventBroadcaster, registerIpcHandlers, type IpcBridge } from './ipc'
+import { installFileLogger } from './logger'
 import { installApplicationMenu, resolveShellLocale, type ShellLocale } from './menu'
 import { CommitMessageService } from './services/commit-message'
 import { SecretsStore, type SecretCodec } from './services/secrets'
 import { TerminalService } from './services/terminal'
 import { WorkspaceService } from './services/workspace-service'
+import { syncSettingsFiles } from './settings-schema'
 import { electronTerminalRuntime } from './terminal-runtime'
 
 const devServerUrl = process.env['ELECTRON_RENDERER_URL']
@@ -90,6 +92,12 @@ if (!app.requestSingleInstanceLock()) {
   })
 
   void app.whenReady().then(() => {
+    const userDataDir = app.getPath('userData')
+    const fileLogger = installFileLogger(userDataDir)
+    void syncSettingsFiles(userDataDir).catch((error: unknown) => {
+      console.warn('[settings] writing the settings schema failed', error)
+    })
+
     const broadcaster = createEventBroadcaster()
     let shellLocale: ShellLocale = 'en'
     const syncShellLocale = async (): Promise<void> => {
@@ -105,7 +113,6 @@ if (!app.requestSingleInstanceLock()) {
       }
     }
 
-    const userDataDir = app.getPath('userData')
     service = new WorkspaceService({
       userDataDir,
       emit: (event) => {
@@ -113,9 +120,23 @@ if (!app.requestSingleInstanceLock()) {
         if (event.type === 'settingsChanged' && event.change.keyPath[0] === 'locale') {
           void syncShellLocale()
         }
+        if (event.type === 'settingsChanged' && event.change.keyPath[0] === 'advanced') {
+          void applyLogLevel()
+        }
       }
     })
     const workspace = service
+    const applyLogLevel = async (): Promise<void> => {
+      try {
+        const { value } = await workspace.settingsGetEffective(['advanced', 'logLevel'])
+        fileLogger.setLevel(
+          value === 'error' || value === 'warn' || value === 'info' || value === 'debug' ? value : 'info'
+        )
+      } catch {
+        // The service is disposed during shutdown.
+      }
+    }
+    void applyLogLevel()
     const commitMessages = new CommitMessageService({
       userDataDir,
       secrets: new SecretsStore({ userDataDir, codec: secretCodec() }),
@@ -133,7 +154,7 @@ if (!app.requestSingleInstanceLock()) {
     })
     installApplicationMenu(shellLocale, sendCommand)
     void syncShellLocale()
-    bridge = registerIpcHandlers(workspace, commitMessages, terminals)
+    bridge = registerIpcHandlers(workspace, commitMessages, terminals, { userDataDir })
     app.on('will-quit', () => {
       bridge?.dispose()
       bridge = null
@@ -142,6 +163,7 @@ if (!app.requestSingleInstanceLock()) {
       terminals.dispose()
       void service?.dispose()
       service = null
+      fileLogger.dispose()
     })
 
     createWindow()

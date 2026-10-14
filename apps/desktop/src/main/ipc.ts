@@ -1,18 +1,21 @@
-import { dirname } from 'node:path'
+import { mkdir } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
 import { BrowserWindow, clipboard, dialog, ipcMain, shell } from 'electron'
 import {
   INVOKE_CHANNELS,
   type AppInfo,
+  type AppOpenFolderRequest,
   type EditorOpenRequest,
   type EventChannel,
   type GitOpenMergeToolRequest,
   type IpcErrorInfo,
   type IpcResult,
+  type KeybindingsChangedEvent,
   type SettingsChangedEvent
 } from '@gitreedesk/shared'
 import { invokeSchemas } from '@gitreedesk/shared/validate'
 import type { InvokeHandlers } from '@gitreedesk/shared'
-import type { SettingsChange } from '@gitreedesk/store'
+import type { KeybindingChange, SettingsChange } from '@gitreedesk/store'
 import { buildEditorCommand } from './editor-command'
 import { launchShell, nativePath, openInEditor } from './editor-launcher'
 import type { CommitMessageService, CommitMessageServiceEvent } from './services/commit-message'
@@ -81,6 +84,9 @@ export function createEventBroadcaster(): EventBroadcaster {
         case 'settingsChanged':
           broadcast('settings:changed', toSettingsChangedEvent(event.change))
           break
+        case 'keybindingsChanged':
+          broadcast('keybindings:changed', toKeybindingsChangedEvent(event.change))
+          break
       }
     },
     handleCommitMessage(event) {
@@ -101,12 +107,17 @@ export interface IpcBridge {
   dispose(): void
 }
 
+export interface IpcAppPaths {
+  userDataDir: string
+}
+
 export function registerIpcHandlers(
   service: WorkspaceService,
   commitMessages: CommitMessageService,
-  terminals: TerminalService
+  terminals: TerminalService,
+  appPaths: IpcAppPaths
 ): IpcBridge {
-  const handlers = createHandlers(service, commitMessages, terminals)
+  const handlers = createHandlers(service, commitMessages, terminals, appPaths)
 
   for (const channel of INVOKE_CHANNELS) {
     ipcMain.handle(channel, async (_event, payload: unknown): Promise<IpcResult<unknown>> => {
@@ -136,7 +147,8 @@ export function registerIpcHandlers(
 function createHandlers(
   service: WorkspaceService,
   commitMessages: CommitMessageService,
-  terminals: TerminalService
+  terminals: TerminalService,
+  appPaths: IpcAppPaths
 ): InvokeHandlers {
   return {
     'workspace:open': (request) => service.open(request.root),
@@ -253,13 +265,17 @@ function createHandlers(
     'settings:getEffective': (request) => service.settingsGetEffective(request.keyPath),
     'settings:set': (request) => service.settingsSet(request),
     'settings:remove': (request) => service.settingsRemove(request),
+    'keybindings:get': () => service.keybindingsGet(),
+    'keybindings:set': (request) => service.keybindingsSet(request),
+    'keybindings:reset': (request) => service.keybindingsReset(request),
     'trust:query': () => service.trustQuery(),
     'trust:grant': (request) => service.trustGrant(request),
     'ui-state:get': (request) => service.uiStateGet(request.key),
     'ui-state:set': (request) => service.uiStateSet(request.key, request.value),
     'ui-state:keys': (request) => service.uiStateKeys(request.prefix),
     'ui-state:delete': (request) => service.uiStateDelete(request.key),
-    'app:info': () => appInfo(service)
+    'app:info': () => appInfo(service),
+    'app:openFolder': (request) => openAppFolder(appPaths, request)
   }
 }
 
@@ -344,6 +360,21 @@ async function appInfo(service: WorkspaceService): Promise<AppInfo> {
   }
 }
 
+/** Opens the logs directory or the user-data directory in the OS file manager. */
+async function openAppFolder(appPaths: IpcAppPaths, request: AppOpenFolderRequest): Promise<null> {
+  const dir = request.kind === 'logs' ? join(appPaths.userDataDir, 'logs') : appPaths.userDataDir
+  try {
+    await mkdir(dir, { recursive: true })
+  } catch {
+    // the openPath error below reports a directory that cannot be reached
+  }
+  const error = await shell.openPath(nativePath(dir))
+  if (error.length > 0) {
+    throw new ServiceError('fs-failed', `Could not open the folder: ${error}`)
+  }
+  return null
+}
+
 function broadcast(channel: EventChannel, payload: unknown): void {
   for (const window of BrowserWindow.getAllWindows()) {
     if (window.isDestroyed()) continue
@@ -362,6 +393,12 @@ function toSettingsChangedEvent(change: SettingsChange): SettingsChangedEvent {
     removed: false,
     value: change.value
   }
+}
+
+function toKeybindingsChangedEvent(change: KeybindingChange): KeybindingsChangedEvent {
+  return change.keys === undefined
+    ? { command: change.command, removed: true }
+    : { command: change.command, keys: change.keys, removed: false }
 }
 
 function describeIssues(issues: readonly { path: PropertyKey[]; message: string }[]): string {

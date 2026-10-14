@@ -107,6 +107,8 @@ import type {
   GitWorktreeRemoveResponse,
   GitWorktreeTargetRequest,
   GitWorktreesResponse,
+  KeybindingsResetRequest,
+  KeybindingsSetRequest,
   PullStrategy,
   RemoteInfo,
   RepoOperationKind,
@@ -126,6 +128,7 @@ import type {
   WorkspaceListFilesResponse,
   WatchScopeKind
 } from '@gitreedesk/shared'
+import { findSettingDescriptor, sanitizeSettingValue } from '@gitreedesk/shared'
 import {
   addRemote,
   addWorktree,
@@ -209,6 +212,7 @@ import {
   stashFileChanges,
   stagePaths as gitStagePaths,
   syncSubmoduleUrls,
+  setGitExecutable,
   unlockWorktree,
   unstageAll as gitUnstageAll,
   unstagePaths as gitUnstagePaths,
@@ -222,10 +226,12 @@ import {
   WorkspaceSession,
   statusTargetFor,
   type RepoDiff,
+  type StatusTarget,
   type WatchBackend
 } from '@gitreedesk/workspace-core'
 import {
   CacheStore,
+  KeybindingsStore,
   OpLogStore,
   RepoStore,
   SettingsStore,
@@ -233,6 +239,7 @@ import {
   WorkspaceStore,
   normalizeWorkspaceRoot,
   openCacheDatabase,
+  type KeybindingChange,
   type OperationRow,
   type SettingsChange
 } from '@gitreedesk/store'
@@ -330,6 +337,7 @@ export type WorkspaceServiceEvent =
   | { type: 'issues'; root: string; issues: string[] }
   | { type: 'degraded'; root: string; kind: WatchScopeKind; dir: string; degraded: boolean }
   | { type: 'settingsChanged'; change: SettingsChange }
+  | { type: 'keybindingsChanged'; change: KeybindingChange }
 
 export interface WorkspaceServiceOptions {
   /** Directory holding `cache.db` and `settings.json` (normally Electron's userData). */
@@ -359,6 +367,7 @@ export class WorkspaceService {
   readonly #repos: RepoStore
   readonly #cache: CacheStore
   readonly #settings: SettingsStore
+  readonly #keybindings: KeybindingsStore
   readonly #uiState: UiStateStore
   readonly #oplog: OpLogStore
   #session: WorkspaceSession | null = null
@@ -371,6 +380,9 @@ export class WorkspaceService {
   #gitVersion: GitVersionInfo | null = null
   #gitVersionDone = false
   #gitVersionProbe: Promise<GitVersionInfo | null> | null = null
+  #gitExecutable: string | null = null
+  #untrackedByRepo = new Map<string, 'normal' | 'all'>()
+  #untrackedDefault: 'normal' | 'all' = 'normal'
   #disposed = false
 
   constructor(options: WorkspaceServiceOptions) {
@@ -385,12 +397,18 @@ export class WorkspaceService {
     this.#repos = new RepoStore(this.#db)
     this.#cache = new CacheStore(this.#db)
     this.#settings = new SettingsStore({ userDataDir: options.userDataDir })
+    this.#keybindings = new KeybindingsStore({ userDataDir: options.userDataDir })
     this.#uiState = new UiStateStore(this.#db)
     this.#oplog = new OpLogStore(this.#db)
 
     this.#settings.onDidChange((change) => {
       this.#emit({ type: 'settingsChanged', change })
+      this.#onSettingsChange(change)
     })
+    this.#keybindings.onDidChange((change) => {
+      this.#emit({ type: 'keybindingsChanged', change })
+    })
+    void this.#applyGitSettings()
   }
 
   /** Opens a workspace; opening the already-open root returns its current state. */
@@ -403,10 +421,16 @@ export class WorkspaceService {
     }
     if (existing !== null) await this.#closeSession()
 
+    await this.#applyGitSettings(root)
+    await this.#reloadUntrackedStrategy(root)
+    const pollIntervalMs = await this.#resolvePollInterval(root)
+
     const session = new WorkspaceSession({
       root,
       pool: this.#pool,
       watchBackend: this.#watchBackend,
+      pollIntervalMs,
+      untrackedStrategy: (record) => this.#untrackedFor(record),
       onStatus: (gitDir, status) => {
         this.#onStatus(gitDir, status)
       },
@@ -492,7 +516,7 @@ export class WorkspaceService {
   async getStatus(request: GitStatusRequest): Promise<{ status: RepoStatus }> {
     const session = this.#requireSession()
     const record = this.#requireCheckout(session, request.gitDir)
-    const status = await session.scheduler.request(statusTargetFor(record), {
+    const status = await session.scheduler.request(this.#statusTarget(record), {
       reason: 'interactive',
       refresh: request.refresh === true
     })
@@ -2031,8 +2055,19 @@ export class WorkspaceService {
     const session = this.#session
     if (session === null) return
     void session.scheduler
-      .request(statusTargetFor(record), { reason: 'interactive', refresh: true })
+      .request(this.#statusTarget(record), { reason: 'interactive', refresh: true })
       .catch(() => undefined)
+  }
+
+  /** Status request for a checkout, carrying the effective untracked listing mode. */
+  #statusTarget(record: RepoRecord): StatusTarget {
+    const target = statusTargetFor(record)
+    target.untracked = this.#untrackedFor(record)
+    return target
+  }
+
+  #untrackedFor(record: RepoRecord): 'normal' | 'all' {
+    return this.#untrackedByRepo.get(record.relPath) ?? this.#untrackedDefault
   }
 
   async watchDirectory(path: string): Promise<null> {
@@ -2257,6 +2292,112 @@ export class WorkspaceService {
     if (request.scope === 'user') await this.#settings.removeUser(request.keyPath)
     else await this.#settings.removeWorkspace(this.#requireSession().root, request.keyPath)
     return null
+  }
+
+  async keybindingsGet(): Promise<{ overrides: Record<string, string | null> }> {
+    this.#assertLive()
+    return { overrides: await this.#keybindings.getAll() }
+  }
+
+  async keybindingsSet(request: KeybindingsSetRequest): Promise<null> {
+    this.#assertLive()
+    await this.#keybindings.set(request.command, request.keys)
+    return null
+  }
+
+  /** Drops the override so the default binding applies again. */
+  async keybindingsReset(request: KeybindingsResetRequest): Promise<null> {
+    this.#assertLive()
+    await this.#keybindings.remove(request.command)
+    return null
+  }
+
+  /** Live-applies the settings that runtime consumers read once instead of per use. */
+  #onSettingsChange(change: SettingsChange): void {
+    const head = change.keyPath[0]
+    if (head === 'git') {
+      void this.#applyGitSettings()
+      if (change.keyPath[1] === 'pollIntervalSec') void this.#applyPollInterval()
+      if (change.keyPath[1] === 'untrackedStrategy') void this.#reloadUntrackedAndRefresh()
+    } else if (head === 'repos' && change.keyPath[change.keyPath.length - 1] === 'untrackedStrategy') {
+      void this.#reloadUntrackedAndRefresh()
+    }
+  }
+
+  /** Effective value of a surfaced key, sanitized; invalid values fall back to the default. */
+  async #effectiveSetting(root: string | null, keyPath: readonly string[]): Promise<unknown> {
+    const value = await this.#settings.effective(root, keyPath)
+    const descriptor = findSettingDescriptor(keyPath)
+    if (descriptor === null) return value
+    const sanitized = sanitizeSettingValue(descriptor, value)
+    return sanitized === undefined ? descriptor.default : sanitized
+  }
+
+  /** Pushes `git.path` and `git.concurrency` into the running git runtime. */
+  async #applyGitSettings(root?: string): Promise<void> {
+    try {
+      const scope = root ?? this.#session?.root ?? null
+      const rawPath = await this.#effectiveSetting(scope, ['git', 'path'])
+      const executable = typeof rawPath === 'string' && rawPath.length > 0 ? rawPath : 'git'
+      if (executable !== this.#gitExecutable) {
+        this.#gitExecutable = executable
+        setGitExecutable(executable)
+        this.#gitVersion = null
+        this.#gitVersionDone = false
+        this.#gitVersionProbe = null
+      }
+      const concurrency = await this.#effectiveSetting(scope, ['git', 'concurrency'])
+      if (typeof concurrency === 'number') this.#pool.setConcurrency(concurrency)
+    } catch (error) {
+      console.warn('[workspace] applying git settings failed', error)
+    }
+  }
+
+  async #applyPollInterval(): Promise<void> {
+    try {
+      const ms = await this.#resolvePollInterval(this.#session?.root ?? null)
+      this.#session?.setPollIntervalMs(ms)
+    } catch (error) {
+      console.warn('[workspace] applying the poll interval failed', error)
+    }
+  }
+
+  async #resolvePollInterval(root: string | null): Promise<number> {
+    const seconds = await this.#effectiveSetting(root, ['git', 'pollIntervalSec'])
+    const value = typeof seconds === 'number' && seconds > 0 ? seconds : 60
+    return Math.max(1_000, Math.round(value * 1_000))
+  }
+
+  /** Refreshes the `repos.<relPath>.untrackedStrategy` overrides and the global default. */
+  async #reloadUntrackedStrategy(root: string | null): Promise<void> {
+    try {
+      const next = new Map<string, 'normal' | 'all'>()
+      const all = root === null ? null : await this.#settings.getWorkspaceAll(root)
+      if (typeof all === 'object' && all !== null && !Array.isArray(all)) {
+        const repos = (all as Record<string, unknown>)['repos']
+        if (typeof repos === 'object' && repos !== null && !Array.isArray(repos)) {
+          for (const [relPath, entry] of Object.entries(repos)) {
+            if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) continue
+            const mode = (entry as Record<string, unknown>)['untrackedStrategy']
+            if (mode === 'normal' || mode === 'all') next.set(relPath, mode)
+          }
+        }
+      }
+      this.#untrackedByRepo = next
+      const fallback = await this.#effectiveSetting(root, ['git', 'untrackedStrategy'])
+      this.#untrackedDefault = fallback === 'all' ? 'all' : 'normal'
+    } catch (error) {
+      console.warn('[workspace] reading the untracked strategy failed', error)
+    }
+  }
+
+  async #reloadUntrackedAndRefresh(): Promise<void> {
+    await this.#reloadUntrackedStrategy(this.#session?.root ?? null)
+    const session = this.#session
+    if (session === null) return
+    for (const record of session.registry.all) {
+      if (record.gitDir.length > 0) this.#refreshStatus(record)
+    }
   }
 
   uiStateGet(key: string): { value: unknown } {
