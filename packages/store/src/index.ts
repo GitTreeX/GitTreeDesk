@@ -1,6 +1,7 @@
 export * from './cache'
 export * from './db'
 export * from './json'
+export * from './keybindings'
 export * from './oplog'
 export * from './repos'
 export * from './settings'
