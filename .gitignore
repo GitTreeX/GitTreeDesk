@@ -8,6 +8,7 @@ out/
 dist/
 release/
 coverage/
+.fixtures/
 *.log
 *.local
 .DS_Store
