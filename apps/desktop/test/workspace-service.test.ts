@@ -265,6 +265,81 @@ describe('WorkspaceService', () => {
     await expect(instance.settingsGetEffective(['editor', 'fontSize'])).resolves.toEqual({ value: 16 })
   })
 
+  it('applies untracked listing modes from settings to status reads', async () => {
+    const root = await tempDir('gtd-svc-untracked-')
+    const userData = await tempDir('gtd-svc-data-')
+    await initRepo(join(root, 'api-server'))
+    await mkdir(join(root, 'api-server', 'scratch'), { recursive: true })
+    await writeFile(join(root, 'api-server', 'scratch', 'draft-a.txt'), 'a\n', 'utf8')
+    await writeFile(join(root, 'api-server', 'scratch', 'draft-b.txt'), 'b\n', 'utf8')
+
+    const events: WorkspaceServiceEvent[] = []
+    const instance = service(userData, events)
+    const descriptor = await instance.open(root)
+    const gitDir = descriptor.records[0]?.gitDir ?? ''
+
+    // git's default collapses untracked directories into a single entry
+    const initial = await instance.getStatus({ gitDir })
+    expect(initial.status.untracked).toEqual(['scratch/'])
+
+    await instance.settingsSet({
+      scope: 'workspace',
+      keyPath: ['git', 'untrackedStrategy'],
+      value: 'all'
+    })
+    await vi.waitFor(
+      () => {
+        expect(
+          events.some(
+            (event) => isStatus(event) && event.update.status.untracked.includes('scratch/draft-a.txt')
+          )
+        ).toBe(true)
+      },
+      { timeout: 5000 }
+    )
+    const expanded = await instance.getStatus({ gitDir })
+    expect([...expanded.status.untracked].sort()).toEqual(['scratch/draft-a.txt', 'scratch/draft-b.txt'])
+
+    await instance.settingsSet({
+      scope: 'workspace',
+      keyPath: ['repos', 'api-server', 'untrackedStrategy'],
+      value: 'normal'
+    })
+    await vi.waitFor(
+      () => {
+        const latest = events.filter(isStatus).at(-1)
+        expect(latest?.update.status.untracked).toEqual(['scratch/'])
+      },
+      { timeout: 5000 }
+    )
+  })
+
+  it('stores keybinding overrides and streams change events', async () => {
+    const root = await tempDir('gtd-svc-keybinding-')
+    const userData = await tempDir('gtd-svc-data-')
+    await initRepo(join(root, 'api-server'))
+
+    const events: WorkspaceServiceEvent[] = []
+    const instance = service(userData, events)
+    await instance.open(root)
+
+    await expect(instance.keybindingsGet()).resolves.toEqual({ overrides: {} })
+    await instance.keybindingsSet({ command: 'view.scm', keys: 'Ctrl+Alt+S' })
+    await instance.keybindingsSet({ command: 'view.terminal', keys: null })
+    await expect(instance.keybindingsGet()).resolves.toEqual({
+      overrides: { 'view.scm': 'Ctrl+Alt+S', 'view.terminal': null }
+    })
+
+    await instance.keybindingsReset({ command: 'view.scm' })
+    await expect(instance.keybindingsGet()).resolves.toEqual({ overrides: { 'view.terminal': null } })
+
+    expect(events.filter((event) => event.type === 'keybindingsChanged')).toEqual([
+      { type: 'keybindingsChanged', change: { command: 'view.scm', keys: 'Ctrl+Alt+S' } },
+      { type: 'keybindingsChanged', change: { command: 'view.terminal', keys: null } },
+      { type: 'keybindingsChanged', change: { command: 'view.scm', keys: undefined } }
+    ])
+  })
+
   it('persists trust and recent workspaces across service restarts', async () => {
     const root = await tempDir('gtd-svc-trust-')
     const userData = await tempDir('gtd-svc-data-')
