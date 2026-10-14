@@ -938,22 +938,52 @@ describe('worktree operations', () => {
 
       const target = join(root, '__worktree__', 'api-server_locked')
       await instance.gitWorktreeAdd({ gitDir, path: target, newBranch: 'locked-branch' })
+
+      // Locking refreshes the row through a scoped rescan: the renderer learns
+      // about the lock from an `updated` diff carrying the reason.
+      const beforeLock = events.length
       await instance.gitWorktreeLock({ gitDir, path: target, reason: 'in use elsewhere' })
+      const lockUpdated = events
+        .slice(beforeLock)
+        .flatMap((event) => (event.type === 'reposChanged' ? event.diff.updated : []))
+      expect(lockUpdated.map((entry) => entry.path)).toEqual([real(target)])
+      expect(lockUpdated[0]?.worktreeLocked).toBe('in use elsewhere')
+
       const locked = (await instance.gitWorktrees({ gitDir })).worktrees
       expect(locked.find((entry) => entry.path === real(target))?.locked).toBe('in use elsewhere')
 
       await expect(instance.gitWorktreeRemove({ gitDir, path: target })).rejects.toMatchObject({
         code: 'worktree-locked'
       })
+      const beforeUnlock = events.length
       await instance.gitWorktreeUnlock({ gitDir, path: target })
+      const unlockUpdated = events
+        .slice(beforeUnlock)
+        .flatMap((event) => (event.type === 'reposChanged' ? event.diff.updated : []))
+      expect(unlockUpdated.map((entry) => entry.path)).toEqual([real(target)])
+      expect(unlockUpdated[0]?.worktreeLocked).toBeNull()
       const done = await instance.gitWorktreeRemove({ gitDir, path: target })
       expect(done).toMatchObject({ backup: null, undo: { op: 'worktree-remove' } })
 
-      // A worktree deleted behind the app's back leaves prunable metadata behind.
+      // A worktree deleted behind the app's back leaves prunable metadata behind:
+      // a scoped rescan keeps a row for it (no git directory) until prune drops it.
       const stale = join(root, '__worktree__', 'api-server_stale')
       await instance.gitWorktreeAdd({ gitDir, path: stale, newBranch: 'stale-branch' })
       const stalePath = real(stale)
       await removeDir(stale)
+      const beforeRescan = events.length
+      await instance.rescan([repo])
+      const rescanned = events
+        .slice(beforeRescan)
+        .flatMap((event) =>
+          event.type === 'reposChanged' ? [...event.diff.added, ...event.diff.updated] : []
+        )
+      const prunable = rescanned.find((entry) => entry.path === stalePath)
+      expect(prunable).toMatchObject({
+        kind: 'worktree',
+        gitDir: '',
+        worktreePrunable: expect.any(String)
+      })
       await instance.gitWorktreePrune({ gitDir })
 
       const remaining = (await instance.gitWorktrees({ gitDir })).worktrees

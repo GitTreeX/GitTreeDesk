@@ -1146,6 +1146,7 @@ export class WorkspaceService {
     await this.#gitOperation(record, () =>
       lockWorktree({ repoPath: record.path, path: target.path, reason: request.reason })
     )
+    await this.#refreshWorktreeState(record)
     return null
   }
 
@@ -1158,6 +1159,7 @@ export class WorkspaceService {
     await this.#gitOperation(record, () =>
       unlockWorktree({ repoPath: record.path, path: target.path })
     )
+    await this.#refreshWorktreeState(record)
     return null
   }
 
@@ -1300,6 +1302,16 @@ export class WorkspaceService {
       (row) => this.#pathKey(row.path) === this.#pathKey(target)
     )
     if (registered || insideRoot) await this.rescan([target])
+  }
+
+  /** Re-reads worktree metadata (lock state) by scanning the owning main checkout. */
+  async #refreshWorktreeState(record: RepoRecord): Promise<void> {
+    const session = this.#session
+    if (session === null) return
+    const main = session.registry.all.find(
+      (row) => row.gitDir === row.id && row.id === record.id && row.kind !== 'bare'
+    )
+    await this.rescan([main?.path ?? record.path])
   }
 
   /**
