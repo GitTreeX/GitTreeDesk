@@ -1,5 +1,7 @@
 import { realpathSync } from 'node:fs'
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { createServer, type Server } from 'node:http'
+import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -18,6 +20,7 @@ const real = (path: string): string => realpathSync(path).replace(/\\/g, '/')
 let dirs: string[] = []
 let pools: GitPool[] = []
 let services: WorkspaceService[] = []
+let servers: Server[] = []
 
 async function tempDir(prefix: string): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), prefix))
@@ -36,10 +39,34 @@ async function git(cwd: string, args: readonly string[]): Promise<string> {
   return result.stdout
 }
 
+async function commitAll(cwd: string, message: string): Promise<void> {
+  await git(cwd, ['add', '.'])
+  await git(cwd, ['commit', '-q', '-m', message])
+}
+
 async function initRepo(dir: string): Promise<void> {
   await mkdir(dir, { recursive: true })
   await git(dir, ['init', '-q', '-b', 'main'])
+  await git(dir, ['config', 'user.name', 'GitTreeDesk Test'])
+  await git(dir, ['config', 'user.email', 'test@gitreedesk.invalid'])
   await git(dir, ['commit', '-q', '--allow-empty', '-m', 'init'])
+}
+
+/** A clone of the given origin, configured with a committer identity. */
+async function cloneRepo(origin: string): Promise<string> {
+  const parent = await tempDir('gtd-svc-clone-')
+  const clone = join(parent, 'clone')
+  await git(parent, ['clone', '-q', origin, clone])
+  await git(clone, ['config', 'user.name', 'GitTreeDesk Test'])
+  await git(clone, ['config', 'user.email', 'test@gitreedesk.invalid'])
+  return clone
+}
+
+/** Bare repository to use as an origin. */
+async function bareOrigin(): Promise<string> {
+  const origin = await tempDir('gtd-svc-origin-')
+  await git(origin, ['init', '-q', '--bare'])
+  return origin
 }
 
 function service(userDataDir: string, events: WorkspaceServiceEvent[]): WorkspaceService {
@@ -72,6 +99,11 @@ async function removeDir(dir: string): Promise<void> {
 }
 
 afterEach(async () => {
+  for (const server of servers) {
+    server.closeAllConnections()
+    await new Promise<void>((resolvePromise) => server.close(() => resolvePromise()))
+  }
+  servers = []
   for (const instance of services) await instance.dispose()
   services = []
   for (const instance of pools) instance.dispose()
@@ -475,4 +507,341 @@ describe('WorkspaceService', () => {
     expect(listing.files).toEqual(['README.md', 'new-file.md'])
     expect(listing.truncated).toBe(false)
   })
+})
+
+describe('branch operations', () => {
+  it(
+    'runs the branch lifecycle with backups for unmerged deletes',
+    async () => {
+      const root = await tempDir('gtd-svc-branch-')
+      const userData = await tempDir('gtd-svc-data-')
+      const repo = join(root, 'api-server')
+      await initRepo(repo)
+      const lines = 'one\ntwo\nthree\nfour\nfive\nsix\nseven\neight\nnine\nten\neleven\ntwelve\n'
+      await writeFile(join(repo, 'a.txt'), lines)
+      await commitAll(repo, 'first')
+
+      const events: WorkspaceServiceEvent[] = []
+      const instance = service(userData, events)
+      const descriptor = await instance.open(root)
+      const gitDir = descriptor.records[0]?.gitDir ?? ''
+
+      const created = await instance.gitBranchCreate({ gitDir, name: 'feat', checkout: true })
+      expect(created).toEqual({
+        upstream: null,
+        stash: { stashed: false, stashRestored: false, stashConflict: false }
+      })
+      expect((await git(repo, ['branch', '--show-current'])).trim()).toBe('feat')
+
+      await instance.gitBranchRename({ gitDir, name: 'feat', newName: 'feature' })
+      expect((await git(repo, ['branch', '--show-current'])).trim()).toBe('feature')
+
+      await instance.gitBranchCheckout({ gitDir, name: 'main' })
+      const merged = await instance.gitBranchDelete({ gitDir, name: 'feature' })
+      expect(merged).toEqual({ merged: true, backup: null })
+      expect((await git(repo, ['branch', '--list', 'feature'])).trim()).toBe('')
+
+      // An unmerged branch requires the force confirmation and leaves a backup ref.
+      await instance.gitBranchCreate({ gitDir, name: 'topic' })
+      expect((await git(repo, ['branch', '--show-current'])).trim()).toBe('main')
+      await instance.gitBranchCheckout({ gitDir, name: 'topic' })
+      await writeFile(join(repo, 'topic.txt'), 'topic\n')
+      await commitAll(repo, 'topic work')
+      const topicSha = (await git(repo, ['rev-parse', 'refs/heads/topic'])).trim()
+      await instance.gitBranchCheckout({ gitDir, name: 'main' })
+
+      await expect(instance.gitBranchDelete({ gitDir, name: 'topic' })).rejects.toMatchObject({
+        code: 'branch-unmerged'
+      })
+      expect((await git(repo, ['rev-parse', '--verify', 'refs/heads/topic'])).trim()).toBe(topicSha)
+
+      const forced = await instance.gitBranchDelete({ gitDir, name: 'topic', force: true })
+      expect(forced.merged).toBe(false)
+      expect(forced.backup?.op).toBe('branch-delete')
+      expect(forced.backup?.sha).toBe(topicSha)
+      expect((await git(repo, ['rev-parse', '--verify', forced.backup?.ref ?? ''])).trim()).toBe(topicSha)
+      expect((await git(repo, ['branch', '--list', 'topic'])).trim()).toBe('')
+
+      // Detaching at a commit leaves no branch checked out.
+      await instance.gitCheckoutDetach({ gitDir, rev: 'main' })
+      expect((await git(repo, ['rev-parse', '--abbrev-ref', 'HEAD'])).trim()).toBe('HEAD')
+
+      // Upstream wiring against an existing remote-tracking ref.
+      await git(repo, ['remote', 'add', 'origin', 'https://example.invalid/acme/api-server.git'])
+      await git(repo, ['update-ref', 'refs/remotes/origin/main', 'HEAD'])
+      await instance.gitBranchSetUpstream({ gitDir, name: 'main', upstream: 'origin/main' })
+      expect((await git(repo, ['config', '--get', 'branch.main.merge'])).trim()).toBe('refs/heads/main')
+      expect((await git(repo, ['config', '--get', 'branch.main.remote'])).trim()).toBe('origin')
+
+      const tracked = await instance.gitBranchCreate({
+        gitDir,
+        name: 'tracker',
+        startPoint: 'main',
+        checkout: true,
+        upstream: 'origin/main'
+      })
+      expect(tracked.upstream).toBe('origin/main')
+      expect((await git(repo, ['branch', '--show-current'])).trim()).toBe('tracker')
+      expect((await git(repo, ['config', '--get', 'branch.tracker.merge'])).trim()).toBe('refs/heads/main')
+
+      // A switch blocked by local changes auto-stashes around the retry and
+      // restores the edit afterwards (far enough from the branch-side change
+      // that the pop merges without a conflict).
+      await instance.gitBranchCheckout({ gitDir, name: 'main' })
+      await writeFile(join(repo, 'a.txt'), lines.replace('two', 'TWO'))
+      await commitAll(repo, 'main edit')
+      await instance.gitBranchCheckout({ gitDir, name: 'tracker' })
+      await writeFile(join(repo, 'a.txt'), `${lines}extra\n`)
+      const stashed = await instance.gitBranchCheckout({ gitDir, name: 'main' })
+      expect(stashed.stash).toEqual({ stashed: true, stashRestored: true, stashConflict: false })
+      expect((await readFile(join(repo, 'a.txt'), 'utf8')).replace(/\r\n/g, '\n')).toBe(
+        `${lines.replace('two', 'TWO')}extra\n`
+      )
+
+      await expect(instance.gitBranchCreate({ gitDir, name: 'bad name' })).rejects.toMatchObject({
+        code: 'git-failed'
+      })
+      await expect(instance.gitBranchCheckout({ gitDir: '/nowhere/.git', name: 'main' })).rejects.toMatchObject(
+        { code: 'unknown-repo' }
+      )
+    },
+    60_000
+  )
+})
+
+describe('sync operations', () => {
+  it(
+    'drives remotes, fetch, pull, push and tags against a real origin',
+    async () => {
+      const root = await tempDir('gtd-svc-sync-')
+      const userData = await tempDir('gtd-svc-data-')
+      const origin = await bareOrigin()
+      const repo = join(root, 'api-server')
+      await initRepo(repo)
+      await writeFile(join(repo, 'app.txt'), 'one\n')
+      await commitAll(repo, 'first')
+      await git(repo, ['remote', 'add', 'origin', origin])
+      await git(repo, ['push', '-q', '-u', 'origin', 'main'])
+      await git(origin, ['symbolic-ref', 'HEAD', 'refs/heads/main'])
+      const site = join(root, 'site')
+      await initRepo(site)
+
+      const events: WorkspaceServiceEvent[] = []
+      const instance = service(userData, events)
+      const descriptor = await instance.open(root)
+      const gitDir =
+        descriptor.records.find((record) => record.relPath === 'api-server')?.gitDir ?? ''
+      const siteGitDir = descriptor.records.find((record) => record.relPath === 'site')?.gitDir ?? ''
+
+      const remotes = await instance.gitRemotes({ gitDir })
+      expect(remotes.remotes).toEqual([{ name: 'origin', fetchUrl: origin, pushUrl: origin }])
+      expect(remotes.defaultRemote).toBe('origin')
+
+      await instance.gitRemoteAdd({ gitDir, name: 'mirror', url: 'https://example.invalid/acme/api-server.git' })
+      await instance.gitRemoteSetUrl({
+        gitDir,
+        name: 'mirror',
+        url: 'https://example.invalid/acme/api-server-mirror.git',
+        push: true
+      })
+      const withMirror = await instance.gitRemotes({ gitDir })
+      const mirror = withMirror.remotes.find((entry) => entry.name === 'mirror')
+      expect(mirror?.fetchUrl).toBe('https://example.invalid/acme/api-server.git')
+      expect(mirror?.pushUrl).toBe('https://example.invalid/acme/api-server-mirror.git')
+
+      // The `git.defaultRemote` override wins when it names a real remote and
+      // falls back to origin when it does not.
+      await instance.settingsSet({ scope: 'user', keyPath: ['git', 'defaultRemote'], value: 'mirror' })
+      expect((await instance.gitRemotes({ gitDir })).defaultRemote).toBe('mirror')
+      await instance.settingsSet({ scope: 'user', keyPath: ['git', 'defaultRemote'], value: 'ghost' })
+      expect((await instance.gitRemotes({ gitDir })).defaultRemote).toBe('origin')
+      await instance.settingsSet({ scope: 'user', keyPath: ['git', 'defaultRemote'], value: undefined })
+      await instance.gitRemoteRemove({ gitDir, name: 'mirror' })
+      expect((await instance.gitRemotes({ gitDir })).remotes.map((entry) => entry.name)).toEqual(['origin'])
+
+      // Fetch: the first run may materialize origin/HEAD; once everything is
+      // known a fetch without new refs reports no update, and a pushed commit
+      // flips the flag to true.
+      expect((await instance.gitFetch({ gitDir })).remote).toBe('origin')
+      expect((await instance.gitFetch({ gitDir })).updated).toBe(false)
+      const clone = await cloneRepo(origin)
+      await writeFile(join(clone, 'from-clone.txt'), 'clone work\n')
+      await commitAll(clone, 'clone work')
+      await git(clone, ['push', '-q', 'origin', 'main'])
+      const fetched = await instance.gitFetch({ gitDir })
+      expect(fetched.remote).toBe('origin')
+      expect(fetched.updated).toBe(true)
+      expect(fetched.output).toBeTypeOf('string')
+
+      const pulled = await instance.gitPull({ gitDir })
+      expect(pulled.updated).toBe(true)
+      expect(pulled.stash).toEqual({ stashed: false, stashRestored: false, stashConflict: false })
+      expect((await readFile(join(repo, 'from-clone.txt'), 'utf8')).replace(/\r\n/g, '\n')).toBe(
+        'clone work\n'
+      )
+
+      // Divergence: ff-only refuses, the per-repo rebase override succeeds.
+      await writeFile(join(repo, 'local.txt'), 'local\n')
+      await commitAll(repo, 'local work')
+      await writeFile(join(clone, 'remote2.txt'), 'remote\n')
+      await commitAll(clone, 'remote work')
+      await git(clone, ['push', '-q', 'origin', 'main'])
+      await expect(instance.gitPull({ gitDir })).rejects.toMatchObject({ code: 'git-failed' })
+      await instance.settingsSet({
+        scope: 'workspace',
+        keyPath: ['repos', 'api-server', 'pullStrategy'],
+        value: 'rebase'
+      })
+      const rebased = await instance.gitPull({ gitDir })
+      expect(rebased.updated).toBe(true)
+      expect((await git(repo, ['log', '-1', '--format=%s'])).trim()).toBe('local work')
+
+      // Publishing a new branch sets its upstream.
+      await git(repo, ['switch', '-q', '-c', 'feat'])
+      await writeFile(join(repo, 'feat.txt'), 'feat\n')
+      await commitAll(repo, 'feat work')
+      const pushed = await instance.gitPush({ gitDir, branch: 'feat', setUpstream: true })
+      expect(pushed.remote).toBe('origin')
+      const featSha = (await git(repo, ['rev-parse', 'feat'])).trim()
+      expect((await git(origin, ['rev-parse', '--verify', 'refs/heads/feat'])).trim()).toBe(featSha)
+      expect((await git(repo, ['config', '--get', 'branch.feat.merge'])).trim()).toBe('refs/heads/feat')
+
+      // Tags: annotated with push-on-create, lightweight pushed separately.
+      const headSha = (await git(repo, ['rev-parse', 'HEAD'])).trim()
+      const annotated = await instance.gitTagCreate({
+        gitDir,
+        name: 'v1.0.0',
+        target: 'HEAD',
+        message: 'release one',
+        push: true
+      })
+      expect(annotated.remote).toBe('origin')
+      expect((await git(repo, ['cat-file', '-t', 'v1.0.0'])).trim()).toBe('tag')
+      expect((await git(origin, ['rev-parse', 'refs/tags/v1.0.0^{commit}'])).trim()).toBe(headSha)
+
+      await instance.gitTagCreate({ gitDir, name: 'light', target: 'HEAD' })
+      expect((await git(repo, ['cat-file', '-t', 'light'])).trim()).toBe('commit')
+
+      const remoteTags = await instance.gitRemoteTags({ gitDir, remote: 'origin' })
+      expect(remoteTags.remote).toBe('origin')
+      expect(remoteTags.tags).toEqual([{ name: 'v1.0.0', sha: headSha }])
+
+      const lightPushed = await instance.gitTagPush({ gitDir, name: 'light' })
+      expect(lightPushed.remote).toBe('origin')
+      expect((await git(origin, ['rev-parse', 'refs/tags/light'])).trim()).toBe(headSha)
+      await instance.gitTagPushAll({ gitDir })
+      const remoteDeleted = await instance.gitTagDeleteRemote({ gitDir, name: 'light' })
+      expect(remoteDeleted.remote).toBe('origin')
+      await expect(git(origin, ['rev-parse', '--verify', 'refs/tags/light'])).rejects.toThrow()
+      await instance.gitTagDelete({ gitDir, name: 'light' })
+      expect((await git(repo, ['tag', '--list'])).trim()).toBe('v1.0.0')
+
+      // Comparing revisions uses rename-aware listing.
+      const compared = await instance.gitDiffFiles({ gitDir, from: 'main', to: 'feat' })
+      expect(compared.files).toEqual([{ path: 'feat.txt', kind: 'added' }])
+
+      // Batch calls report per repository, including failures.
+      const batch = await instance.gitFetchMany({ gitDirs: [gitDir, siteGitDir, '/nowhere/.git'] })
+      expect(batch.results.map((result) => result.ok)).toEqual([true, false, false])
+      expect(batch.results[0]).toMatchObject({ name: 'api-server', error: null, stash: null })
+      expect(batch.results[1]?.error).toContain('No remote is configured')
+      expect(batch.results[2]?.error).toContain('No checkout')
+
+      const pullBatch = await instance.gitPullMany({ gitDirs: [gitDir] })
+      expect(pullBatch.results[0]).toMatchObject({
+        ok: true,
+        updated: false,
+        stash: { stashed: false, stashRestored: false, stashConflict: false }
+      })
+
+      await expect(instance.gitFetch({ gitDir, remote: 'missing' })).rejects.toMatchObject({
+        code: 'git-failed'
+      })
+      await expect(instance.gitRemotes({ gitDir: '/nowhere/.git' })).rejects.toMatchObject({
+        code: 'unknown-repo'
+      })
+    },
+    120_000
+  )
+})
+
+describe('network error mapping', () => {
+  it(
+    'classifies credential failures with a typed code and raw details',
+    async () => {
+      const root = await tempDir('gtd-svc-auth-')
+      const userData = await tempDir('gtd-svc-data-')
+      const repo = join(root, 'api-server')
+      await initRepo(repo)
+
+      const server = createServer((request, response) => {
+        response.writeHead(401, { 'WWW-Authenticate': 'Basic realm="acme"' })
+        response.end('unauthorized')
+      })
+      servers.push(server)
+      await new Promise<void>((resolvePromise) => server.listen(0, '127.0.0.1', resolvePromise))
+      const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/acme/api-server.git`
+      await git(repo, ['remote', 'add', 'secure', url])
+      // An empty value resets the accumulated helper list, neutralizing machine
+      // level helpers so the request fails fast instead of prompting.
+      await git(repo, ['config', 'credential.helper', ''])
+
+      const events: WorkspaceServiceEvent[] = []
+      const instance = service(userData, events)
+      const descriptor = await instance.open(root)
+      const gitDir = descriptor.records[0]?.gitDir ?? ''
+
+      const failure: unknown = await instance.gitFetch({ gitDir, remote: 'secure' }).catch(
+        (error: unknown) => error
+      )
+      expect(failure).toBeInstanceOf(ServiceError)
+      expect(failure).toMatchObject({
+        code: 'auth-required',
+        message: 'Credential required for "secure"'
+      })
+      expect((failure as ServiceError).details).toContain('terminal prompts disabled')
+
+      const tagsFailure: unknown = await instance.gitRemoteTags({ gitDir, remote: 'secure' }).catch(
+        (error: unknown) => error
+      )
+      expect(tagsFailure).toMatchObject({ code: 'auth-required' })
+    },
+    60_000
+  )
+})
+
+describe('bare repositories', () => {
+  it(
+    'allows configuration but rejects working-tree operations',
+    async () => {
+      const root = await tempDir('gtd-svc-bare-')
+      const userData = await tempDir('gtd-svc-data-')
+      const bare = join(root, 'mirror.git')
+      await mkdir(bare, { recursive: true })
+      await git(bare, ['init', '-q', '--bare'])
+
+      const events: WorkspaceServiceEvent[] = []
+      const instance = service(userData, events)
+      const descriptor = await instance.open(root)
+      const record = descriptor.records.find((entry) => entry.relPath === 'mirror.git')
+      expect(record?.kind).toBe('bare')
+      const gitDir = record?.gitDir ?? ''
+
+      await instance.gitRemoteAdd({
+        gitDir,
+        name: 'origin',
+        url: 'https://example.invalid/acme/mirror.git'
+      })
+      expect((await instance.gitRemotes({ gitDir })).defaultRemote).toBe('origin')
+
+      await expect(instance.gitBranchCheckout({ gitDir, name: 'main' })).rejects.toMatchObject({
+        code: 'git-failed'
+      })
+      await expect(instance.gitPull({ gitDir })).rejects.toMatchObject({ code: 'git-failed' })
+      await expect(
+        instance.gitTagCreate({ gitDir, name: 'v0', target: 'HEAD' })
+      ).rejects.toMatchObject({ code: 'git-failed' })
+    },
+    30_000
+  )
 })

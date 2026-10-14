@@ -1,5 +1,15 @@
 import type { AppInfo } from './api'
-import type { CommitInfo, GitRef, HeadCommit, RepoStatus } from './git'
+import type {
+  AutoStashReport,
+  BackupRef,
+  CommitInfo,
+  FileChange,
+  GitRef,
+  HeadCommit,
+  RemoteInfo,
+  RemoteTag,
+  RepoStatus
+} from './git'
 import type { DiscoveryStats, RepoRecord, WatchScopeKind, WorkspaceConfig } from './workspace'
 
 export type SettingsScope = 'user' | 'workspace'
@@ -226,6 +236,231 @@ export interface GitRefsRequest {
   gitDir: string
 }
 
+export interface GitBranchCheckoutRequest {
+  /** Checkout key: the record's git dir. */
+  gitDir: string
+  /** Local branch to switch to. */
+  name: string
+}
+
+export interface GitCheckoutDetachRequest {
+  gitDir: string
+  /** Revision to detach onto: a commit, tag or remote branch. */
+  rev: string
+}
+
+export interface BranchOpResponse {
+  /** Auto-stash guard outcome of the switch. */
+  stash: AutoStashReport
+}
+
+export interface GitBranchCreateRequest {
+  gitDir: string
+  name: string
+  /** Revision to start from (branch, tag, commit); omitted starts at HEAD. */
+  startPoint?: string
+  /** Switches to the new branch right away. */
+  checkout?: boolean
+  /** Remote-tracking ref to track, e.g. `origin/feat`. */
+  upstream?: string
+}
+
+export interface GitBranchCreateResponse extends BranchOpResponse {
+  upstream: string | null
+}
+
+export interface GitBranchRenameRequest {
+  gitDir: string
+  name: string
+  newName: string
+}
+
+export interface GitBranchDeleteRequest {
+  gitDir: string
+  name: string
+  /** Confirms deleting a branch that is not fully merged (backup ref included). */
+  force?: boolean
+}
+
+export interface GitBranchDeleteResponse {
+  /** The branch tip was reachable from HEAD. */
+  merged: boolean
+  /** Safety ref taken before an unmerged branch was deleted. */
+  backup: BackupRef | null
+}
+
+export interface GitBranchSetUpstreamRequest {
+  gitDir: string
+  name: string
+  /** Remote-tracking ref, e.g. `origin/main`. */
+  upstream: string
+}
+
+export interface GitRemotesRequest {
+  gitDir: string
+}
+
+export interface GitRemotesResponse {
+  remotes: RemoteInfo[]
+  /** Remote that fetch and push default to; `null` when none is configured. */
+  defaultRemote: string | null
+}
+
+export interface GitRemoteAddRequest {
+  gitDir: string
+  name: string
+  url: string
+}
+
+export interface GitRemoteRemoveRequest {
+  gitDir: string
+  name: string
+}
+
+export interface GitRemoteSetUrlRequest {
+  gitDir: string
+  name: string
+  url: string
+  /** Rewrites the separate push URL instead of the fetch URL. */
+  push?: boolean
+}
+
+export interface GitFetchRequest {
+  gitDir: string
+  /** Remote to fetch; omitted uses the default remote. */
+  remote?: string
+  prune?: boolean
+  followTags?: boolean
+}
+
+export interface GitFetchResponse {
+  remote: string
+  /** At least one remote-tracking ref or tag moved. */
+  updated: boolean
+  /** Raw stdout/stderr of the fetch. */
+  output: string
+}
+
+export interface GitPullRequest {
+  gitDir: string
+  remote?: string
+  branch?: string
+}
+
+export interface GitPullResponse {
+  /** HEAD moved to a new commit. */
+  updated: boolean
+  stash: AutoStashReport
+}
+
+export interface GitFetchManyRequest {
+  gitDirs: string[]
+  prune?: boolean
+  followTags?: boolean
+}
+
+export interface GitPullManyRequest {
+  gitDirs: string[]
+}
+
+export interface GitBatchResult {
+  gitDir: string
+  /** Display name of the repository. */
+  name: string
+  ok: boolean
+  /** Something moved; with `ok` false the entry failed instead. */
+  updated: boolean
+  /** Raw git output for the expandable details. */
+  output: string
+  /** Cleaned failure message when `ok` is false. */
+  error: string | null
+  /** Auto-stash report of a pull; `null` for fetch. */
+  stash: AutoStashReport | null
+}
+
+export interface GitPushRequest {
+  gitDir: string
+  /** Local branch to push. */
+  branch: string
+  /** Remote to push to; omitted uses the default remote. */
+  remote?: string
+  /** Publishes the branch and sets its upstream (`-u`). */
+  setUpstream?: boolean
+  /** Never a plain force; the caller confirms behind a warning. */
+  forceWithLease?: boolean
+}
+
+export interface GitPushResponse {
+  remote: string
+  output: string
+}
+
+export interface GitTagCreateRequest {
+  gitDir: string
+  name: string
+  /** Revision the tag points at, e.g. `HEAD`, a branch or a commit sha. */
+  target: string
+  /** A message makes the tag annotated; omit for a lightweight tag. */
+  message?: string
+  /** Pushes the tag after creating it. */
+  push?: boolean
+  /** Remote for the push; omitted uses the default remote. */
+  remote?: string
+}
+
+export interface GitTagCreateResponse {
+  /** Remote the tag was pushed to; `null` when it was not pushed. */
+  remote: string | null
+}
+
+export interface GitTagDeleteRequest {
+  gitDir: string
+  name: string
+}
+
+export interface GitTagPushRequest {
+  gitDir: string
+  name: string
+  remote?: string
+}
+
+export interface GitTagPushAllRequest {
+  gitDir: string
+  remote?: string
+}
+
+export interface GitTagPushResponse {
+  remote: string
+  output: string
+}
+
+export interface GitTagDeleteRemoteRequest {
+  gitDir: string
+  name: string
+  remote?: string
+}
+
+export interface GitRemoteTagsRequest {
+  gitDir: string
+  remote?: string
+}
+
+export interface GitRemoteTagsResponse {
+  /** Remote that was read; `null` when the repository has no remotes. */
+  remote: string | null
+  tags: RemoteTag[]
+}
+
+export interface GitDiffFilesRequest {
+  gitDir: string
+  from: string
+  to: string
+}
+
+export interface GitDiffFilesResponse {
+  files: FileChange[]
+}
+
 export interface WorkspaceListFilesRequest {
   limit?: number
 }
@@ -366,6 +601,28 @@ export interface InvokeMap {
   'git:headCommit': { request: GitHeadCommitRequest; response: GitHeadCommitResponse }
   'git:fileLog': { request: GitFileLogRequest; response: { commits: CommitInfo[]; hasMore: boolean } }
   'git:refs': { request: GitRefsRequest; response: { refs: GitRef[] } }
+  'git:branchCheckout': { request: GitBranchCheckoutRequest; response: BranchOpResponse }
+  'git:checkoutDetach': { request: GitCheckoutDetachRequest; response: BranchOpResponse }
+  'git:branchCreate': { request: GitBranchCreateRequest; response: GitBranchCreateResponse }
+  'git:branchRename': { request: GitBranchRenameRequest; response: null }
+  'git:branchDelete': { request: GitBranchDeleteRequest; response: GitBranchDeleteResponse }
+  'git:branchSetUpstream': { request: GitBranchSetUpstreamRequest; response: null }
+  'git:remotes': { request: GitRemotesRequest; response: GitRemotesResponse }
+  'git:remoteAdd': { request: GitRemoteAddRequest; response: null }
+  'git:remoteRemove': { request: GitRemoteRemoveRequest; response: null }
+  'git:remoteSetUrl': { request: GitRemoteSetUrlRequest; response: null }
+  'git:fetch': { request: GitFetchRequest; response: GitFetchResponse }
+  'git:fetchMany': { request: GitFetchManyRequest; response: { results: GitBatchResult[] } }
+  'git:pull': { request: GitPullRequest; response: GitPullResponse }
+  'git:pullMany': { request: GitPullManyRequest; response: { results: GitBatchResult[] } }
+  'git:push': { request: GitPushRequest; response: GitPushResponse }
+  'git:tagCreate': { request: GitTagCreateRequest; response: GitTagCreateResponse }
+  'git:tagDelete': { request: GitTagDeleteRequest; response: null }
+  'git:tagPush': { request: GitTagPushRequest; response: GitTagPushResponse }
+  'git:tagPushAll': { request: GitTagPushAllRequest; response: GitTagPushResponse }
+  'git:tagDeleteRemote': { request: GitTagDeleteRemoteRequest; response: GitTagPushResponse }
+  'git:remoteTags': { request: GitRemoteTagsRequest; response: GitRemoteTagsResponse }
+  'git:diffFiles': { request: GitDiffFilesRequest; response: GitDiffFilesResponse }
   'fs:readDir': { request: FsReadDirRequest; response: { entries: FsEntry[] } }
   'fs:readFile': { request: FsReadFileRequest; response: FsReadFileResponse }
   'fs:stat': { request: FsPathRequest; response: FsStatResponse }
@@ -434,6 +691,28 @@ export const INVOKE_CHANNELS = [
   'git:headCommit',
   'git:fileLog',
   'git:refs',
+  'git:branchCheckout',
+  'git:checkoutDetach',
+  'git:branchCreate',
+  'git:branchRename',
+  'git:branchDelete',
+  'git:branchSetUpstream',
+  'git:remotes',
+  'git:remoteAdd',
+  'git:remoteRemove',
+  'git:remoteSetUrl',
+  'git:fetch',
+  'git:fetchMany',
+  'git:pull',
+  'git:pullMany',
+  'git:push',
+  'git:tagCreate',
+  'git:tagDelete',
+  'git:tagPush',
+  'git:tagPushAll',
+  'git:tagDeleteRemote',
+  'git:remoteTags',
+  'git:diffFiles',
   'fs:readDir',
   'fs:readFile',
   'fs:stat',

@@ -67,6 +67,16 @@ export interface GitRef {
 
 export type PullStrategy = 'ff-only' | 'merge' | 'rebase'
 
+/** Outcome of the auto-stash guard around an operation blocked by local changes. */
+export interface AutoStashReport {
+  /** Auto-stash was taken because the first attempt was blocked by local changes. */
+  stashed: boolean
+  /** The auto-stash was restored cleanly after the retry succeeded. */
+  stashRestored: boolean
+  /** Restoring produced conflicts; the stash entry is kept. */
+  stashConflict: boolean
+}
+
 export interface RemoteInfo {
   name: string
   fetchUrl: string

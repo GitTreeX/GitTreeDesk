@@ -127,6 +127,28 @@ function createHandlers(service: WorkspaceService): InvokeHandlers {
     'git:headCommit': (request) => service.gitHeadCommit(request),
     'git:fileLog': (request) => service.gitFileLog(request),
     'git:refs': (request) => service.gitRefs(request),
+    'git:branchCheckout': (request) => service.gitBranchCheckout(request),
+    'git:checkoutDetach': (request) => service.gitCheckoutDetach(request),
+    'git:branchCreate': (request) => service.gitBranchCreate(request),
+    'git:branchRename': (request) => service.gitBranchRename(request),
+    'git:branchDelete': (request) => service.gitBranchDelete(request),
+    'git:branchSetUpstream': (request) => service.gitBranchSetUpstream(request),
+    'git:remotes': (request) => service.gitRemotes(request),
+    'git:remoteAdd': (request) => service.gitRemoteAdd(request),
+    'git:remoteRemove': (request) => service.gitRemoteRemove(request),
+    'git:remoteSetUrl': (request) => service.gitRemoteSetUrl(request),
+    'git:fetch': (request) => service.gitFetch(request),
+    'git:fetchMany': (request) => service.gitFetchMany(request),
+    'git:pull': (request) => service.gitPull(request),
+    'git:pullMany': (request) => service.gitPullMany(request),
+    'git:push': (request) => service.gitPush(request),
+    'git:tagCreate': (request) => service.gitTagCreate(request),
+    'git:tagDelete': (request) => service.gitTagDelete(request),
+    'git:tagPush': (request) => service.gitTagPush(request),
+    'git:tagPushAll': (request) => service.gitTagPushAll(request),
+    'git:tagDeleteRemote': (request) => service.gitTagDeleteRemote(request),
+    'git:remoteTags': (request) => service.gitRemoteTags(request),
+    'git:diffFiles': (request) => service.gitDiffFiles(request),
     'fs:readDir': (request) => service.readDir(request.path),
     'fs:readFile': (request) => service.readFileForEditor(request),
     'fs:stat': (request) => service.statPath(request),
@@ -248,7 +270,9 @@ function describeIssues(issues: readonly { path: PropertyKey[]; message: string 
 }
 
 function toErrorInfo(error: unknown): IpcErrorInfo {
-  if (error instanceof ServiceError) return { code: error.code, message: error.message }
+  if (error instanceof ServiceError) {
+    return { code: error.code, message: error.message, details: error.details }
+  }
   if (error instanceof Error) {
     console.error('[ipc] handler failed', error)
     return { code: 'internal', message: error.message }

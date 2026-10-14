@@ -1,8 +1,16 @@
 import { readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
-import type { DiffSource, FsFileKind, GitDiffRequest, GitDiffResponse, GitDiffSide } from '@gitreedesk/shared'
+import type {
+  ChangeKind,
+  DiffSource,
+  FileChange,
+  FsFileKind,
+  GitDiffRequest,
+  GitDiffResponse,
+  GitDiffSide
+} from '@gitreedesk/shared'
 import { classifyContent, contentCapFor, DIFF_LIMITS } from './content'
-import { runGit, runGitRaw } from './run'
+import { runGit, runGitOrThrow, runGitRaw } from './run'
 import { LITERAL_PATHS_ENV } from './staging'
 
 const EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
@@ -191,4 +199,68 @@ export async function readDiff(
     old: toSide(oldRead),
     new: toSide(newRead)
   }
+}
+
+const KIND_BY_STATUS: Record<string, ChangeKind> = {
+  A: 'added',
+  M: 'modified',
+  T: 'typeChanged',
+  D: 'deleted',
+  R: 'renamed',
+  C: 'copied'
+}
+
+/**
+ * Parses `git diff --name-status -z`: `<status>\0<path>\0` per entry, with
+ * status and path NUL-separated; renames/copies (`R100`, `C75`, …) carry the
+ * old path and the new path as two tokens.
+ */
+export function parseNameStatusZ(stdout: string): FileChange[] {
+  const tokens = stdout.split('\0')
+  const files: FileChange[] = []
+  let index = 0
+  while (index < tokens.length) {
+    const status = tokens[index]
+    index += 1
+    if (status === undefined || status.length === 0) continue
+
+    const letter = (status[0] ?? '').toUpperCase()
+    const first = tokens[index] ?? ''
+    index += 1
+    const paired = letter === 'R' || letter === 'C'
+    let second = first
+    if (paired) {
+      second = tokens[index] ?? ''
+      index += 1
+    }
+    if (first.length === 0 || second.length === 0) continue
+
+    const kind = KIND_BY_STATUS[letter] ?? 'modified'
+    files.push(paired ? { path: second, origPath: first, kind } : { path: first, kind })
+  }
+  return files
+}
+
+export interface ListChangedFilesOptions {
+  /** Revision or ref of the old side. */
+  from: string
+  /** Revision or ref of the new side. */
+  to: string
+  signal?: AbortSignal
+}
+
+/** Files that differ between two revisions, with rename detection on. */
+export async function listChangedFiles(
+  repoPath: string,
+  options: ListChangedFilesOptions
+): Promise<FileChange[]> {
+  const { from, to } = options
+  for (const rev of [from, to]) {
+    if (rev.length === 0 || rev.startsWith('-')) throw new Error(`Invalid revision: ${JSON.stringify(rev)}`)
+  }
+  const result = await runGitOrThrow(['diff', '--name-status', '-z', '-M', from, to], {
+    cwd: repoPath,
+    signal: options.signal
+  })
+  return parseNameStatusZ(result.stdout)
 }

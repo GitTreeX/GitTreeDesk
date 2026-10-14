@@ -2,9 +2,12 @@ import { mkdir, open, readdir, readFile, realpath, rename, rm, stat, writeFile }
 import { randomUUID } from 'node:crypto'
 import { basename, join, posix, resolve } from 'node:path'
 import type {
+  AutoStashReport,
+  BackupRef,
   CommitInfo,
   DiscoveryResult,
   DiscoveryStats,
+  FileChange,
   FsEntry,
   FsEntryKind,
   FsPathRequest,
@@ -14,19 +17,50 @@ import type {
   FsWriteFileRequest,
   FsWriteFileResponse,
   GitApplyHunkRequest,
+  GitBranchCheckoutRequest,
+  GitBranchCreateRequest,
+  GitBranchDeleteRequest,
+  GitBranchRenameRequest,
+  GitBranchSetUpstreamRequest,
+  GitBatchResult,
+  GitCheckoutDetachRequest,
   GitCheckoutRequest,
   GitCommitRequest,
+  GitDiffFilesRequest,
   GitDiffRequest,
   GitDiffResponse,
+  GitFetchManyRequest,
+  GitFetchRequest,
+  GitFetchResponse,
   GitFileLogRequest,
   GitHeadCommitRequest,
   GitHeadCommitResponse,
   GitIgnoreRequest,
   GitPathsRequest,
+  GitPullManyRequest,
+  GitPullRequest,
+  GitPullResponse,
+  GitPushRequest,
+  GitPushResponse,
   GitRef,
   GitRefsRequest,
+  GitRemoteAddRequest,
+  GitRemoteRemoveRequest,
+  GitRemotesRequest,
+  GitRemotesResponse,
+  GitRemoteSetUrlRequest,
+  GitRemoteTagsRequest,
+  GitRemoteTagsResponse,
   GitStatusRequest,
+  GitTagCreateRequest,
+  GitTagDeleteRemoteRequest,
+  GitTagDeleteRequest,
+  GitTagPushAllRequest,
+  GitTagPushRequest,
+  GitTagPushResponse,
   GitVersionInfo,
+  PullStrategy,
+  RemoteInfo,
   RepoRecord,
   RepoStatus,
   RepoStatusSnapshot,
@@ -41,19 +75,43 @@ import type {
   WatchScopeKind
 } from '@gitreedesk/shared'
 import {
+  addRemote,
   applyPatch,
+  checkoutBranch,
+  checkoutDetach,
   commit as createCommit,
+  createBackupRef,
+  createBranch,
+  createTag,
+  deleteBranch,
+  deleteRemoteTag,
+  deleteTag,
   discardWorktreePaths,
+  fetchRemote,
   GitCommandError,
   GitPool,
+  isBranchMerged,
   isHeadPushed,
+  listChangedFiles,
   listRefs,
+  listRemoteTags,
+  listRemotes,
   logCommits,
   pathExists,
   probeGitVersion,
+  pullRepo,
+  pushAllTags,
+  pushBranch,
+  pushTag,
   readDiff,
   readFileSnapshot,
   readHeadCommit,
+  readHeadSha,
+  removeRemote,
+  renameBranch,
+  resolveDefaultRemote,
+  setRemoteUrl,
+  setUpstream,
   stageAll as gitStageAll,
   stagePaths as gitStagePaths,
   unstageAll as gitUnstageAll,
@@ -90,6 +148,17 @@ function assertEntryName(name: string): void {
   }
 }
 
+const DETAILS_LIMIT = 16_384
+
+/** Raw output of a failed git command, capped to the tail where the error lives. */
+function rawGitOutput(error: GitCommandError): string {
+  const combined = [error.stdout, error.stderr]
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0)
+    .join('\n')
+  return combined.length > DETAILS_LIMIT ? combined.slice(combined.length - DETAILS_LIMIT) : combined
+}
+
 function toGitServiceError(error: unknown): ServiceError {
   if (error instanceof ServiceError) return error
   if (error instanceof GitCommandError) {
@@ -98,10 +167,39 @@ function toGitServiceError(error: unknown): ServiceError {
       .map((line) => line.trim())
       .filter((line) => line.length > 0)
     const detail = lines.find((line) => line.startsWith('error:') || line.startsWith('fatal:')) ?? lines[0]
-    return new ServiceError('git-failed', (detail ?? error.message).replace(/^(error|fatal):\s*/, ''))
+    const message = (detail ?? error.message).replace(/^(error|fatal):\s*/, '')
+    const raw = rawGitOutput(error)
+    return new ServiceError('git-failed', message, raw.length > message.length ? raw : undefined)
   }
   const message = error instanceof Error ? error.message : String(error)
   return new ServiceError('git-failed', message)
+}
+
+const CREDENTIAL_RE =
+  /could not read (?:username|password)|terminal prompts disabled|authentication failed|invalid username or (?:token|password)|http (?:401|403)/i
+const SSH_AUTH_RE = /permission denied \(publickey\)|host key verification failed|could not read from remote repository/i
+
+/** Maps network failures onto typed auth errors, keeping the raw output for the details drawer. */
+function toNetworkServiceError(error: unknown, remote: string): ServiceError {
+  if (error instanceof ServiceError) return error
+  if (error instanceof GitCommandError) {
+    const raw = rawGitOutput(error)
+    const details = raw.length > 0 ? raw : undefined
+    const target = remote.length > 0 ? `"${remote}"` : 'the remote server'
+    const probe = `${error.stderr}\n${error.stdout}`
+    if (CREDENTIAL_RE.test(probe)) {
+      return new ServiceError('auth-required', `Credential required for ${target}`, details)
+    }
+    if (SSH_AUTH_RE.test(probe)) {
+      return new ServiceError('auth-ssh', `SSH authentication to ${target} was rejected`, details)
+    }
+  }
+  return toGitServiceError(error)
+}
+
+function messageOf(error: unknown): string {
+  if (error instanceof ServiceError) return error.message
+  return error instanceof Error ? error.message : String(error)
 }
 
 export type WorkspaceServiceEvent =
@@ -404,6 +502,398 @@ export class WorkspaceService {
     return { refs: await listRefs({ repoPath: record.path }) }
   }
 
+  /** Files that differ between two revisions, rename-aware (branch comparison). */
+  async gitDiffFiles(request: GitDiffFilesRequest): Promise<{ files: FileChange[] }> {
+    const record = this.#requireCheckout(this.#requireSession(), request.gitDir)
+    try {
+      return { files: await listChangedFiles(record.path, { from: request.from, to: request.to }) }
+    } catch (error) {
+      throw toGitServiceError(error)
+    }
+  }
+
+  /** Switches to a branch; a remote-only name creates the tracking branch (git DWIM). */
+  async gitBranchCheckout(request: GitBranchCheckoutRequest): Promise<{ stash: AutoStashReport }> {
+    const record = this.#requireWriteCheckout(request.gitDir)
+    const stash = await this.#gitOperation(record, (repoPath) => checkoutBranch(repoPath, request.name))
+    return { stash }
+  }
+
+  /** Checks out a commit, tag or remote branch into detached HEAD. */
+  async gitCheckoutDetach(request: GitCheckoutDetachRequest): Promise<{ stash: AutoStashReport }> {
+    const record = this.#requireWriteCheckout(request.gitDir)
+    const stash = await this.#gitOperation(record, (repoPath) => checkoutDetach(repoPath, request.rev))
+    return { stash }
+  }
+
+  /** Creates a branch from any ref, optionally switching to it and tracking an upstream. */
+  async gitBranchCreate(
+    request: GitBranchCreateRequest
+  ): Promise<{ upstream: string | null; stash: AutoStashReport }> {
+    const record = this.#requireWriteCheckout(request.gitDir)
+    const upstream =
+      request.upstream !== undefined && request.upstream.length > 0 ? request.upstream : null
+    const stash = await this.#gitOperation(record, async (repoPath) => {
+      const outcome = await createBranch(repoPath, {
+        name: request.name,
+        startPoint: request.startPoint,
+        checkout: request.checkout === true
+      })
+      if (upstream !== null) await setUpstream(repoPath, request.name, upstream)
+      return outcome
+    })
+    return { upstream, stash }
+  }
+
+  async gitBranchRename(request: GitBranchRenameRequest): Promise<null> {
+    const record = this.#requireWriteCheckout(request.gitDir)
+    await this.#gitOperation(record, (repoPath) =>
+      renameBranch(repoPath, request.name, request.newName)
+    )
+    return null
+  }
+
+  /**
+   * Deletes a local branch. An unmerged branch requires `force` and gets a
+   * backup ref first, so the deletion stays undoable.
+   */
+  async gitBranchDelete(
+    request: GitBranchDeleteRequest
+  ): Promise<{ merged: boolean; backup: BackupRef | null }> {
+    const record = this.#requireWriteCheckout(request.gitDir)
+    return await this.#gitOperation(record, async (repoPath) => {
+      const merged = await isBranchMerged(repoPath, request.name)
+      if (!merged && request.force !== true) {
+        throw new ServiceError(
+          'branch-unmerged',
+          `Branch "${request.name}" is not fully merged into the current branch`
+        )
+      }
+      let backup: BackupRef | null = null
+      if (!merged) {
+        backup = await createBackupRef({
+          repoPath,
+          op: 'branch-delete',
+          target: `refs/heads/${request.name}`
+        })
+      }
+      await deleteBranch(repoPath, request.name, { force: !merged })
+      return { merged, backup }
+    })
+  }
+
+  /** Points a branch at a remote-tracking ref (e.g. `origin/feat`) as its upstream. */
+  async gitBranchSetUpstream(request: GitBranchSetUpstreamRequest): Promise<null> {
+    const record = this.#requireWriteCheckout(request.gitDir)
+    await this.#gitOperation(record, (repoPath) =>
+      setUpstream(repoPath, request.name, request.upstream)
+    )
+    return null
+  }
+
+  async gitRemotes(request: GitRemotesRequest): Promise<GitRemotesResponse> {
+    const record = this.#requireCheckout(this.#requireSession(), request.gitDir)
+    const remotes = await listRemotes(record.path)
+    return { remotes, defaultRemote: await this.#defaultRemoteName(remotes) }
+  }
+
+  async gitRemoteAdd(request: GitRemoteAddRequest): Promise<null> {
+    const record = this.#requireCheckout(this.#requireSession(), request.gitDir)
+    await this.#gitOperation(record, (repoPath) => addRemote(repoPath, request.name, request.url))
+    return null
+  }
+
+  async gitRemoteRemove(request: GitRemoteRemoveRequest): Promise<null> {
+    const record = this.#requireCheckout(this.#requireSession(), request.gitDir)
+    await this.#gitOperation(record, (repoPath) => removeRemote(repoPath, request.name))
+    return null
+  }
+
+  async gitRemoteSetUrl(request: GitRemoteSetUrlRequest): Promise<null> {
+    const record = this.#requireCheckout(this.#requireSession(), request.gitDir)
+    await this.#gitOperation(record, (repoPath) =>
+      setRemoteUrl(repoPath, request.name, request.url, { push: request.push === true })
+    )
+    return null
+  }
+
+  async gitFetch(request: GitFetchRequest): Promise<GitFetchResponse> {
+    const record = this.#requireCheckout(this.#requireSession(), request.gitDir)
+    const remote = await this.#resolveRemote(record, request.remote)
+    const result = await this.#gitOperation(
+      record,
+      (repoPath) =>
+        fetchRemote(repoPath, {
+          remote,
+          prune: request.prune === true,
+          followTags: request.followTags
+        }),
+      (error) => toNetworkServiceError(error, remote)
+    )
+    return { remote, updated: result.updated, output: result.output }
+  }
+
+  /** Pulls with the strategy resolved from settings (per-repo override first). */
+  async gitPull(request: GitPullRequest): Promise<GitPullResponse> {
+    const record = this.#requireWriteCheckout(request.gitDir)
+    const strategy = await this.#pullStrategy(record)
+    const label = request.remote ?? this.#upstreamRemoteHint(record) ?? ''
+    const before = await readHeadSha(record.path)
+    const stash = await this.#gitOperation(
+      record,
+      (repoPath) =>
+        pullRepo(repoPath, { strategy, remote: request.remote, branch: request.branch }),
+      (error) => toNetworkServiceError(error, label)
+    )
+    const after = await readHeadSha(record.path)
+    return { updated: before !== after, stash }
+  }
+
+  async gitPush(request: GitPushRequest): Promise<GitPushResponse> {
+    const record = this.#requireCheckout(this.#requireSession(), request.gitDir)
+    const remote = await this.#resolveRemote(record, request.remote)
+    const result = await this.#gitOperation(
+      record,
+      (repoPath) =>
+        pushBranch(repoPath, {
+          remote,
+          branch: request.branch,
+          setUpstream: request.setUpstream === true,
+          forceWithLease: request.forceWithLease === true
+        }),
+      (error) => toNetworkServiceError(error, remote)
+    )
+    return { remote, output: `${result.stdout}${result.stderr}`.trimEnd() }
+  }
+
+  /** Fetches several repositories; every repository reports its own result. */
+  async gitFetchMany(request: GitFetchManyRequest): Promise<{ results: GitBatchResult[] }> {
+    const session = this.#requireSession()
+    const results = await Promise.all(
+      request.gitDirs.map((gitDir) => this.#fetchOne(session, gitDir, request))
+    )
+    return { results }
+  }
+
+  /** Pulls several repositories; every repository reports its own result. */
+  async gitPullMany(request: GitPullManyRequest): Promise<{ results: GitBatchResult[] }> {
+    const session = this.#requireSession()
+    const results = await Promise.all(request.gitDirs.map((gitDir) => this.#pullOne(session, gitDir)))
+    return { results }
+  }
+
+  async #fetchOne(
+    session: WorkspaceSession,
+    gitDir: string,
+    options: { prune?: boolean; followTags?: boolean }
+  ): Promise<GitBatchResult> {
+    const record = this.#findCheckout(session, gitDir)
+    if (record === null) return this.#batchFailure(gitDir, gitDir, new ServiceError('unknown-repo', `No checkout with git dir: ${gitDir}`))
+    try {
+      const remote = await this.#resolveRemote(record)
+      const result = await this.#pool.run(() =>
+        this.#gitOperation(
+          record,
+          (repoPath) =>
+            fetchRemote(repoPath, {
+              remote,
+              prune: options.prune === true,
+              followTags: options.followTags
+            }),
+          (error) => toNetworkServiceError(error, remote)
+        )
+      )
+      return {
+        gitDir,
+        name: record.name,
+        ok: true,
+        updated: result.updated,
+        output: result.output,
+        error: null,
+        stash: null
+      }
+    } catch (error) {
+      return this.#batchFailure(gitDir, record.name, error)
+    }
+  }
+
+  async #pullOne(session: WorkspaceSession, gitDir: string): Promise<GitBatchResult> {
+    const record = this.#findCheckout(session, gitDir)
+    if (record === null) return this.#batchFailure(gitDir, gitDir, new ServiceError('unknown-repo', `No checkout with git dir: ${gitDir}`))
+    try {
+      const writeRecord = this.#requireWritable(record)
+      const strategy = await this.#pullStrategy(writeRecord)
+      const label = this.#upstreamRemoteHint(writeRecord) ?? ''
+      const before = await readHeadSha(writeRecord.path)
+      const chunks: string[] = []
+      const stash = await this.#pool.run(() =>
+        this.#gitOperation(
+          writeRecord,
+          (repoPath) =>
+            pullRepo(repoPath, {
+              strategy,
+              onOutput: (chunk) => chunks.push(chunk)
+            }),
+          (error) => toNetworkServiceError(error, label)
+        )
+      )
+      const after = await readHeadSha(writeRecord.path)
+      return {
+        gitDir,
+        name: writeRecord.name,
+        ok: true,
+        updated: before !== after,
+        output: chunks.join('').trimEnd(),
+        error: null,
+        stash
+      }
+    } catch (error) {
+      return this.#batchFailure(gitDir, record.name, error)
+    }
+  }
+
+  #batchFailure(gitDir: string, name: string, error: unknown): GitBatchResult {
+    const details = error instanceof ServiceError ? error.details : undefined
+    return {
+      gitDir,
+      name,
+      ok: false,
+      updated: false,
+      output: details ?? '',
+      error: messageOf(error),
+      stash: null
+    }
+  }
+
+  async gitTagCreate(request: GitTagCreateRequest): Promise<{ remote: string | null }> {
+    const record = this.#requireCheckout(this.#requireSession(), request.gitDir)
+    const remote = request.push === true ? await this.#resolveRemote(record, request.remote) : null
+    await this.#gitOperation(
+      record,
+      async (repoPath) => {
+        await createTag(repoPath, {
+          name: request.name,
+          target: request.target,
+          message: request.message
+        })
+        if (remote !== null) await pushTag(repoPath, remote, request.name)
+      },
+      (error) => toNetworkServiceError(error, remote ?? '')
+    )
+    return { remote }
+  }
+
+  async gitTagDelete(request: GitTagDeleteRequest): Promise<null> {
+    const record = this.#requireCheckout(this.#requireSession(), request.gitDir)
+    await this.#gitOperation(record, (repoPath) => deleteTag(repoPath, request.name))
+    return null
+  }
+
+  async gitTagPush(request: GitTagPushRequest): Promise<GitTagPushResponse> {
+    const record = this.#requireCheckout(this.#requireSession(), request.gitDir)
+    const remote = await this.#resolveRemote(record, request.remote)
+    const result = await this.#gitOperation(
+      record,
+      (repoPath) => pushTag(repoPath, remote, request.name),
+      (error) => toNetworkServiceError(error, remote)
+    )
+    return { remote, output: `${result.stdout}${result.stderr}`.trimEnd() }
+  }
+
+  async gitTagPushAll(request: GitTagPushAllRequest): Promise<GitTagPushResponse> {
+    const record = this.#requireCheckout(this.#requireSession(), request.gitDir)
+    const remote = await this.#resolveRemote(record, request.remote)
+    const result = await this.#gitOperation(
+      record,
+      (repoPath) => pushAllTags(repoPath, remote),
+      (error) => toNetworkServiceError(error, remote)
+    )
+    return { remote, output: `${result.stdout}${result.stderr}`.trimEnd() }
+  }
+
+  async gitTagDeleteRemote(request: GitTagDeleteRemoteRequest): Promise<GitTagPushResponse> {
+    const record = this.#requireCheckout(this.#requireSession(), request.gitDir)
+    const remote = await this.#resolveRemote(record, request.remote)
+    const result = await this.#gitOperation(
+      record,
+      (repoPath) => deleteRemoteTag(repoPath, remote, request.name),
+      (error) => toNetworkServiceError(error, remote)
+    )
+    return { remote, output: `${result.stdout}${result.stderr}`.trimEnd() }
+  }
+
+  /** Tags on the remote (`ls-remote`); an empty list when no remote is configured. */
+  async gitRemoteTags(request: GitRemoteTagsRequest): Promise<GitRemoteTagsResponse> {
+    const record = this.#requireCheckout(this.#requireSession(), request.gitDir)
+    const remotes = await listRemotes(record.path)
+    if (remotes.length === 0) return { remote: null, tags: [] }
+    const remote = request.remote ?? (await this.#defaultRemoteName(remotes))
+    if (remote === null || !remotes.some((entry) => entry.name === remote)) {
+      throw new ServiceError('git-failed', `Unknown remote "${request.remote ?? ''}"`)
+    }
+    try {
+      return { remote, tags: await listRemoteTags(record.path, remote) }
+    } catch (error) {
+      throw toNetworkServiceError(error, remote)
+    }
+  }
+
+  #defaultRemoteName(remotes: readonly RemoteInfo[]): Promise<string | null> {
+    return this.settingsGetEffective(['git', 'defaultRemote']).then(({ value }) => {
+      const configured = typeof value === 'string' && value.length > 0 ? value : null
+      return resolveDefaultRemote(remotes, configured)
+    })
+  }
+
+  /** Resolves an explicit or default remote; explicit names must exist. */
+  async #resolveRemote(record: RepoRecord, name?: string): Promise<string> {
+    const remotes = await listRemotes(record.path)
+    if (name !== undefined) {
+      if (!remotes.some((remote) => remote.name === name)) {
+        throw new ServiceError('git-failed', `Unknown remote "${name}"`)
+      }
+      return name
+    }
+    const fallback = await this.#defaultRemoteName(remotes)
+    if (fallback === null) {
+      throw new ServiceError('git-failed', 'No remote is configured for this repository')
+    }
+    return fallback
+  }
+
+  /** Workspace per-repo override, then the user setting, then `ff-only`. */
+  async #pullStrategy(record: RepoRecord): Promise<PullStrategy> {
+    const read = (value: unknown): PullStrategy | null =>
+      value === 'ff-only' || value === 'merge' || value === 'rebase' ? value : null
+    if (record.relPath.length > 0) {
+      const { value } = await this.settingsGetEffective(['repos', record.relPath, 'pullStrategy'])
+      const perRepo = read(value)
+      if (perRepo !== null) return perRepo
+    }
+    const { value } = await this.settingsGetEffective(['git', 'defaultPullStrategy'])
+    return read(value) ?? 'ff-only'
+  }
+
+  /** Remote of the cached upstream, used to label network errors. */
+  #upstreamRemoteHint(record: RepoRecord): string | null {
+    const status = this.#session?.scheduler.getCached(record.gitDir) ?? null
+    const upstream = status?.upstream?.ref ?? null
+    if (upstream === null) return null
+    const slash = upstream.indexOf('/')
+    return slash > 0 ? upstream.slice(0, slash) : null
+  }
+
+  #findCheckout(session: WorkspaceSession, gitDir: string): RepoRecord | null {
+    return session.registry.all.find((row) => row.gitDir.length > 0 && row.gitDir === gitDir) ?? null
+  }
+
+  #requireWritable(record: RepoRecord): RepoRecord {
+    if (record.kind === 'bare') {
+      throw new ServiceError('git-failed', `${record.name} is a bare repository and has no working tree`)
+    }
+    return record
+  }
+
   #requireWriteCheckout(gitDir: string): RepoRecord {
     const record = this.#requireCheckout(this.#requireSession(), gitDir)
     if (record.kind === 'bare') {
@@ -417,7 +907,11 @@ export class WorkspaceService {
    * failures onto ServiceError, and refreshes the status so the UI updates even
    * when no watcher event arrives.
    */
-  async #gitOperation<T>(record: RepoRecord, task: (repoPath: string) => Promise<T>): Promise<T> {
+  async #gitOperation<T>(
+    record: RepoRecord,
+    task: (repoPath: string) => Promise<T>,
+    mapError: (error: unknown) => ServiceError = toGitServiceError
+  ): Promise<T> {
     const previous = this.#writes.get(record.gitDir) ?? Promise.resolve()
     const run = previous.then(
       () => task(record.path),
@@ -431,7 +925,7 @@ export class WorkspaceService {
     try {
       result = await run
     } catch (error) {
-      throw toGitServiceError(error)
+      throw mapError(error)
     }
     this.#refreshStatus(record)
     return result

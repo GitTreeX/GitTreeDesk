@@ -5,6 +5,10 @@ const pathString = z.string().min(1).max(4096)
 const keyString = z.string().min(1).max(512)
 const keyPath = z.array(keyString).min(1).max(32)
 const scope = z.enum(['user', 'workspace'])
+const refString = z.string().min(1).max(1024)
+const branchName = z.string().min(1).max(255)
+const remoteName = z.string().min(1).max(255)
+const remoteUrl = z.string().min(1).max(2048)
 const entryName = z
   .string()
   .min(1)
@@ -82,6 +86,81 @@ export const invokeSchemas = {
     skip: z.number().int().min(0).max(1_000_000).optional()
   }),
   'git:refs': z.object({ gitDir: pathString }),
+  'git:branchCheckout': z.object({ gitDir: pathString, name: branchName }),
+  'git:checkoutDetach': z.object({ gitDir: pathString, rev: refString }),
+  'git:branchCreate': z.object({
+    gitDir: pathString,
+    name: branchName,
+    startPoint: refString.optional(),
+    checkout: z.boolean().optional(),
+    upstream: refString.optional()
+  }),
+  'git:branchRename': z.object({ gitDir: pathString, name: branchName, newName: branchName }),
+  'git:branchDelete': z.object({
+    gitDir: pathString,
+    name: branchName,
+    force: z.boolean().optional()
+  }),
+  'git:branchSetUpstream': z.object({
+    gitDir: pathString,
+    name: branchName,
+    upstream: refString
+  }),
+  'git:remotes': z.object({ gitDir: pathString }),
+  'git:remoteAdd': z.object({ gitDir: pathString, name: remoteName, url: remoteUrl }),
+  'git:remoteRemove': z.object({ gitDir: pathString, name: remoteName }),
+  'git:remoteSetUrl': z.object({
+    gitDir: pathString,
+    name: remoteName,
+    url: remoteUrl,
+    push: z.boolean().optional()
+  }),
+  'git:fetch': z.object({
+    gitDir: pathString,
+    remote: remoteName.optional(),
+    prune: z.boolean().optional(),
+    followTags: z.boolean().optional()
+  }),
+  'git:fetchMany': z.object({
+    gitDirs: z.array(pathString).min(1).max(1024),
+    prune: z.boolean().optional(),
+    followTags: z.boolean().optional()
+  }),
+  'git:pull': z.object({
+    gitDir: pathString,
+    remote: remoteName.optional(),
+    branch: branchName.optional()
+  }),
+  'git:pullMany': z.object({ gitDirs: z.array(pathString).min(1).max(1024) }),
+  'git:push': z.object({
+    gitDir: pathString,
+    branch: branchName,
+    remote: remoteName.optional(),
+    setUpstream: z.boolean().optional(),
+    forceWithLease: z.boolean().optional()
+  }),
+  'git:tagCreate': z.object({
+    gitDir: pathString,
+    name: branchName,
+    target: refString,
+    message: z.string().max(100_000).optional(),
+    push: z.boolean().optional(),
+    remote: remoteName.optional()
+  }),
+  'git:tagDelete': z.object({ gitDir: pathString, name: branchName }),
+  'git:tagPush': z.object({
+    gitDir: pathString,
+    name: branchName,
+    remote: remoteName.optional()
+  }),
+  'git:tagPushAll': z.object({ gitDir: pathString, remote: remoteName.optional() }),
+  'git:tagDeleteRemote': z.object({
+    gitDir: pathString,
+    name: branchName,
+    remote: remoteName.optional()
+  }),
+  'git:remoteTags': z.object({ gitDir: pathString, remote: remoteName.optional() }),
+  'git:diffFiles': z.object({ gitDir: pathString, from: refString, to: refString }),
   'fs:readDir': z.object({ path: pathString }),
   'fs:readFile': z.object({ path: pathString, allowLarge: z.boolean().optional() }),
   'fs:stat': z.object({ path: pathString }),

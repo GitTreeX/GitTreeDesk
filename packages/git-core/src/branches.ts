@@ -1,11 +1,12 @@
-import { runWithAutoStash, type AutoStashOutcome } from './autostash'
+import { NO_AUTOSTASH, runWithAutoStash, type AutoStashOutcome } from './autostash'
 import { runGit, runGitOrThrow } from './run'
 
 export interface BranchOpOptions {
   signal?: AbortSignal
 }
 
-const CHECKOUT_STASH_MESSAGE = 'GitTreeDesk: auto-stash before branch switch'
+const SWITCH_STASH_MESSAGE = 'GitTreeDesk: auto-stash before branch switch'
+const DETACH_STASH_MESSAGE = 'GitTreeDesk: auto-stash before checkout'
 
 const INVALID_REF_CHARS = /[\u0000-\u001f\u007f ~^:?*[\\]/
 
@@ -38,29 +39,40 @@ export async function checkoutBranch(
     repoPath,
     ['switch', name],
     { cwd: repoPath, signal: options.signal },
-    CHECKOUT_STASH_MESSAGE
+    SWITCH_STASH_MESSAGE
   )
 }
 
-/** Detaches HEAD onto a revision (commit, tag or remote branch). */
+/**
+ * Detaches HEAD onto a revision (commit, tag or remote branch), with the same
+ * auto-stash guard as a branch switch.
+ */
 export async function checkoutDetach(
   repoPath: string,
   rev: string,
   options: BranchOpOptions = {}
-): Promise<void> {
+): Promise<AutoStashOutcome> {
   if (rev.length === 0 || rev.startsWith('-')) throw new Error(`Invalid revision: ${rev}`)
-  await runGitOrThrow(['switch', '--detach', rev], { cwd: repoPath, signal: options.signal })
+  return await runWithAutoStash(
+    repoPath,
+    ['switch', '--detach', rev],
+    { cwd: repoPath, signal: options.signal },
+    DETACH_STASH_MESSAGE
+  )
 }
 
 export interface CreateBranchOptions extends BranchOpOptions {
   name: string
   /** Revision to start from; defaults to the current HEAD. */
   startPoint?: string
-  /** Switches to the new branch right away. */
+  /** Switches to the new branch right away (with the auto-stash guard). */
   checkout?: boolean
 }
 
-export async function createBranch(repoPath: string, options: CreateBranchOptions): Promise<void> {
+export async function createBranch(
+  repoPath: string,
+  options: CreateBranchOptions
+): Promise<AutoStashOutcome> {
   assertRefName(options.name)
   const args = ['branch', options.name]
   if (options.startPoint !== undefined && options.startPoint.length > 0) {
@@ -68,9 +80,13 @@ export async function createBranch(repoPath: string, options: CreateBranchOption
     args.push(options.startPoint)
   }
   await runGitOrThrow(args, { cwd: repoPath, signal: options.signal })
-  if (options.checkout === true) {
-    await runGitOrThrow(['switch', options.name], { cwd: repoPath, signal: options.signal })
-  }
+  if (options.checkout !== true) return NO_AUTOSTASH
+  return await runWithAutoStash(
+    repoPath,
+    ['switch', options.name],
+    { cwd: repoPath, signal: options.signal },
+    SWITCH_STASH_MESSAGE
+  )
 }
 
 /** Renames a local branch; git carries the upstream tracking config along. */
@@ -141,6 +157,16 @@ export async function readBranchTip(
   options: BranchTipOptions
 ): Promise<string | null> {
   const result = await runGit(['rev-parse', '--verify', '--quiet', `refs/heads/${options.name}`], {
+    cwd: repoPath,
+    signal: options.signal
+  })
+  if (result.code !== 0) return null
+  return result.stdout.trim()
+}
+
+/** Sha of the HEAD commit; `null` on an unborn branch. */
+export async function readHeadSha(repoPath: string, options: BranchOpOptions = {}): Promise<string | null> {
+  const result = await runGit(['rev-parse', '--verify', '--quiet', 'HEAD^{commit}'], {
     cwd: repoPath,
     signal: options.signal
   })

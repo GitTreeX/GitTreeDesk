@@ -1,3 +1,4 @@
+import type { AutoStashReport } from '@gitreedesk/shared'
 import { GitCommandError } from './errors'
 import { runGit, runGitOrThrow, type GitRunOptions } from './run'
 
@@ -14,14 +15,7 @@ export class AutoStashUnavailableError extends Error {
   }
 }
 
-export interface AutoStashOutcome {
-  /** Auto-stash was taken because the first attempt was blocked by local changes. */
-  stashed: boolean
-  /** The auto-stash was restored cleanly after the retry succeeded. */
-  stashRestored: boolean
-  /** Restoring the auto-stash produced conflicts; the stash entry is kept. */
-  stashConflict: boolean
-}
+export type AutoStashOutcome = AutoStashReport
 
 export const NO_AUTOSTASH: AutoStashOutcome = {
   stashed: false,

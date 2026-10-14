@@ -1,6 +1,6 @@
 import type { PullStrategy } from '@gitreedesk/shared'
 import { runWithAutoStash, type AutoStashOutcome } from './autostash'
-import { runGit, runGitOrThrow } from './run'
+import { runGit, runGitOrThrow, type GitRunResult } from './run'
 
 export interface SyncOutputOptions {
   /** Receives git's stdout and stderr while the command runs. */
@@ -110,7 +110,7 @@ export interface PushOptions extends SyncOutputOptions {
   forceWithLease?: boolean
 }
 
-export async function pushBranch(repoPath: string, options: PushOptions): Promise<void> {
+export async function pushBranch(repoPath: string, options: PushOptions): Promise<GitRunResult> {
   if (options.branch.length === 0 || options.branch.startsWith('-')) {
     throw new Error(`Invalid branch: ${options.branch}`)
   }
@@ -118,7 +118,7 @@ export async function pushBranch(repoPath: string, options: PushOptions): Promis
   if (options.setUpstream === true) args.push('--set-upstream')
   if (options.forceWithLease === true) args.push('--force-with-lease')
   args.push(options.remote, `refs/heads/${options.branch}`)
-  await runGitOrThrow(args, {
+  return await runGitOrThrow(args, {
     cwd: repoPath,
     signal: options.signal,
     onStdout: options.onOutput,

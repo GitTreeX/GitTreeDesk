@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { readFileSnapshot } from '../src/content'
-import { readDiff } from '../src/diff'
+import { listChangedFiles, parseNameStatusZ, readDiff } from '../src/diff'
 import { runGitOrThrow } from '../src/run'
 import { applyPatch, stageAll } from '../src/staging'
 
@@ -388,4 +388,72 @@ describe('file snapshots', () => {
     },
     30_000
   )
+})
+
+describe('name-status parsing', () => {
+  it('maps status letters and pairs rename and copy paths', () => {
+    const stdout =
+      'A\0added.txt\0M\0modified.txt\0D\0gone.txt\0T\0link.txt\0' +
+      'R100\0old.txt\0new.txt\0C75\0base.txt\0copy.txt\0X\0odd.txt\0'
+
+    expect(parseNameStatusZ(stdout)).toEqual([
+      { path: 'added.txt', kind: 'added' },
+      { path: 'modified.txt', kind: 'modified' },
+      { path: 'gone.txt', kind: 'deleted' },
+      { path: 'link.txt', kind: 'typeChanged' },
+      { path: 'new.txt', origPath: 'old.txt', kind: 'renamed' },
+      { path: 'copy.txt', origPath: 'base.txt', kind: 'copied' },
+      { path: 'odd.txt', kind: 'modified' }
+    ])
+  })
+
+  it('tolerates empty input and stray separators', () => {
+    expect(parseNameStatusZ('')).toEqual([])
+    expect(parseNameStatusZ('\0\0')).toEqual([])
+    expect(parseNameStatusZ('M\0only.txt\0\0')).toEqual([{ path: 'only.txt', kind: 'modified' }])
+    // A rename without its trailing path is dropped rather than mispaired.
+    expect(parseNameStatusZ('R100\0lonely.txt')).toEqual([])
+  })
+})
+
+describe('changed files between revisions', () => {
+  it(
+    'lists added, modified, deleted and renamed files with rename detection',
+    async () => {
+      const repo = await initRepo()
+      await write(repo, 'keep.txt', 'same\n')
+      await write(repo, 'modify.txt', 'before\n')
+      await write(repo, 'remove.txt', 'bye\n')
+      await write(repo, 'old-name.txt', 'rename payload that stays identical\n')
+      await git(repo, ['add', '.'])
+      await commit(repo, 'base')
+      await git(repo, ['switch', '-q', '-c', 'feat'])
+
+      await write(repo, 'modify.txt', 'after\n')
+      await rm(join(repo, 'remove.txt'))
+      await git(repo, ['mv', 'old-name.txt', 'new-name.txt'])
+      await write(repo, 'fresh.txt', 'new\n')
+      await git(repo, ['add', '-A'])
+      await commit(repo, 'feat work')
+
+      const files = await listChangedFiles(repo, { from: 'main', to: 'feat' })
+      const byPath = new Map(files.map((file) => [file.path, file]))
+      expect([...byPath.keys()].sort()).toEqual(['fresh.txt', 'modify.txt', 'new-name.txt', 'remove.txt'])
+      expect(byPath.get('fresh.txt')).toMatchObject({ kind: 'added' })
+      expect(byPath.get('modify.txt')).toMatchObject({ kind: 'modified' })
+      expect(byPath.get('remove.txt')).toMatchObject({ kind: 'deleted' })
+      expect(byPath.get('new-name.txt')).toMatchObject({ kind: 'renamed', origPath: 'old-name.txt' })
+
+      expect(await listChangedFiles(repo, { from: 'feat', to: 'feat' })).toEqual([])
+    },
+    30_000
+  )
+
+  it('rejects revisions that could be read as options', async () => {
+    const repo = await initRepo()
+    await expect(listChangedFiles(repo, { from: '--exit-code', to: 'main' })).rejects.toThrow(
+      'Invalid revision'
+    )
+    await expect(listChangedFiles(repo, { from: 'main', to: '' })).rejects.toThrow('Invalid revision')
+  })
 })

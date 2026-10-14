@@ -1,6 +1,6 @@
 import type { RemoteTag } from '@gitreedesk/shared'
 import { assertRefName } from './branches'
-import { runGitOrThrow } from './run'
+import { runGitOrThrow, type GitRunResult } from './run'
 
 export interface TagOpOptions {
   signal?: AbortSignal
@@ -41,9 +41,9 @@ export async function pushTag(
   remote: string,
   name: string,
   options: TagOpOptions = {}
-): Promise<void> {
+): Promise<GitRunResult> {
   assertRefName(name)
-  await runGitOrThrow(['push', remote, `refs/tags/${name}`], {
+  return await runGitOrThrow(['push', remote, `refs/tags/${name}`], {
     cwd: repoPath,
     signal: options.signal,
     onStdout: options.onOutput,
@@ -56,8 +56,8 @@ export async function pushAllTags(
   repoPath: string,
   remote: string,
   options: TagOpOptions = {}
-): Promise<void> {
-  await runGitOrThrow(['push', remote, '--tags'], {
+): Promise<GitRunResult> {
+  return await runGitOrThrow(['push', remote, '--tags'], {
     cwd: repoPath,
     signal: options.signal,
     onStdout: options.onOutput,
@@ -70,9 +70,9 @@ export async function deleteRemoteTag(
   remote: string,
   name: string,
   options: TagOpOptions = {}
-): Promise<void> {
+): Promise<GitRunResult> {
   assertRefName(name)
-  await runGitOrThrow(['push', remote, `:refs/tags/${name}`], {
+  return await runGitOrThrow(['push', remote, `:refs/tags/${name}`], {
     cwd: repoPath,
     signal: options.signal,
     onStdout: options.onOutput,

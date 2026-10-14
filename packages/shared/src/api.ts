@@ -31,6 +31,8 @@ export interface IpcErrorInfo {
   /** Stable machine-readable code, e.g. `invalid-request`, `not-open`. */
   code: string
   message: string
+  /** Raw git output for the troubleshooting drawer, when available. */
+  details?: string
 }
 
 export type IpcResult<T> = { ok: true; value: T } | { ok: false; error: IpcErrorInfo }
@@ -38,11 +40,14 @@ export type IpcResult<T> = { ok: true; value: T } | { ok: false; error: IpcError
 /** Thrown by {@link gtdApiFromTransport} when an invoke fails. */
 export class GtdIpcError extends Error {
   readonly code: string
+  /** Raw git output for the troubleshooting drawer; empty when unavailable. */
+  readonly details: string
 
-  constructor(code: string, message: string) {
+  constructor(code: string, message: string, details?: string) {
     super(message)
     this.name = 'GtdIpcError'
     this.code = code
+    this.details = details ?? ''
   }
 }
 
@@ -87,7 +92,9 @@ export interface GtdApi {
 export function gtdApiFromTransport(transport: GtdTransport): GtdApi {
   const invoke = (async (channel: InvokeChannel, request: unknown): Promise<unknown> => {
     const result = await transport.invokeRaw(channel as never, request as never)
-    if (!result.ok) throw new GtdIpcError(result.error.code, result.error.message)
+    if (!result.ok) {
+      throw new GtdIpcError(result.error.code, result.error.message, result.error.details)
+    }
     return result.value
   }) as GtdApi['invoke']
 
