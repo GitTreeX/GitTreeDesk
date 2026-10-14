@@ -81,6 +81,12 @@ import type {
   GitStashListResponse,
   GitStashRequest,
   GitStatusRequest,
+  GitSubmodulesResponse,
+  GitSubmoduleSyncRequest,
+  GitSubmoduleSyncResponse,
+  GitSubmoduleUpdateRequest,
+  GitSubmoduleUpdateResponse,
+  GitSubmoduleUpdateResult,
   GitTagCreateRequest,
   GitTagDeleteRemoteRequest,
   GitTagDeleteRequest,
@@ -88,17 +94,26 @@ import type {
   GitTagPushRequest,
   GitTagPushResponse,
   GitVersionInfo,
+  GitWorktreeAddRequest,
+  GitWorktreeAddResponse,
+  GitWorktreeLockRequest,
+  GitWorktreeRemoveRequest,
+  GitWorktreeRemoveResponse,
+  GitWorktreeTargetRequest,
+  GitWorktreesResponse,
   PullStrategy,
   RemoteInfo,
   RepoOperationKind,
   RepoRecord,
   RepoStatus,
   RepoStatusSnapshot,
+  RepoWorktree,
   RecentWorkspace,
   SettingsGetRequest,
   SettingsScope,
   SettingsSetRequest,
   SettingsRemoveRequest,
+  SubmoduleInfo,
   TrustGrantRequest,
   UndoHint,
   WorkspaceDescriptor,
@@ -107,6 +122,7 @@ import type {
 } from '@gitreedesk/shared'
 import {
   addRemote,
+  addWorktree,
   applyPatch,
   applyStash,
   cherryPick,
@@ -130,13 +146,17 @@ import {
   GitPool,
   isBranchMerged,
   isHeadPushed,
+  isWorktreeDirty,
   listBackupRefs,
   listChangedFiles,
   listRefs,
   listRemoteTags,
   listRemotes,
   listStashes,
+  listSubmodules,
+  listWorktrees,
   loadRebasePlan,
+  lockWorktree,
   logCommits,
   mergeAbort,
   mergeContinue,
@@ -147,6 +167,7 @@ import {
   performUndo,
   popStash,
   probeGitVersion,
+  pruneWorktrees,
   pullRepo,
   pushAllTags,
   pushBranch,
@@ -165,6 +186,7 @@ import {
   rebaseInteractive,
   rebaseOnto,
   removeRemote,
+  removeWorktree,
   renameBranch,
   resetRepo,
   resolveConflict,
@@ -176,10 +198,14 @@ import {
   stageAll as gitStageAll,
   stashFileChanges,
   stagePaths as gitStagePaths,
+  syncSubmoduleUrls,
+  unlockWorktree,
   unstageAll as gitUnstageAll,
   unstagePaths as gitUnstagePaths,
+  updateSubmodules,
   verifyRevision,
-  type UndoDescriptor
+  type UndoDescriptor,
+  type WorktreeAddMode
 } from '@gitreedesk/git-core'
 import {
   createPathMatcher,
@@ -283,6 +309,7 @@ export type WorkspaceServiceEvent =
   | { type: 'reposChanged'; root: string; diff: RepoDiff }
   | { type: 'status'; root: string; update: RepoStatusSnapshot }
   | { type: 'commitOutput'; root: string; gitDir: string; chunk: string }
+  | { type: 'submoduleOutput'; root: string; gitDir: string; path: string; chunk: string }
   | { type: 'treeChanged'; root: string; paths: string[] }
   | { type: 'issues'; root: string; issues: string[] }
   | { type: 'degraded'; root: string; kind: WatchScopeKind; dir: string; degraded: boolean }
@@ -1016,6 +1043,329 @@ export class WorkspaceService {
     return null
   }
 
+  /** Working trees of a checkout: the main tree, linked worktrees and prunable leftovers. */
+  async gitWorktrees(request: GitCheckoutRequest): Promise<GitWorktreesResponse> {
+    const record = this.#requireCheckout(this.#requireSession(), request.gitDir)
+    try {
+      const worktrees = await listWorktrees({ repoPath: record.path })
+      return {
+        worktrees: await Promise.all(
+          worktrees.map(async (worktree) => ({ ...worktree, path: await this.#absPosix(worktree.path) }))
+        )
+      }
+    } catch (error) {
+      throw toGitServiceError(error)
+    }
+  }
+
+  /** Adds a linked working tree on an existing branch, a new branch or a detached revision. */
+  async gitWorktreeAdd(request: GitWorktreeAddRequest): Promise<GitWorktreeAddResponse> {
+    const record = this.#requireWriteCheckout(request.gitDir)
+    const mode = this.#worktreeAddMode(request)
+    await this.#gitOperation(record, async (repoPath) => {
+      if (mode.kind === 'branch') await this.#assertBranchFree(repoPath, mode.branch)
+      await addWorktree({ repoPath, path: request.path, mode })
+    })
+    const created = await this.#absPosix(request.path)
+    await this.#refreshAfterWorktreeAdd(record, created)
+    return { path: created }
+  }
+
+  /**
+   * Removes a linked worktree. A locked worktree is refused; a dirty one requires
+   * `force`, which takes a backup ref first. Either way the removal stays undoable
+   * by recreating the worktree.
+   */
+  async gitWorktreeRemove(request: GitWorktreeRemoveRequest): Promise<GitWorktreeRemoveResponse> {
+    const session = this.#requireSession()
+    const record = this.#requireWriteCheckout(request.gitDir)
+    const target = await this.#findWorktree(record, request.path)
+    if (target === null) {
+      throw new ServiceError('invalid-request', `Unknown worktree: ${request.path}`)
+    }
+    // Run from the main checkout: removing the directory git currently sits in
+    // fails on Windows.
+    const main = session.registry.all.find((row) => row.gitDir === row.id && row.id === record.id)
+    const repoPath = main?.path ?? record.path
+    const response = await this.#gitOperation(record, async () => {
+      if (target.locked !== null) {
+        throw new ServiceError('worktree-locked', `Worktree "${target.path}" is locked; unlock it first`)
+      }
+      let backup: BackupRef | null = null
+      if (request.force !== true) {
+        const dirty = await isWorktreeDirty(target.path)
+        if (dirty === true) {
+          throw new ServiceError('worktree-dirty', `Worktree "${target.path}" has uncommitted changes`)
+        }
+      } else if (target.sha !== null) {
+        backup = await createBackupRef({ repoPath, op: 'worktree-remove', target: target.sha })
+      }
+      await removeWorktree({ repoPath, path: target.path, force: request.force === true })
+      const branch = target.branch === null ? null : target.branch.replace(/^refs\/heads\//, '')
+      const undo = this.#recordOperation(record, 'worktree-remove', {
+        backupRef: backup?.ref ?? null,
+        undoState: encodeUndoState({
+          kind: 'worktree-remove',
+          name: target.path,
+          ...(target.sha === null ? {} : { before: target.sha }),
+          target: branch ?? 'HEAD'
+        })
+      })
+      return { backup, undo }
+    })
+    await this.#refreshAfterWorktreeRemove(target.path)
+    return response
+  }
+
+  /** Drops metadata of deleted worktrees; rows of gone worktrees follow. */
+  async gitWorktreePrune(request: GitCheckoutRequest): Promise<null> {
+    const record = this.#requireWriteCheckout(request.gitDir)
+    const stale = (await listWorktrees({ repoPath: record.path }))
+      .filter((worktree) => worktree.prunable !== null && !worktree.bare)
+      .map((worktree) => worktree.path)
+    await this.#gitOperation(record, (repoPath) => pruneWorktrees({ repoPath }))
+    const dirs: string[] = []
+    for (const path of stale) {
+      try {
+        dirs.push(await this.resolveInside(path))
+      } catch {
+        // Nothing registered at that path; only the git metadata needed pruning.
+      }
+    }
+    if (dirs.length > 0) await this.rescan(dirs)
+    return null
+  }
+
+  /** Locks a worktree so prune and remove leave it alone until it is unlocked. */
+  async gitWorktreeLock(request: GitWorktreeLockRequest): Promise<null> {
+    const record = this.#requireWriteCheckout(request.gitDir)
+    const target = await this.#findWorktree(record, request.path)
+    if (target === null) {
+      throw new ServiceError('invalid-request', `Unknown worktree: ${request.path}`)
+    }
+    await this.#gitOperation(record, () =>
+      lockWorktree({ repoPath: record.path, path: target.path, reason: request.reason })
+    )
+    return null
+  }
+
+  async gitWorktreeUnlock(request: GitWorktreeTargetRequest): Promise<null> {
+    const record = this.#requireWriteCheckout(request.gitDir)
+    const target = await this.#findWorktree(record, request.path)
+    if (target === null) {
+      throw new ServiceError('invalid-request', `Unknown worktree: ${request.path}`)
+    }
+    await this.#gitOperation(record, () =>
+      unlockWorktree({ repoPath: record.path, path: target.path })
+    )
+    return null
+  }
+
+  /** Submodule state of a checkout, straight from `git submodule status`. */
+  async gitSubmodules(request: GitCheckoutRequest): Promise<GitSubmodulesResponse> {
+    const record = this.#requireCheckout(this.#requireSession(), request.gitDir)
+    return { submodules: await listSubmodules({ repoPath: record.path }) }
+  }
+
+  /**
+   * Updates submodules in parallel, one git process per submodule, streaming each
+   * submodule's output tagged with its path. A result reports whether the submodule
+   * changed state, so already-in-sync entries stay unremarkable.
+   */
+  async gitSubmoduleUpdate(request: GitSubmoduleUpdateRequest): Promise<GitSubmoduleUpdateResponse> {
+    const session = this.#requireSession()
+    const record = this.#requireWriteCheckout(request.gitDir)
+    const before = await listSubmodules({ repoPath: record.path })
+    const requested = request.paths
+    const targets =
+      requested === undefined ? before : before.filter((entry) => requested.includes(entry.path))
+    const results = await Promise.all(
+      targets.map((entry) =>
+        this.#pool.run(() => this.#updateSubmoduleOne(record, entry, session.root, request), {
+          priority: 'interactive'
+        })
+      )
+    )
+    await this.#refreshSubmoduleRecords(
+      record,
+      results.filter((row) => row.updated).map((row) => row.path)
+    )
+    return { results }
+  }
+
+  /** Re-copies `.gitmodules` URLs into the git configuration. */
+  async gitSubmoduleSync(request: GitSubmoduleSyncRequest): Promise<GitSubmoduleSyncResponse> {
+    const record = this.#requireWriteCheckout(request.gitDir)
+    const result = await this.#gitOperation(record, (repoPath) =>
+      syncSubmoduleUrls({ repoPath, paths: request.paths, recursive: request.recursive === true })
+    )
+    return { output: `${result.stdout}${result.stderr}`.trimEnd() }
+  }
+
+  /**
+   * One submodule update in its own git process. Concurrent updates of different
+   * submodules write disjoint directories, so they skip the per-checkout write lock.
+   */
+  async #updateSubmoduleOne(
+    record: RepoRecord,
+    entry: SubmoduleInfo,
+    root: string,
+    request: GitSubmoduleUpdateRequest
+  ): Promise<GitSubmoduleUpdateResult> {
+    const chunks: string[] = []
+    try {
+      await updateSubmodules({
+        repoPath: record.path,
+        paths: [entry.path],
+        init: request.init === true,
+        recursive: request.recursive === true,
+        onOutput: (chunk) => {
+          chunks.push(chunk)
+          this.#emit({ type: 'submoduleOutput', root, gitDir: record.gitDir, path: entry.path, chunk })
+        }
+      })
+    } catch (error) {
+      return {
+        path: entry.path,
+        ok: false,
+        updated: false,
+        error: messageOf(toGitServiceError(error)),
+        output: chunks.join('')
+      }
+    }
+    const state =
+      (await listSubmodules({ repoPath: record.path })).find((row) => row.path === entry.path)?.checkout ??
+      null
+    if (state === 'in-sync') {
+      return {
+        path: entry.path,
+        ok: true,
+        updated: entry.checkout !== 'in-sync',
+        error: null,
+        output: chunks.join('')
+      }
+    }
+    return {
+      path: entry.path,
+      ok: false,
+      updated: false,
+      error:
+        state === null
+          ? 'The submodule is missing after the update'
+          : `The submodule is ${state} after the update`,
+      output: chunks.join('')
+    }
+  }
+
+  /** Refreshes status of the parent and of any registered checkout at changed submodule paths. */
+  async #refreshSubmoduleRecords(record: RepoRecord, paths: readonly string[]): Promise<void> {
+    const session = this.#session
+    if (session === null) return
+    const keys = new Set(paths.map((path) => this.#pathKey(toPosix(join(record.path, path)))))
+    for (const row of session.registry.all) {
+      if (keys.has(this.#pathKey(row.path))) this.#refreshStatus(row)
+    }
+    this.#refreshStatus(record)
+  }
+
+  /**
+   * Brings a freshly created worktree into the registry. Scanning a directory
+   * picks up all worktrees of the repositories it finds, so the target's own
+   * directory covers in-root paths and the main checkout covers the rest.
+   */
+  async #refreshAfterWorktreeAdd(record: RepoRecord, target: string): Promise<void> {
+    const session = this.#session
+    if (session === null) return
+    if (target === session.root || target.startsWith(`${session.root}/`)) {
+      await this.rescan([target])
+      return
+    }
+    const main = session.registry.all.find((row) => row.gitDir === row.id && row.id === record.id)
+    if (main === undefined) {
+      await this.rescan()
+      return
+    }
+    await this.rescan([main.path])
+  }
+
+  /**
+   * Drops the registry row of a removed worktree: scanning its (now gone) path
+   * replaces the in-scope records with nothing. Unregistered paths are skipped.
+   */
+  async #refreshAfterWorktreeRemove(target: string): Promise<void> {
+    const session = this.#session
+    if (session === null) return
+    const insideRoot = target === session.root || target.startsWith(`${session.root}/`)
+    const registered = session.registry.all.some(
+      (row) => this.#pathKey(row.path) === this.#pathKey(target)
+    )
+    if (registered || insideRoot) await this.rescan([target])
+  }
+
+  /**
+   * Cleans worktree metadata after a fetch; stale metadata is cosmetic, so a
+   * failure here never fails the network operation.
+   */
+  async #pruneStaleWorktrees(record: RepoRecord): Promise<void> {
+    try {
+      if (!(await pathExists(`${record.commonDir}/worktrees`))) return
+      await this.#gitOperation(record, (repoPath) => pruneWorktrees({ repoPath }))
+    } catch {
+      // Retried on the next fetch.
+    }
+  }
+
+  #worktreeAddMode(request: GitWorktreeAddRequest): WorktreeAddMode {
+    const { branch, newBranch, detachAt } = request
+    const modes: WorktreeAddMode[] = []
+    if (branch !== undefined) modes.push({ kind: 'branch', branch })
+    if (newBranch !== undefined) {
+      modes.push(
+        request.base === undefined
+          ? { kind: 'new-branch', branch: newBranch }
+          : { kind: 'new-branch', branch: newBranch, base: request.base }
+      )
+    }
+    if (detachAt !== undefined) modes.push({ kind: 'detach', rev: detachAt })
+    const mode = modes[0]
+    if (modes.length !== 1 || mode === undefined) {
+      throw new ServiceError('invalid-request', 'Exactly one of branch, newBranch or detachAt is required')
+    }
+    return mode
+  }
+
+  /** Rejects a branch that is already checked out elsewhere; git would fail mid-add. */
+  async #assertBranchFree(repoPath: string, branch: string): Promise<void> {
+    const ref = `refs/heads/${branch}`
+    const worktrees = await listWorktrees({ repoPath })
+    if (worktrees.some((worktree) => worktree.branch === ref)) {
+      throw new ServiceError('branch-in-use', `Branch "${branch}" is already checked out in another worktree`)
+    }
+  }
+
+  /** Worktree list entry matching an absolute path, carrying its canonical path. */
+  async #findWorktree(record: RepoRecord, path: string): Promise<RepoWorktree | null> {
+    const target = this.#pathKey(await this.#absPosix(path))
+    const worktrees = await listWorktrees({ repoPath: record.path })
+    for (const worktree of worktrees) {
+      const normalized = await this.#absPosix(worktree.path)
+      if (this.#pathKey(normalized) === target) return { ...worktree, path: normalized }
+    }
+    return null
+  }
+
+  #absPosix(path: string): Promise<string> {
+    const absolute = resolve(path)
+    return realpath(absolute)
+      .then(toPosix)
+      .catch(() => toPosix(absolute))
+  }
+
+  /** Windows compares paths case-insensitively. */
+  #pathKey(path: string): string {
+    return process.platform === 'win32' ? path.toLowerCase() : path
+  }
+
   /** Switches to a branch; a remote-only name creates the tracking branch (git DWIM). */
   async gitBranchCheckout(request: GitBranchCheckoutRequest): Promise<{ stash: AutoStashReport }> {
     const record = this.#requireWriteCheckout(request.gitDir)
@@ -1148,6 +1498,7 @@ export class WorkspaceService {
         }),
       (error) => toNetworkServiceError(error, remote)
     )
+    await this.#pruneStaleWorktrees(record)
     return { remote, updated: result.updated, output: result.output }
   }
 
@@ -1222,6 +1573,7 @@ export class WorkspaceService {
           (error) => toNetworkServiceError(error, remote)
         )
       )
+      await this.#pruneStaleWorktrees(record)
       return {
         gitDir,
         name: record.name,

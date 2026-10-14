@@ -4,7 +4,7 @@ import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { GitPool, runGitOrThrow } from '@gitreedesk/git-core'
 import { ServiceError } from '../src/main/services/errors'
 import { WorkspaceService, type WorkspaceServiceEvent } from '../src/main/services/workspace-service'
@@ -848,5 +848,185 @@ describe('bare repositories', () => {
       ).rejects.toMatchObject({ code: 'git-failed' })
     },
     30_000
+  )
+})
+
+describe('worktree operations', () => {
+  it(
+    'adds an in-root worktree and registers it through a scoped rescan',
+    async () => {
+      const root = await tempDir('gtd-svc-wt-')
+      const userData = await tempDir('gtd-svc-data-')
+      const repo = join(root, 'api-server')
+      await initRepo(repo)
+
+      const events: WorkspaceServiceEvent[] = []
+      const instance = service(userData, events)
+      const descriptor = await instance.open(root)
+      const main = descriptor.records[0]
+      const gitDir = main?.gitDir ?? ''
+
+      const target = join(root, '__worktree__', 'api-server_feature')
+      const created = await instance.gitWorktreeAdd({ gitDir, path: target, newBranch: 'feature/wt' })
+      expect(created.path).toBe(real(target))
+
+      const added = events.flatMap((event) => (event.type === 'reposChanged' ? event.diff.added : []))
+      const record = added.find((entry) => entry.relPath === '__worktree__/api-server_feature')
+      expect(record).toMatchObject({ kind: 'worktree', external: false, parentId: main?.id })
+
+      const { worktrees } = await instance.gitWorktrees({ gitDir })
+      expect(worktrees).toHaveLength(2)
+      expect(worktrees.find((entry) => entry.branch === 'refs/heads/feature/wt')?.path).toBe(real(target))
+
+      await expect(
+        instance.gitWorktreeAdd({ gitDir, path: join(root, '__worktree__', 'duplicate'), branch: 'feature/wt' })
+      ).rejects.toMatchObject({ code: 'branch-in-use' })
+    },
+    30_000
+  )
+
+  it(
+    'registers an out-of-root worktree as external, refuses dirty removals and drops it after a forced one',
+    async () => {
+      const root = await tempDir('gtd-svc-wt-')
+      const userData = await tempDir('gtd-svc-data-')
+      const repo = join(root, 'api-server')
+      await initRepo(repo)
+
+      const events: WorkspaceServiceEvent[] = []
+      const instance = service(userData, events)
+      const descriptor = await instance.open(root)
+      const gitDir = descriptor.records[0]?.gitDir ?? ''
+
+      const outside = join(await tempDir('gtd-svc-wt-ext-'), 'linked')
+      await instance.gitWorktreeAdd({ gitDir, path: outside, newBranch: 'side' })
+
+      const added = events.flatMap((event) => (event.type === 'reposChanged' ? event.diff.added : []))
+      const record = added.find((entry) => entry.external === true)
+      expect(record).toMatchObject({ kind: 'worktree', path: real(outside) })
+      expect(record?.relPath.startsWith('..')).toBe(true)
+      expect((await git(repo, ['worktree', 'list'])).trim()).toContain('linked')
+
+      await writeFile(join(outside, 'notes.txt'), 'wip\n')
+      await expect(instance.gitWorktreeRemove({ gitDir, path: outside })).rejects.toMatchObject({
+        code: 'worktree-dirty'
+      })
+
+      const removed = await instance.gitWorktreeRemove({ gitDir, path: outside, force: true })
+      expect(removed.backup?.op).toBe('worktree-remove')
+      expect(removed.undo).toMatchObject({ op: 'worktree-remove' })
+
+      const dropped = events.flatMap((event) => (event.type === 'reposChanged' ? event.diff.removed : []))
+      expect(dropped.map((entry) => entry.path)).toContain(record?.path)
+      expect((await git(repo, ['worktree', 'list'])).trim()).not.toContain('linked')
+    },
+    30_000
+  )
+
+  it(
+    'protects locked worktrees, removes after unlock and prunes deleted worktrees',
+    async () => {
+      const root = await tempDir('gtd-svc-wt-')
+      const userData = await tempDir('gtd-svc-data-')
+      const repo = join(root, 'api-server')
+      await initRepo(repo)
+
+      const events: WorkspaceServiceEvent[] = []
+      const instance = service(userData, events)
+      const descriptor = await instance.open(root)
+      const gitDir = descriptor.records[0]?.gitDir ?? ''
+
+      const target = join(root, '__worktree__', 'api-server_locked')
+      await instance.gitWorktreeAdd({ gitDir, path: target, newBranch: 'locked-branch' })
+      await instance.gitWorktreeLock({ gitDir, path: target, reason: 'in use elsewhere' })
+      const locked = (await instance.gitWorktrees({ gitDir })).worktrees
+      expect(locked.find((entry) => entry.path === real(target))?.locked).toBe('in use elsewhere')
+
+      await expect(instance.gitWorktreeRemove({ gitDir, path: target })).rejects.toMatchObject({
+        code: 'worktree-locked'
+      })
+      await instance.gitWorktreeUnlock({ gitDir, path: target })
+      const done = await instance.gitWorktreeRemove({ gitDir, path: target })
+      expect(done).toMatchObject({ backup: null, undo: { op: 'worktree-remove' } })
+
+      // A worktree deleted behind the app's back leaves prunable metadata behind.
+      const stale = join(root, '__worktree__', 'api-server_stale')
+      await instance.gitWorktreeAdd({ gitDir, path: stale, newBranch: 'stale-branch' })
+      const stalePath = real(stale)
+      await removeDir(stale)
+      await instance.gitWorktreePrune({ gitDir })
+
+      const remaining = (await instance.gitWorktrees({ gitDir })).worktrees
+      expect(remaining.map((entry) => entry.path)).not.toContain(stalePath)
+      const dropped = events.flatMap((event) => (event.type === 'reposChanged' ? event.diff.removed : []))
+      expect(dropped.map((entry) => entry.path)).toContain(stalePath)
+    },
+    60_000
+  )
+})
+
+describe('submodule operations', () => {
+  // Cloning from a local path uses the file protocol, which git blocks for
+  // submodules unless it is explicitly allowed; the allowance has to live in the
+  // environment because git runs in child processes.
+  let previousAllow: string | undefined
+
+  beforeAll(() => {
+    previousAllow = process.env.GIT_ALLOW_PROTOCOL
+    process.env.GIT_ALLOW_PROTOCOL = 'file'
+  })
+
+  afterAll(() => {
+    if (previousAllow === undefined) delete process.env.GIT_ALLOW_PROTOCOL
+    else process.env.GIT_ALLOW_PROTOCOL = previousAllow
+  })
+
+  it(
+    'updates a drifted submodule, streams per-submodule output and syncs urls',
+    async () => {
+      const root = await tempDir('gtd-svc-sub-')
+      const userData = await tempDir('gtd-svc-data-')
+      const library = await tempDir('gtd-svc-sub-lib-')
+      await git(library, ['init', '-q', '-b', 'main'])
+      await writeFile(join(library, 'lib.txt'), 'lib\n')
+      await commitAll(library, 'library')
+
+      const repo = join(root, 'api-server')
+      await initRepo(repo)
+      await git(repo, ['submodule', 'add', '-q', library.replace(/\\/g, '/'), 'libs/core'])
+      await commitAll(repo, 'add library submodule')
+
+      const events: WorkspaceServiceEvent[] = []
+      const instance = service(userData, events)
+      const descriptor = await instance.open(root)
+      const gitDir = descriptor.records.find((entry) => entry.relPath === 'api-server')?.gitDir ?? ''
+
+      const initial = (await instance.gitSubmodules({ gitDir })).submodules
+      expect(initial).toHaveLength(1)
+      expect(initial[0]).toMatchObject({ path: 'libs/core', checkout: 'in-sync' })
+
+      const submodule = join(repo, 'libs', 'core')
+      await writeFile(join(submodule, 'extra.txt'), 'wip\n')
+      await commitAll(submodule, 'drift')
+      expect((await instance.gitSubmodules({ gitDir })).submodules[0]?.checkout).toBe('different')
+
+      const update = await instance.gitSubmoduleUpdate({ gitDir, paths: ['libs/core'] })
+      expect(update.results).toHaveLength(1)
+      expect(update.results[0]).toMatchObject({ path: 'libs/core', ok: true, updated: true, error: null })
+
+      const streamed = events.flatMap((event) => (event.type === 'submoduleOutput' ? [event] : []))
+      expect(streamed.length).toBeGreaterThan(0)
+      expect(streamed[0]).toMatchObject({ root: real(root), gitDir, path: 'libs/core' })
+      expect(streamed.map((event) => event.chunk).join('')).toContain('libs/core')
+
+      expect((await instance.gitSubmodules({ gitDir })).submodules[0]?.checkout).toBe('in-sync')
+
+      await git(repo, ['config', 'submodule.libs/core.url', 'https://example.invalid/core.git'])
+      await instance.gitSubmoduleSync({ gitDir, paths: ['libs/core'] })
+      expect((await git(repo, ['config', 'submodule.libs/core.url'])).trim()).toBe(
+        library.replace(/\\/g, '/')
+      )
+    },
+    60_000
   )
 })

@@ -36,6 +36,12 @@ export function errorText(error: unknown, t: Translate): string {
         return t('errors.disposed')
       case 'branch-unmerged':
         return t('errors.branchUnmerged')
+      case 'branch-in-use':
+        return t('errors.branchInUse')
+      case 'worktree-dirty':
+        return t('errors.worktreeDirty')
+      case 'worktree-locked':
+        return t('errors.worktreeLocked')
       case 'operation-in-progress':
         return t('errors.operationInProgress')
       case 'merge-tool-missing':

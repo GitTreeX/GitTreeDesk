@@ -554,6 +554,9 @@ const en = {
     notOpen: 'No workspace is open',
     disposed: 'The workspace was closed',
     branchUnmerged: 'The branch holds commits that are not merged elsewhere',
+    branchInUse: 'That branch is checked out in another worktree',
+    worktreeDirty: 'The worktree has uncommitted changes',
+    worktreeLocked: 'The worktree is locked and must be unlocked first',
     mergeToolMissing: 'No external merge tool is configured',
     operationInProgress: 'Another Git operation is in progress — finish it first'
   },

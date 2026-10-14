@@ -547,6 +547,9 @@ export const zhHansResource: TranslationResource = {
     notOpen: '尚未打开工作区',
     disposed: '工作区已关闭',
     branchUnmerged: '该分支包含未合并到其他位置的提交',
+    branchInUse: '该分支已在另一个工作树中检出',
+    worktreeDirty: '该工作树包含未提交的更改',
+    worktreeLocked: '该工作树已锁定，需先解锁',
     mergeToolMissing: '尚未配置外部合并工具',
     operationInProgress: '另一个 Git 操作正在进行 — 请先完成它'
   },

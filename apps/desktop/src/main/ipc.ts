@@ -52,6 +52,14 @@ export function createEventBroadcaster(): EventBroadcaster {
         case 'commitOutput':
           broadcast('git:commitOutput', { root: event.root, gitDir: event.gitDir, chunk: event.chunk })
           break
+        case 'submoduleOutput':
+          broadcast('git:submoduleOutput', {
+            root: event.root,
+            gitDir: event.gitDir,
+            path: event.path,
+            chunk: event.chunk
+          })
+          break
         case 'treeChanged':
           broadcast('fs:changed', { root: event.root, paths: event.paths })
           break
@@ -176,6 +184,15 @@ function createHandlers(service: WorkspaceService): InvokeHandlers {
     'git:oplogUndo': (request) => service.gitOpLogUndo(request),
     'git:backups': (request) => service.gitBackups(request),
     'git:restoreBackup': (request) => service.gitRestoreBackup(request),
+    'git:worktrees': (request) => service.gitWorktrees(request),
+    'git:worktreeAdd': (request) => service.gitWorktreeAdd(request),
+    'git:worktreeRemove': (request) => service.gitWorktreeRemove(request),
+    'git:worktreePrune': (request) => service.gitWorktreePrune(request),
+    'git:worktreeLock': (request) => service.gitWorktreeLock(request),
+    'git:worktreeUnlock': (request) => service.gitWorktreeUnlock(request),
+    'git:submodules': (request) => service.gitSubmodules(request),
+    'git:submoduleUpdate': (request) => service.gitSubmoduleUpdate(request),
+    'git:submoduleSync': (request) => service.gitSubmoduleSync(request),
     'fs:readDir': (request) => service.readDir(request.path),
     'fs:readFile': (request) => service.readFileForEditor(request),
     'fs:stat': (request) => service.statPath(request),
