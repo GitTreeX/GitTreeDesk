@@ -1,6 +1,6 @@
 # 02 · Worktree
 
-> 状态：🚧 计划中 · 范围：v1 · 工程参考：[`../spec.md`](../spec.md)
+> 状态：✅ 已实现 · 范围：v1 · 工程参考：[`../spec.md`](../spec.md)
 
 **Worktree** 是挂在同一个仓库上的附加工作目录——例如 `__worktree__/mobile-app_worktree-feat-dark-mode` 就是 `app/mobile-app` 在某个功能分支上的第二份检出。GitTreeDesk 把 worktree 当作一等公民：自动识别、归组、可从 UI 创建与删除。
 

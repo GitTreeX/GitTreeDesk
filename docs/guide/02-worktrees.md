@@ -1,6 +1,6 @@
 # 02 · Worktrees
 
-> Status: 🚧 Planned · Scope: v1 · Engineering: [`../spec.md`](../spec.md)
+> Status: ✅ Implemented · Scope: v1 · Engineering: [`../spec.md`](../spec.md)
 
 A **worktree** is an additional working directory attached to the same repository — e.g. `__worktree__/mobile-app_worktree-feat-dark-mode` is a second checkout of `app/mobile-app` on a feature branch. GitTreeDesk treats worktrees as first-class: they are detected, grouped, created, and removed from the UI.
 

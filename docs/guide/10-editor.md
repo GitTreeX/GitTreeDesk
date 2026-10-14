@@ -1,6 +1,6 @@
 # 10 · Editor
 
-> Status: 🚧 Planned · Scope: v1 · Engineering: [`../spec.md`](../spec.md)
+> Status: ✅ Implemented · Scope: v1 · Engineering: [`../spec.md`](../spec.md)
 
 GitTreeDesk has a built-in editor for **viewing and light editing**. It is deliberately minimal — deep code intelligence, refactoring and formatting stay in VSCode, reachable with one button.
 

@@ -1,6 +1,6 @@
 # 12 · Settings & Keyboard
 
-> Status: 🚧 Planned · Scope: v1 · Engineering: [`../spec.md`](../spec.md)
+> Status: ✅ Implemented · Scope: v1 · Engineering: [`../spec.md`](../spec.md)
 
 ## Settings
 
