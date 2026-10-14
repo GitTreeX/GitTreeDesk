@@ -45,7 +45,8 @@ const ref: GitRef = {
   upstream: 'origin/main',
   ahead: 1,
   behind: 0,
-  subject: 'init'
+  subject: 'init',
+  updatedAt: '2026-01-01T00:00:00+00:00'
 }
 
 function commit(sha: string, date: string, subject: string): CommitInfo {

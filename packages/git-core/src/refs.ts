@@ -9,7 +9,9 @@ const FORMAT = [
   '%(upstream:short)',
   '%(upstream:track)',
   '%(contents:subject)',
-  '%(HEAD)'
+  '%(HEAD)',
+  // Committer date for commits, tagger date for annotated tags — the "updated" date either way.
+  '%(creatordate:iso-strict)'
 ].join('%00')
 
 function refKind(fullName: string): RefKind | null {
@@ -34,7 +36,7 @@ export function parseForEachRef(stdout: string): GitRef[] {
   for (const line of stdout.split('\n')) {
     if (line.length === 0) continue
 
-    const [fullName = '', name = '', objectName = '', peeledName = '', upstream = '', track = '', subject = '', headMark = ''] =
+    const [fullName = '', name = '', objectName = '', peeledName = '', upstream = '', track = '', subject = '', headMark = '', creatorDate = ''] =
       line.split('\0')
 
     const kind = refKind(fullName)
@@ -54,7 +56,8 @@ export function parseForEachRef(stdout: string): GitRef[] {
       upstream: upstream.length > 0 ? upstream : null,
       ahead,
       behind,
-      subject: subject.length > 0 ? subject : null
+      subject: subject.length > 0 ? subject : null,
+      updatedAt: creatorDate.length > 0 ? creatorDate : null
     })
   }
 

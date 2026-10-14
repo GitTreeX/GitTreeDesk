@@ -12,6 +12,7 @@ function refLine(fields: {
   track?: string
   subject?: string
   head?: string
+  date?: string
 }): string {
   return [
     fields.fullName,
@@ -21,7 +22,8 @@ function refLine(fields: {
     fields.upstream ?? '',
     fields.track ?? '',
     fields.subject ?? '',
-    fields.head ?? ' '
+    fields.head ?? ' ',
+    fields.date ?? ''
   ].join(NUL)
 }
 
@@ -35,7 +37,8 @@ describe('parseForEachRef', () => {
         upstream: 'origin/main',
         track: '[ahead 1, behind 2]',
         subject: 'Initial commit',
-        head: '*'
+        head: '*',
+        date: '2026-01-02T03:04:05+08:00'
       })
     )
     expect(refs).toEqual([
@@ -48,7 +51,8 @@ describe('parseForEachRef', () => {
         upstream: 'origin/main',
         ahead: 1,
         behind: 2,
-        subject: 'Initial commit'
+        subject: 'Initial commit',
+        updatedAt: '2026-01-02T03:04:05+08:00'
       }
     ])
   })

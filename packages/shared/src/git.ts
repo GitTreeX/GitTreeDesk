@@ -61,6 +61,22 @@ export interface GitRef {
   behind: number
   /** Tip subject, when available. */
   subject: string | null
+  /** ISO 8601 date of the tip: committer date of the commit, or tagger date. */
+  updatedAt: string | null
+}
+
+export type PullStrategy = 'ff-only' | 'merge' | 'rebase'
+
+export interface RemoteInfo {
+  name: string
+  fetchUrl: string
+  pushUrl: string
+}
+
+export interface RemoteTag {
+  name: string
+  /** Commit the tag points at, peeled for annotated tags. */
+  sha: string
 }
 
 export interface PersonInfo {
