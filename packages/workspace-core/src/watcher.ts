@@ -160,7 +160,7 @@ export class WatcherService {
   readonly #onGitDirChange: WatcherServiceOptions['onGitDirChange']
   readonly #onTreeChange: WatcherServiceOptions['onTreeChange']
   readonly #onDegraded: WatcherServiceOptions['onDegraded']
-  readonly #pollIntervalMs: number
+  #pollIntervalMs: number
   readonly #debounceMs: number
   readonly #treeWatchCap: number
   #config: WorkspaceConfig
@@ -203,6 +203,12 @@ export class WatcherService {
     const scopes = [...this.#scopes.values()]
     this.#scopes.clear()
     await Promise.all(scopes.map((scope) => this.#closeScope(scope)))
+  }
+
+  /** Fallback polling cadence for degraded scopes; applies from each scope's next poll. */
+  setPollIntervalMs(ms: number): void {
+    if (!Number.isFinite(ms)) return
+    this.#pollIntervalMs = Math.max(1_000, Math.floor(ms))
   }
 
   setConfig(config: WorkspaceConfig): void {

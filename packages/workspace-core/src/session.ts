@@ -31,6 +31,8 @@ export interface WorkspaceSessionOptions {
   debounceMs?: number
   pollIntervalMs?: number
   treeWatchCap?: number
+  /** Per-repo untracked listing mode for status reads; `undefined` keeps the default. */
+  untrackedStrategy?: (record: RepoRecord) => 'no' | 'normal' | 'all' | undefined
   onStatus?: (key: string, status: RepoStatus) => void
   onError?: (key: string, error: unknown) => void
   onReposChanged?: (diff: RepoDiff, records: RepoRecord[]) => void
@@ -152,6 +154,11 @@ export class WorkspaceSession {
   async warmUp(records?: readonly RepoRecord[]): Promise<void> {
     const targets = records ?? this.registry.all
     await Promise.allSettled(targets.map((record) => this.#requestStatus(record, 'warmup')))
+  }
+
+  /** Fallback polling cadence for degraded watch scopes; applies to future retries. */
+  setPollIntervalMs(ms: number): void {
+    this.#watcher?.setPollIntervalMs(ms)
   }
 
   watchDirectory(dir: string): void {
@@ -285,6 +292,9 @@ export class WorkspaceSession {
 
   #requestStatus(record: RepoRecord, reason: StatusReason): Promise<RepoStatus | null> {
     if (record.gitDir === '') return Promise.resolve(null)
-    return this.#scheduler.request(statusTargetFor(record), { reason }).catch(() => null)
+    const target = statusTargetFor(record)
+    const untracked = this.#options.untrackedStrategy?.(record)
+    if (untracked !== undefined) target.untracked = untracked
+    return this.#scheduler.request(target, { reason }).catch(() => null)
   }
 }
