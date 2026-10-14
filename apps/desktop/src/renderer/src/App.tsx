@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type DragEvent, type JSX } fr
 import type { RepoRecord } from '@gitreedesk/shared'
 import { api } from './api'
 import { createBuiltinCommands, type BuiltinContext } from './commands/builtin'
+import { AboutDialog } from './components/AboutDialog'
 import { AppShell } from './components/AppShell'
 import { CommandPalette } from './components/CommandPalette'
 import { OutputPanel } from './components/OutputPanel'
@@ -86,6 +87,7 @@ function AppRoot(): JSX.Element {
   const [trustPrompted, setTrustPrompted] = useState(false)
   const [dropActive, setDropActive] = useState(false)
   const [perfOpen, setPerfOpen] = useState(false)
+  const [aboutOpen, setAboutOpen] = useState(false)
   const dragDepth = useRef(0)
   const collapsedRef = useRef(sidebarCollapsed)
   collapsedRef.current = sidebarCollapsed
@@ -254,6 +256,7 @@ function AppRoot(): JSX.Element {
       if (id !== null) terminal.closeSession(id)
     },
     terminalHasSession: () => terminal.sessions.length > 0,
+    openAbout: () => setAboutOpen(true),
     togglePerfOverlay: () => setPerfOpen((current) => !current)
   }
 
@@ -389,6 +392,7 @@ function AppRoot(): JSX.Element {
       {editor.quickOpen && <QuickOpen />}
       <ToastHost />
       {import.meta.env.DEV && perfOpen && <PerfOverlay />}
+      {aboutOpen && <AboutDialog onClose={() => setAboutOpen(false)} />}
       {trustPrompt && descriptor !== null && (
         <TrustDialog
           root={descriptor.root}

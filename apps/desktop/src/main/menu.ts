@@ -28,6 +28,12 @@ interface MenuLabels {
   window: string
   minimize: string
   zoom: string
+  help: string
+  about: string
+  services: string
+  hide: string
+  hideOthers: string
+  unhide: string
 }
 
 const LABELS: Record<ShellLocale, MenuLabels> = {
@@ -50,7 +56,13 @@ const LABELS: Record<ShellLocale, MenuLabels> = {
     toggleDevTools: 'Toggle Developer Tools',
     window: 'Window',
     minimize: 'Minimize',
-    zoom: 'Zoom'
+    zoom: 'Zoom',
+    help: 'Help',
+    about: 'About GitTreeDesk',
+    services: 'Services',
+    hide: 'Hide GitTreeDesk',
+    hideOthers: 'Hide Others',
+    unhide: 'Show All'
   },
   'zh-Hans': {
     file: '文件',
@@ -71,7 +83,13 @@ const LABELS: Record<ShellLocale, MenuLabels> = {
     toggleDevTools: '切换开发者工具',
     window: '窗口',
     minimize: '最小化',
-    zoom: '缩放'
+    zoom: '缩放',
+    help: '帮助',
+    about: '关于 GitTreeDesk',
+    services: '服务',
+    hide: '隐藏 GitTreeDesk',
+    hideOthers: '隐藏其他',
+    unhide: '显示全部'
   }
 }
 
@@ -88,7 +106,24 @@ export function installApplicationMenu(
   const isMac = process.platform === 'darwin'
 
   const template: MenuItemConstructorOptions[] = [
-    ...(isMac ? [{ role: 'appMenu' } as MenuItemConstructorOptions] : []),
+    ...(isMac
+      ? ([
+          {
+            label: app.name,
+            submenu: [
+              { label: labels.about, click: () => sendCommand('app.about') },
+              { type: 'separator' },
+              { role: 'services', label: labels.services },
+              { type: 'separator' },
+              { role: 'hide', label: labels.hide },
+              { role: 'hideOthers', label: labels.hideOthers },
+              { role: 'unhide', label: labels.unhide },
+              { type: 'separator' },
+              { role: 'quit', label: labels.quit }
+            ]
+          }
+        ] satisfies MenuItemConstructorOptions[])
+      : []),
     {
       label: labels.file,
       submenu: [
@@ -132,7 +167,15 @@ export function installApplicationMenu(
         ...(isMac ? [{ role: 'zoom', label: labels.zoom } as MenuItemConstructorOptions] : []),
         { role: 'close', label: labels.closeWindow }
       ]
-    }
+    },
+    ...(isMac
+      ? []
+      : ([
+          {
+            label: labels.help,
+            submenu: [{ label: labels.about, click: () => sendCommand('app.about') }]
+          }
+        ] satisfies MenuItemConstructorOptions[]))
   ]
 
   Menu.setApplicationMenu(Menu.buildFromTemplate(template))

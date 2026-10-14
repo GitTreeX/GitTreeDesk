@@ -21,6 +21,8 @@ export interface RuntimeVersions {
 }
 
 export interface AppInfo {
+  /** The application version, as packaged. */
+  version: string
   platform: Platform
   versions: RuntimeVersions
   /** `null` when no git binary responded. */

@@ -358,8 +358,11 @@ async function openMergeToolEntry(
   return { ok }
 }
 
+declare const __APP_VERSION__: string
+
 async function appInfo(service: WorkspaceService): Promise<AppInfo> {
   return {
+    version: __APP_VERSION__,
     platform: process.platform,
     versions: {
       electron: process.versions.electron ?? '',

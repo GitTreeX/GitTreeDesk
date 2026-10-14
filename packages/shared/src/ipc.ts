@@ -1136,7 +1136,8 @@ export interface TerminalExitedEvent {
 export const HOST_COMMANDS = [
   'workspace.openFolder',
   'workspace.closeFolder',
-  'view.commandPalette'
+  'view.commandPalette',
+  'app.about'
 ] as const
 
 export type HostCommandId = (typeof HOST_COMMANDS)[number]

@@ -55,6 +55,7 @@ export const COMMAND_IDS = {
   toggleTerminal: 'terminal.toggle',
   newTerminal: 'terminal.new',
   closeTerminal: 'terminal.close',
+  about: 'app.about',
   togglePerf: 'dev.togglePerfOverlay'
 } as const
 
@@ -133,6 +134,7 @@ export interface BuiltinContext {
   newTerminal: () => void
   closeTerminal: () => void
   terminalHasSession: () => boolean
+  openAbout: () => void
   togglePerfOverlay: () => void
 }
 
@@ -508,6 +510,12 @@ export function createBuiltinCommands(get: () => BuiltinContext): CommandDefinit
       categoryKey: 'commands.categories.terminal',
       enabled: () => get().terminalHasSession(),
       run: () => get().closeTerminal()
+    },
+    {
+      id: COMMAND_IDS.about,
+      titleKey: 'commands.about',
+      categoryKey: 'commands.categories.help',
+      run: () => get().openAbout()
     },
     ...(import.meta.env.DEV
       ? ([

@@ -36,7 +36,7 @@ const en = {
   },
   repos: {
     empty: 'No repositories found',
-    emptyHint: 'Adjust the workspace configuration or add repositories to this folder.',
+    emptyHint: 'Check the exclude rules and scan depth in the workspace settings, or add repositories to this folder.',
     emptyFiltered: 'No repositories match the quick filters',
     includeInScm: 'Include in source control view',
     selectAll: 'Select all repositories',
@@ -44,6 +44,7 @@ const en = {
   },
   explorer: {
     empty: 'This folder is empty',
+    openFolder: 'Open another folder',
     loadFailed: 'Could not read this folder',
     retry: 'Retry',
     errors: {
@@ -84,6 +85,18 @@ const en = {
     checkoutRecordedCommit: 'Checkout Recorded Commit',
     openAsRepository: 'Open as Repository',
     openTerminal: 'Open Terminal Here'
+  },
+  about: {
+    title: 'About GitTreeDesk',
+    version: 'Version {{version}}',
+    electron: 'Electron',
+    chromium: 'Chromium',
+    node: 'Node.js',
+    git: 'Git',
+    license: 'Released under the MIT License',
+    copyright: '© 2026 GitTreeX',
+    homepage: 'Project Homepage',
+    download: 'Download Latest Version'
   },
   dialogs: {
     cancel: 'Cancel',
@@ -956,6 +969,7 @@ const en = {
     toggleTerminal: 'Toggle Terminal Panel',
     newTerminal: 'New Terminal',
     closeTerminal: 'Close Terminal',
+    about: 'About GitTreeDesk',
     togglePerf: 'Developer: Toggle Performance Overlay',
     categories: {
       workspace: 'Workspace',
@@ -967,7 +981,8 @@ const en = {
       appearance: 'Appearance',
       editor: 'Editor',
       terminal: 'Terminal',
-      preferences: 'Preferences'
+      preferences: 'Preferences',
+      help: 'Help'
     }
   },
   badges: {

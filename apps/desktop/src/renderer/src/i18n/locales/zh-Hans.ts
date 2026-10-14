@@ -38,7 +38,7 @@ export const zhHansResource: TranslationResource = {
   },
   repos: {
     empty: '未找到仓库',
-    emptyHint: '可调整工作区配置，或向该文件夹中添加仓库。',
+    emptyHint: '请检查工作区设置中的排除规则与扫描深度，或向该文件夹中添加仓库。',
     emptyFiltered: '没有仓库符合快速筛选条件',
     includeInScm: '纳入源代码管理视图',
     selectAll: '全选所有仓库',
@@ -46,6 +46,7 @@ export const zhHansResource: TranslationResource = {
   },
   explorer: {
     empty: '此文件夹为空',
+    openFolder: '打开其他文件夹',
     loadFailed: '无法读取此文件夹',
     retry: '重试',
     errors: {
@@ -86,6 +87,18 @@ export const zhHansResource: TranslationResource = {
     checkoutRecordedCommit: '检出记录的提交',
     openAsRepository: '作为仓库打开',
     openTerminal: '在此处打开终端'
+  },
+  about: {
+    title: '关于 GitTreeDesk',
+    version: '版本 {{version}}',
+    electron: 'Electron',
+    chromium: 'Chromium',
+    node: 'Node.js',
+    git: 'Git',
+    license: '以 MIT 许可证发布',
+    copyright: '© 2026 GitTreeX',
+    homepage: '项目主页',
+    download: '下载最新版本'
   },
   dialogs: {
     cancel: '取消',
@@ -942,6 +955,7 @@ export const zhHansResource: TranslationResource = {
     toggleTerminal: '切换终端面板',
     newTerminal: '新建终端',
     closeTerminal: '关闭终端',
+    about: '关于 GitTreeDesk',
     togglePerf: '开发者：切换性能覆盖层',
     categories: {
       workspace: '工作区',
@@ -953,7 +967,8 @@ export const zhHansResource: TranslationResource = {
       appearance: '外观',
       editor: '编辑器',
       terminal: '终端',
-      preferences: '偏好设置'
+      preferences: '偏好设置',
+      help: '帮助'
     }
   },
   badges: {
