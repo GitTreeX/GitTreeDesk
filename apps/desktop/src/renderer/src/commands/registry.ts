@@ -6,8 +6,10 @@
 
 export interface CommandDefinition {
   id: string
-  /** i18n key of the display title. */
-  titleKey: string
+  /** i18n key of the display title; allows runtime titles to omit it. */
+  titleKey?: string
+  /** Literal display title (already localized); wins over `titleKey`. */
+  title?: string
   /** i18n key of the palette category. */
   categoryKey: string
   run: () => void | Promise<void>
@@ -27,6 +29,10 @@ export class CommandRegistry {
 
   register(definition: CommandDefinition): void {
     this.#commands.set(definition.id, definition)
+  }
+
+  unregister(id: string): boolean {
+    return this.#commands.delete(id)
   }
 
   get(id: string): CommandDefinition | undefined {

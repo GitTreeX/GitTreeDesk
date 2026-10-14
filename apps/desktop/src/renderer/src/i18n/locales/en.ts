@@ -81,7 +81,8 @@ const en = {
     syncSubmoduleUrls: 'Sync Submodule URLs',
     updateSubmodule: 'Update This Submodule',
     checkoutRecordedCommit: 'Checkout Recorded Commit',
-    openAsRepository: 'Open as Repository'
+    openAsRepository: 'Open as Repository',
+    openTerminal: 'Open Terminal Here'
   },
   dialogs: {
     cancel: 'Cancel',
@@ -740,6 +741,21 @@ const en = {
     pullTitle: 'Pull — {{count}} repositories',
     submodulesTitle: 'Submodules — {{name}}'
   },
+  terminal: {
+    title: 'Terminal',
+    new: 'New Terminal',
+    more: 'Profiles & Commands',
+    profilesQuick: 'Quick Commands',
+    notFound: 'not found',
+    quickDisabledUntrusted: 'Quick commands are disabled in an untrusted workspace',
+    exited: 'Process exited with code {{code}}',
+    exitedUnknown: 'Process exited',
+    pasteWarning: 'Paste {{count}} lines? They are sent to the terminal exactly as copied.',
+    pasteWarningOne: 'Paste this line? It is sent to the terminal exactly as copied.',
+    pasteAction: 'Paste',
+    attachFailed: 'This terminal session is no longer available.',
+    empty: 'No terminals yet — open one with + or Ctrl+`'
+  },
   errors: {
     authRequired: 'Authentication required for {{remote}}',
     authRequiredGeneric: 'Authentication required',
@@ -758,7 +774,12 @@ const en = {
     mergeToolMissing: 'No external merge tool is configured',
     nothingStaged: 'Nothing is staged to describe — stage changes first',
     llmNotConfigured: 'Commit-message generation is not set up yet — check Settings → Commit message',
-    operationInProgress: 'Another Git operation is in progress — finish it first'
+    operationInProgress: 'Another Git operation is in progress — finish it first',
+    noProfiles: 'No shell was found on this machine, so a terminal cannot start',
+    unknownProfile: 'That terminal profile is not available in this folder',
+    unknownCommand: 'That quick command is not available in this folder',
+    unknownSession: 'That terminal is no longer available',
+    terminalUnavailable: 'Terminals are currently unavailable'
   },
   statusbar: {
     opening: 'Opening…',
@@ -842,6 +863,9 @@ const en = {
     newWorktree: 'New Worktree…',
     updateSubmodules: 'Update All Submodules',
     toggleOutput: 'Toggle Output Panel',
+    toggleTerminal: 'Toggle Terminal Panel',
+    newTerminal: 'New Terminal',
+    closeTerminal: 'Close Terminal',
     categories: {
       workspace: 'Workspace',
       view: 'View',
@@ -850,7 +874,8 @@ const en = {
       scm: 'Source Control',
       git: 'Git',
       appearance: 'Appearance',
-      editor: 'Editor'
+      editor: 'Editor',
+      terminal: 'Terminal'
     }
   },
   badges: {

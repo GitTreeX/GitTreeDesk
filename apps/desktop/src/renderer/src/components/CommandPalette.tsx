@@ -30,7 +30,7 @@ export function CommandPalette({
       .filter((definition) => definition.hiddenInPalette !== true)
       .map((definition) => ({
         id: definition.id,
-        title: t(definition.titleKey),
+        title: definition.title ?? (definition.titleKey !== undefined ? t(definition.titleKey) : definition.id),
         category: t(definition.categoryKey),
         enabled: definition.enabled?.() !== false,
         shortcut: keybindings.formatFor(definition.id)

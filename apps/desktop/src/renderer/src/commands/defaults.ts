@@ -29,6 +29,8 @@ export const DEFAULT_BINDINGS: readonly DefaultBinding[] = [
   { command: 'editor.closeTab', keys: 'Mod+W', allowInInput: true },
   { command: 'editor.quickOpen', keys: 'Mod+P', allowInInput: true },
   { command: 'git.fetchRepo', keys: 'Mod+Shift+F', allowInInput: true },
+  // Control, not Mod: on macOS the window shortcut is ⌃` and ⌘` cycles windows.
+  { command: 'terminal.toggle', keys: 'Ctrl+`', allowInInput: true },
   { command: 'explorer.rename', keys: 'F2' },
   { command: 'explorer.delete', keys: 'Delete' }
 ]

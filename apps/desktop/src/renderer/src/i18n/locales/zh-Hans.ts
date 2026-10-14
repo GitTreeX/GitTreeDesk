@@ -83,7 +83,8 @@ export const zhHansResource: TranslationResource = {
     syncSubmoduleUrls: '同步子模块地址',
     updateSubmodule: '更新此子模块',
     checkoutRecordedCommit: '检出记录的提交',
-    openAsRepository: '作为仓库打开'
+    openAsRepository: '作为仓库打开',
+    openTerminal: '在此处打开终端'
   },
   dialogs: {
     cancel: '取消',
@@ -728,6 +729,21 @@ export const zhHansResource: TranslationResource = {
     pullTitle: '拉取 — {{count}} 个仓库',
     submodulesTitle: '子模块 — {{name}}'
   },
+  terminal: {
+    title: '终端',
+    new: '新建终端',
+    more: '配置与快捷命令',
+    profilesQuick: '快捷命令',
+    notFound: '未找到',
+    quickDisabledUntrusted: '工作区未受信任，快捷命令已禁用',
+    exited: '进程已退出，代码 {{code}}',
+    exitedUnknown: '进程已退出',
+    pasteWarning: '粘贴 {{count}} 行到终端？将按复制时的原样发送。',
+    pasteWarningOne: '粘贴这一行到终端？将按复制时的原样发送。',
+    pasteAction: '粘贴',
+    attachFailed: '该终端会话已不可用。',
+    empty: '还没有终端 — 使用 + 或 Ctrl+` 打开一个'
+  },
   errors: {
     authRequired: '需要向 {{remote}} 进行身份验证',
     authRequiredGeneric: '需要身份验证',
@@ -746,7 +762,12 @@ export const zhHansResource: TranslationResource = {
     mergeToolMissing: '尚未配置外部合并工具',
     nothingStaged: '没有可描述的暂存更改 — 请先暂存',
     llmNotConfigured: '提交信息生成尚未配置 — 请检查“设置 → 提交信息”',
-    operationInProgress: '另一个 Git 操作正在进行 — 请先完成它'
+    operationInProgress: '另一个 Git 操作正在进行 — 请先完成它',
+    noProfiles: '本机未找到任何 shell，无法启动终端',
+    unknownProfile: '该终端配置在此目录不可用',
+    unknownCommand: '该快捷命令在此目录不可用',
+    unknownSession: '该终端已不可用',
+    terminalUnavailable: '终端当前不可用'
   },
   statusbar: {
     opening: '正在打开…',
@@ -828,6 +849,9 @@ export const zhHansResource: TranslationResource = {
     newWorktree: '新建工作树…',
     updateSubmodules: '更新全部子模块',
     toggleOutput: '切换输出面板',
+    toggleTerminal: '切换终端面板',
+    newTerminal: '新建终端',
+    closeTerminal: '关闭终端',
     categories: {
       workspace: '工作区',
       view: '视图',
@@ -836,7 +860,8 @@ export const zhHansResource: TranslationResource = {
       scm: '源代码管理',
       git: 'Git',
       appearance: '外观',
-      editor: '编辑器'
+      editor: '编辑器',
+      terminal: '终端'
     }
   },
   badges: {

@@ -46,7 +46,10 @@ export const COMMAND_IDS = {
   restoreBackup: 'git.restoreBackup',
   newWorktree: 'git.newWorktree',
   updateSubmodules: 'git.updateSubmodules',
-  toggleOutput: 'view.toggleOutput'
+  toggleOutput: 'view.toggleOutput',
+  toggleTerminal: 'terminal.toggle',
+  newTerminal: 'terminal.new',
+  closeTerminal: 'terminal.close'
 } as const
 
 /** Latest-value accessors: the commands read through this so they never go stale. */
@@ -112,6 +115,10 @@ export interface BuiltinContext {
   gitHasSubmodules: () => boolean
   gitHasGraph: () => boolean
   toggleOutput: () => void
+  toggleTerminal: () => void
+  newTerminal: () => void
+  closeTerminal: () => void
+  terminalHasSession: () => boolean
 }
 
 export function createBuiltinCommands(get: () => BuiltinContext): CommandDefinition[] {
@@ -433,6 +440,26 @@ export function createBuiltinCommands(get: () => BuiltinContext): CommandDefinit
       titleKey: 'commands.toggleOutput',
       categoryKey: 'commands.categories.view',
       run: () => get().toggleOutput()
+    },
+    {
+      id: COMMAND_IDS.toggleTerminal,
+      titleKey: 'commands.toggleTerminal',
+      categoryKey: 'commands.categories.terminal',
+      run: () => get().toggleTerminal()
+    },
+    {
+      id: COMMAND_IDS.newTerminal,
+      titleKey: 'commands.newTerminal',
+      categoryKey: 'commands.categories.terminal',
+      enabled: () => get().hasWorkspace(),
+      run: () => get().newTerminal()
+    },
+    {
+      id: COMMAND_IDS.closeTerminal,
+      titleKey: 'commands.closeTerminal',
+      categoryKey: 'commands.categories.terminal',
+      enabled: () => get().terminalHasSession(),
+      run: () => get().closeTerminal()
     }
   ]
 }

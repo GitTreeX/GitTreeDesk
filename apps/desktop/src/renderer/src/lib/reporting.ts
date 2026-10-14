@@ -50,6 +50,16 @@ export function errorText(error: unknown, t: Translate): string {
         return t('errors.nothingStaged')
       case 'llm-not-configured':
         return t('errors.llmNotConfigured')
+      case 'no-profiles':
+        return t('errors.noProfiles')
+      case 'unknown-profile':
+        return t('errors.unknownProfile')
+      case 'unknown-command':
+        return t('errors.unknownCommand')
+      case 'unknown-session':
+        return t('errors.unknownSession')
+      case 'terminal-unavailable':
+        return t('errors.terminalUnavailable')
       case 'git-failed':
         return error.message
       default:

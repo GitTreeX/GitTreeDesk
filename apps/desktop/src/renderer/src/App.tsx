@@ -10,6 +10,7 @@ import { OutputPanel } from './components/OutputPanel'
 import { QuickOpen } from './components/QuickOpen'
 import { QuickPick } from './components/QuickPick'
 import { StatusBar } from './components/StatusBar'
+import { TerminalPanel } from './components/TerminalPanel'
 import { ToastHost } from './components/ToastHost'
 import { TrustDialog } from './components/TrustDialog'
 import { WelcomeView } from './components/WelcomeView'
@@ -20,6 +21,7 @@ import { useOperations } from './contexts/operations-context'
 import { ReposUiProvider, useReposUi } from './contexts/repos'
 import { SettingsProvider, useSettings, type InitialSettings } from './contexts/settings'
 import { SubmodulesProvider, useSubmodules } from './contexts/submodules'
+import { TerminalProvider, useTerminal } from './contexts/terminal'
 import { TreeUiProvider, useTreeUi, type SidebarPanel } from './contexts/tree'
 import { WorkspaceProvider, useWorkspace } from './contexts/workspace'
 import { nextTheme } from './theme'
@@ -49,11 +51,13 @@ export function App({ initialSettings }: { initialSettings: InitialSettings }): 
           <EditorProvider>
             <GraphProvider>
               <ReposUiProvider>
-                <SubmodulesProvider>
-                  <OperationsProvider>
-                    <AppRoot />
-                  </OperationsProvider>
-                </SubmodulesProvider>
+                <TerminalProvider>
+                  <SubmodulesProvider>
+                    <OperationsProvider>
+                      <AppRoot />
+                    </OperationsProvider>
+                  </SubmodulesProvider>
+                </TerminalProvider>
               </ReposUiProvider>
             </GraphProvider>
           </EditorProvider>
@@ -72,6 +76,7 @@ function AppRoot(): JSX.Element {
   const repoUi = useReposUi()
   const operations = useOperations()
   const submodules = useSubmodules()
+  const terminal = useTerminal()
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH)
@@ -232,7 +237,17 @@ function AppRoot(): JSX.Element {
       const record = repoUi.activeRecord
       return record !== null && record.kind !== 'bare' && record.gitDir.length > 0
     },
-    toggleOutput: () => operations.setOutputOpen(!operations.outputOpen)
+    toggleOutput: () => operations.setOutputOpen(!operations.outputOpen),
+    toggleTerminal: () => terminal.toggle(),
+    newTerminal: () => {
+      const dir = terminal.targetDir
+      if (dir !== null) terminal.open(dir)
+    },
+    closeTerminal: () => {
+      const id = terminal.activeId
+      if (id !== null) terminal.closeSession(id)
+    },
+    terminalHasSession: () => terminal.sessions.length > 0
   }
 
   const getBuiltin = useCallback((): BuiltinContext => {
@@ -254,6 +269,25 @@ function AppRoot(): JSX.Element {
   }, [registry])
 
   useEffect(() => keybindings.attach(window), [keybindings])
+
+  // Quick commands of the resolved directory surface in the palette by their literal names.
+  const quickRunRef = useRef(terminal.quickRun)
+  quickRunRef.current = terminal.quickRun
+
+  useEffect(() => {
+    const resolution = terminal.resolution
+    if (resolution === null) return
+    const definitions = resolution.info.quickCommands.map((command) => ({
+      id: `terminal.quickRun:${command.name}`,
+      title: command.name,
+      categoryKey: 'commands.categories.terminal',
+      run: () => quickRunRef.current(resolution.dir, command.name)
+    }))
+    for (const definition of definitions) registry.register(definition)
+    return () => {
+      for (const definition of definitions) registry.unregister(definition.id)
+    }
+  }, [terminal.resolution, registry])
 
   useEffect(() => {
     setTrustPrompted(false)
@@ -332,6 +366,7 @@ function AppRoot(): JSX.Element {
             onResizeSidebar={setSidebarWidth}
             onResizeCommit={onResizeCommit}
           />
+          <TerminalPanel />
           <OutputPanel />
         </>
       )}

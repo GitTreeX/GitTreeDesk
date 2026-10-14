@@ -304,3 +304,20 @@ export function RestoreIcon({ className }: IconProps): JSX.Element {
     </svg>
   )
 }
+
+export function TerminalIcon({ className }: IconProps): JSX.Element {
+  return (
+    <svg {...iconProps(className)} aria-hidden="true">
+      <path d="m4 17 6-6-6-6" />
+      <path d="M12 19h8" />
+    </svg>
+  )
+}
+
+export function ChevronDownIcon({ className }: IconProps): JSX.Element {
+  return (
+    <svg {...iconProps(className)} aria-hidden="true">
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  )
+}
