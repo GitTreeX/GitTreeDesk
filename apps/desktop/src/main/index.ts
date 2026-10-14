@@ -1,13 +1,27 @@
-import { BrowserWindow, app, nativeTheme, shell } from 'electron'
+import { BrowserWindow, app, nativeTheme, safeStorage, shell } from 'electron'
 import { join } from 'node:path'
 import type { HostCommandId } from '@gitreedesk/shared'
 import { createEventBroadcaster, registerIpcHandlers, type IpcBridge } from './ipc'
 import { installApplicationMenu, resolveShellLocale, type ShellLocale } from './menu'
+import { CommitMessageService } from './services/commit-message'
+import { SecretsStore, type SecretCodec } from './services/secrets'
 import { WorkspaceService } from './services/workspace-service'
 
 const devServerUrl = process.env['ELECTRON_RENDERER_URL']
 
 app.setName('GitTreeDesk')
+
+/** OS-backed codec; a Linux session without a keyring keeps secrets in memory only. */
+function secretCodec(): SecretCodec {
+  const available =
+    safeStorage.isEncryptionAvailable() &&
+    !(process.platform === 'linux' && safeStorage.getSelectedStorageBackend() === 'basic_text')
+  return {
+    available,
+    encrypt: (text) => safeStorage.encryptString(text).toString('base64'),
+    decrypt: (token) => safeStorage.decryptString(Buffer.from(token, 'base64'))
+  }
+}
 
 function sendCommand(command: HostCommandId): void {
   const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
@@ -89,8 +103,9 @@ if (!app.requestSingleInstanceLock()) {
       }
     }
 
+    const userDataDir = app.getPath('userData')
     service = new WorkspaceService({
-      userDataDir: app.getPath('userData'),
+      userDataDir,
       emit: (event) => {
         broadcaster.handle(event)
         if (event.type === 'settingsChanged' && event.change.keyPath[0] === 'locale') {
@@ -98,13 +113,23 @@ if (!app.requestSingleInstanceLock()) {
         }
       }
     })
+    const workspace = service
+    const commitMessages = new CommitMessageService({
+      userDataDir,
+      secrets: new SecretsStore({ userDataDir, codec: secretCodec() }),
+      resolveRepoPath: (gitDir) => workspace.resolveWorktreePath(gitDir),
+      emit: (event) => {
+        broadcaster.handleCommitMessage(event)
+      }
+    })
     installApplicationMenu(shellLocale, sendCommand)
     void syncShellLocale()
-    bridge = registerIpcHandlers(service)
+    bridge = registerIpcHandlers(workspace, commitMessages)
     app.on('will-quit', () => {
       bridge?.dispose()
       bridge = null
       broadcaster.dispose()
+      commitMessages.dispose()
       void service?.dispose()
       service = null
     })

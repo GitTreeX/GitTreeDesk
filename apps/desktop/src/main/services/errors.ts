@@ -19,6 +19,8 @@ export type ServiceErrorCode =
   | 'unresolved-conflicts'
   | 'not-conflicted'
   | 'merge-tool-missing'
+  | 'nothing-staged'
+  | 'llm-not-configured'
   | 'disposed'
 
 /** Expected failures of the main-process services; surfaced to the renderer with their code. */

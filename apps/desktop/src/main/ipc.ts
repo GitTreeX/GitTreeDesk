@@ -15,6 +15,7 @@ import type { InvokeHandlers } from '@gitreedesk/shared'
 import type { SettingsChange } from '@gitreedesk/store'
 import { buildEditorCommand } from './editor-command'
 import { launchShell, nativePath, openInEditor } from './editor-launcher'
+import type { CommitMessageService, CommitMessageServiceEvent } from './services/commit-message'
 import { ServiceError } from './services/errors'
 import { StatusBatcher } from './services/status-batcher'
 import type { WorkspaceService, WorkspaceServiceEvent } from './services/workspace-service'
@@ -23,6 +24,7 @@ const STATUS_FLUSH_MS = 33
 
 export interface EventBroadcaster {
   handle(event: WorkspaceServiceEvent): void
+  handleCommitMessage(event: CommitMessageServiceEvent): void
   dispose(): void
 }
 
@@ -79,6 +81,10 @@ export function createEventBroadcaster(): EventBroadcaster {
           break
       }
     },
+    handleCommitMessage(event) {
+      if (event.type === 'output') broadcast('commitmsg:output', event.payload)
+      else broadcast('commitmsg:done', event.payload)
+    },
     dispose() {
       batcher.dispose()
     }
@@ -89,8 +95,11 @@ export interface IpcBridge {
   dispose(): void
 }
 
-export function registerIpcHandlers(service: WorkspaceService): IpcBridge {
-  const handlers = createHandlers(service)
+export function registerIpcHandlers(
+  service: WorkspaceService,
+  commitMessages: CommitMessageService
+): IpcBridge {
+  const handlers = createHandlers(service, commitMessages)
 
   for (const channel of INVOKE_CHANNELS) {
     ipcMain.handle(channel, async (_event, payload: unknown): Promise<IpcResult<unknown>> => {
@@ -117,7 +126,10 @@ export function registerIpcHandlers(service: WorkspaceService): IpcBridge {
   }
 }
 
-function createHandlers(service: WorkspaceService): InvokeHandlers {
+function createHandlers(
+  service: WorkspaceService,
+  commitMessages: CommitMessageService
+): InvokeHandlers {
   return {
     'workspace:open': (request) => service.open(request.root),
     'workspace:close': () => service.close(),
@@ -196,6 +208,12 @@ function createHandlers(service: WorkspaceService): InvokeHandlers {
     'git:submodules': (request) => service.gitSubmodules(request),
     'git:submoduleUpdate': (request) => service.gitSubmoduleUpdate(request),
     'git:submoduleSync': (request) => service.gitSubmoduleSync(request),
+    'commitmsg:generate': (request) => commitMessages.generate(request),
+    'commitmsg:cancel': (request) => commitMessages.cancel(request.generationId),
+    'commitmsg:approveHost': (request) => commitMessages.approveHost(request.host),
+    'commitmsg:setKey': (request) => commitMessages.setKey(request.key),
+    'commitmsg:removeKey': () => commitMessages.removeKey(),
+    'commitmsg:keyStatus': () => commitMessages.keyStatus(),
     'fs:readDir': (request) => service.readDir(request.path),
     'fs:readFile': (request) => service.readFileForEditor(request),
     'fs:stat': (request) => service.statPath(request),

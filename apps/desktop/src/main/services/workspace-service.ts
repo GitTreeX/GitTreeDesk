@@ -501,6 +501,11 @@ export class WorkspaceService {
     return record
   }
 
+  /** Working-tree path for a checkout; rejects unknown and bare repositories. */
+  resolveWorktreePath(gitDir: string): string {
+    return this.#requireWriteCheckout(gitDir).path
+  }
+
   /** Stages the current content of the paths (additions, edits, deletions). */
   async gitStage(request: GitPathsRequest): Promise<null> {
     const record = this.#requireWriteCheckout(request.gitDir)
