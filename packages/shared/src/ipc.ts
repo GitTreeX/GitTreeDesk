@@ -1,4 +1,4 @@
-import type { AppInfo } from './api'
+import type { AppInfo, PerfStats } from './api'
 import type { ConflictSide } from './conflicts'
 import type {
   AutoStashReport,
@@ -943,6 +943,8 @@ export interface ReposChangedEvent {
   added: RepoRecord[]
   removed: RepoRecord[]
   updated: RepoRecord[]
+  /** Scan stats of the full rescan that produced the diff; absent for scoped rescans. */
+  stats?: DiscoveryStats
 }
 
 export interface StatusChangedEvent {
@@ -1269,6 +1271,7 @@ export interface InvokeMap {
   'ui-state:keys': { request: UiStateKeysRequest; response: { keys: string[] } }
   'ui-state:delete': { request: UiStateDeleteRequest; response: null }
   'app:info': { request: undefined; response: AppInfo }
+  'app:perfStats': { request: undefined; response: PerfStats }
 }
 
 export interface EventMap {
@@ -1419,7 +1422,8 @@ export const INVOKE_CHANNELS = [
   'ui-state:set',
   'ui-state:keys',
   'ui-state:delete',
-  'app:info'
+  'app:info',
+  'app:perfStats'
 ] as const satisfies readonly InvokeChannel[]
 
 export const EVENT_CHANNELS = [

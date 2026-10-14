@@ -27,6 +27,38 @@ export interface AppInfo {
   gitVersion: GitVersionInfo | null
 }
 
+/** One completed git operation, as shown in the performance overlay. */
+export interface PerfOpSample {
+  channel: string
+  ms: number
+  ok: boolean
+  /** Epoch milliseconds when the operation finished. */
+  at: number
+}
+
+/**
+ * Rolling diagnostics served to dev builds for the performance overlay:
+ * discovery scan timing, status-read latencies, the total warm-up time, and
+ * watcher scope counts. Not user-facing configuration; sample windows are
+ * bounded so the snapshot stays small.
+ */
+export interface PerfStats {
+  scan: { lastMs: number | null; lastRepos: number; at: number | null }
+  status: {
+    /** Full reads in the window. */
+    samples: number
+    p50: number | null
+    p95: number | null
+    lastMs: number | null
+    /** Fingerprint hits that avoided a git call. */
+    skips: { count: number; avgMs: number | null }
+  }
+  /** Time from workspace open until every status was read once; `null` while warming. */
+  warm: { ms: number; at: number } | null
+  ops: PerfOpSample[]
+  watchers: { scopes: number; subscribed: number; degraded: number }
+}
+
 export interface IpcErrorInfo {
   /** Stable machine-readable code, e.g. `invalid-request`, `not-open`. */
   code: string
