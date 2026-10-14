@@ -134,6 +134,21 @@ describe('buildScmModel', () => {
     expect(model[0]?.operation).toBe('rebase')
   })
 
+  it('keeps a clean detached checkout listed regardless of the Repos selection filter', () => {
+    const repo = record({ path: '/ws/app' })
+    const model = buildScmModel(
+      options({
+        records: [repo],
+        isSelected: () => false,
+        statusFor: () =>
+          status({ head: { ref: null, sha: 'c'.repeat(40), detached: true, unborn: false } })
+      })
+    )
+    expect(model).toHaveLength(1)
+    expect(model[0]?.groups).toEqual([])
+    expect(model[0]?.operation).toBe('none')
+  })
+
   it('drops hidden groups but counts every change', () => {
     const repo = record({ path: '/ws/app' })
     const model = buildScmModel(

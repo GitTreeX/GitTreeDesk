@@ -103,8 +103,8 @@ function byPath(rows: ScmRow[]): ScmRow[] {
 
 /**
  * Builds the Source Control rows: one section per checkout with changes. Repositories
- * with an unfinished operation are always listed; the rest can be narrowed to the
- * checkboxes of the Repos view and are hidden when clean.
+ * with an unfinished operation or a detached HEAD are always listed; the rest can be
+ * narrowed to the checkboxes of the Repos view and are hidden when clean.
  */
 export function buildScmModel(options: ScmModelOptions): ScmRepoSection[] {
   const records = [...options.records].sort((a, b) => a.relPath.localeCompare(b.relPath))
@@ -122,9 +122,11 @@ export function buildScmModel(options: ScmModelOptions): ScmRepoSection[] {
       untracked: status.untracked.length
     }
     const total = counts.conflicts + counts.staged + counts.unstaged + counts.untracked
-    const hasOperation = status.operation !== 'none'
+    // Detached HEAD is pinned like an unfinished operation: checking out a tag or commit
+    // usually leaves a clean tree, and the section carries the "Create branch here" banner.
+    const pinned = status.operation !== 'none' || status.head.detached
 
-    if (!hasOperation) {
+    if (!pinned) {
       if (total === 0) continue
       if (options.onlySelected && !options.isSelected(key)) continue
     }
@@ -162,7 +164,7 @@ export function buildScmModel(options: ScmModelOptions): ScmRepoSection[] {
       groups.push({ group: 'untracked', rows, hidden: all.length - rows.length })
     }
 
-    if (groups.length === 0 && !hasOperation) continue
+    if (groups.length === 0 && !pinned) continue
     sections.push({ key, record, operation: status.operation, groups, counts })
   }
 
