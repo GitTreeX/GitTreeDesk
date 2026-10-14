@@ -321,6 +321,30 @@ export function ReposView(): JSX.Element {
         }
       },
       {
+        label: t('menu.stashCreate'),
+        disabled: !canTarget || record.kind === 'bare',
+        onSelect: () => {
+          repoUi.setActiveKey(record.gitDir)
+          operations.openStashCreate(record)
+        }
+      },
+      {
+        label: t('menu.stashes'),
+        disabled: !canTarget || record.kind === 'bare',
+        onSelect: () => {
+          repoUi.setActiveKey(record.gitDir)
+          operations.openStashes(record)
+        }
+      },
+      {
+        label: t('menu.restoreBackup'),
+        disabled: !canTarget,
+        onSelect: () => {
+          repoUi.setActiveKey(record.gitDir)
+          operations.openBackupRestore(record)
+        }
+      },
+      {
         label: paths.length > 1 ? t('menu.copyPaths') : t('menu.copyPath'),
         onSelect: () => copyPath(paths.join('\n'))
       },

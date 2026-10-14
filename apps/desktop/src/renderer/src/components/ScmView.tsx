@@ -9,7 +9,7 @@ import {
   type MouseEvent
 } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { RepoRecord, RepoStatus } from '@gitreedesk/shared'
+import type { ConflictSide, RepoRecord, RepoStatus } from '@gitreedesk/shared'
 import { api } from '../api'
 import { isEditableTarget } from '../commands/keybinding'
 import { repoInfoOf, scmDiffSpec, useEditor } from '../contexts/editor'
@@ -18,6 +18,7 @@ import { useReposUi } from '../contexts/repos'
 import { useTreeUi, type ScmActions } from '../contexts/tree'
 import { useWorkspace } from '../contexts/workspace'
 import { notify, notifyError } from '../notify'
+import { notifyServiceError } from '../lib/reporting'
 import { checkoutKey } from '../tree/repos-model'
 import {
   buildScmModel,
@@ -32,8 +33,10 @@ import {
 import { CommitBox } from './CommitBox'
 import { ConfirmDialog } from './ConfirmDialog'
 import { ContextMenu, type ContextMenuItem } from './ContextMenu'
+import { OperationBanner } from './OperationBanner'
 import { branchLabel } from './RepoBadges'
 import {
+  ArchiveIcon,
   CheckSquareIcon,
   ChevronRightIcon,
   IgnoreIcon,
@@ -292,6 +295,45 @@ export function ScmView(): JSX.Element {
     [t]
   )
 
+  const resolveConflict = useCallback(
+    (item: FlatItem, resolution: ConflictSide): void => {
+      void api
+        .invoke('git:conflictResolve', {
+          gitDir: item.section.record.gitDir,
+          path: item.row.path,
+          resolution
+        })
+        .then(() => {
+          notify({ message: t('conflict.resolved', { name: item.row.name }) })
+        })
+        .catch((error: unknown) => {
+          notifyServiceError(error, t)
+        })
+    },
+    [t]
+  )
+
+  const openConflictInEditor = useCallback(
+    (item: FlatItem): void => {
+      editor.openFile(absPath(item.section.record, item.row.path))
+    },
+    [editor]
+  )
+
+  const openMergeTool = useCallback(
+    (item: FlatItem): void => {
+      void api
+        .invoke('git:openMergeTool', {
+          gitDir: item.section.record.gitDir,
+          path: absPath(item.section.record, item.row.path)
+        })
+        .catch((error: unknown) => {
+          notifyServiceError(error, t)
+        })
+    },
+    [t]
+  )
+
   const actions = useMemo((): ScmActions => {
     const canStage = selectedItems.some((item) => item.row.group !== 'staged')
     const canUnstage = selectedItems.some((item) => item.row.group === 'staged')
@@ -446,7 +488,26 @@ export function ScmView(): JSX.Element {
     return item === undefined ? NO_ROWS : [item]
   }
 
+  const copyPathOf = (target: FlatItem): void => {
+    void api
+      .invoke('app:copyText', { text: absPath(target.section.record, target.row.path) })
+      .catch((error: unknown) => {
+        notifyError(error instanceof Error ? error.message : String(error))
+      })
+  }
+
   const menuItems = (item: FlatItem): ContextMenuItem[] => {
+    if (item.row.group === 'conflicts') {
+      return [
+        { label: t('conflict.ours'), onSelect: () => resolveConflict(item, 'ours') },
+        { label: t('conflict.theirs'), onSelect: () => resolveConflict(item, 'theirs') },
+        { label: t('conflict.both'), onSelect: () => resolveConflict(item, 'both') },
+        { label: t('conflict.openInEditor'), onSelect: () => openConflictInEditor(item) },
+        { label: t('conflict.openTool'), onSelect: () => openMergeTool(item) },
+        { label: t('scm.resolve'), onSelect: () => runStage([item]) },
+        { label: t('menu.copyPath'), onSelect: () => copyPathOf(item) }
+      ]
+    }
     const picked = selected.has(item.id) ? selectedItems : [item]
     const canStage = picked.some((entry) => entry.row.group !== 'staged')
     const canUnstage = picked.some((entry) => entry.row.group === 'staged')
@@ -481,16 +542,18 @@ export function ScmView(): JSX.Element {
     if (untracked) {
       menu.push({ label: t('scm.ignore'), onSelect: () => ignoreRow(item) })
     }
+    const stashPaths = [
+      ...new Set(
+        picked
+          .filter((entry) => entry.section.key === item.section.key && entry.row.group !== 'conflicts')
+          .map((entry) => entry.row.path)
+      )
+    ]
     menu.push({
-      label: t('menu.copyPath'),
-      onSelect: () => {
-        void api
-          .invoke('app:copyText', { text: absPath(item.section.record, item.row.path) })
-          .catch((error: unknown) => {
-            notifyError(error instanceof Error ? error.message : String(error))
-          })
-      }
+      label: t('stash.selectedMenu'),
+      onSelect: () => operations.openStashCreate(item.section.record, { paths: stashPaths })
     })
+    menu.push({ label: t('menu.copyPath'), onSelect: () => copyPathOf(item) })
     return menu
   }
 
@@ -586,6 +649,18 @@ export function ScmView(): JSX.Element {
                     <MinusIcon className="size-3.5" />
                   </button>
                 )}
+                {section.record.kind !== 'bare' && (
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    title={t('stash.listMenu')}
+                    aria-label={t('stash.listMenu')}
+                    className="hidden shrink-0 rounded p-0.5 text-muted hover:bg-ink/10 hover:text-ink group-hover/repo:block"
+                    onClick={() => operations.openStashes(section.record)}
+                  >
+                    <ArchiveIcon className="size-3.5" />
+                  </button>
+                )}
               </div>
 
               {status !== null && status.head.detached && (
@@ -608,9 +683,11 @@ export function ScmView(): JSX.Element {
               )}
 
               {section.operation !== 'none' && (
-                <p className="px-3 py-1 text-xs text-warn">
-                  {t(`scm.operation.${section.operation}`)}
-                </p>
+                <OperationBanner
+                  record={section.record}
+                  operation={section.operation}
+                  conflicts={section.counts.conflicts}
+                />
               )}
 
               {!repoCollapsed &&
@@ -728,6 +805,30 @@ export function ScmView(): JSX.Element {
         )}
         <span className="min-w-0 flex-1" />
         <span className="hidden shrink-0 items-center gap-0.5 group-hover/row:flex group-focus-within/row:flex">
+          {row.group === 'conflicts' && (
+            <>
+              <ConflictChip
+                label={t('conflict.ours')}
+                title={t('conflict.oursHint')}
+                onClick={() => resolveConflict(item, 'ours')}
+              />
+              <ConflictChip
+                label={t('conflict.theirs')}
+                title={t('conflict.theirsHint')}
+                onClick={() => resolveConflict(item, 'theirs')}
+              />
+              <ConflictChip
+                label={t('conflict.both')}
+                title={t('conflict.bothHint')}
+                onClick={() => resolveConflict(item, 'both')}
+              />
+              <RowButton
+                label={t('scm.resolve')}
+                onClick={() => runStage([item])}
+                icon={<CheckSquareIcon className="size-3.5" />}
+              />
+            </>
+          )}
           {row.group === 'staged' && (
             <RowButton
               label={t('scm.unstage')}
@@ -735,9 +836,9 @@ export function ScmView(): JSX.Element {
               icon={<MinusIcon className="size-3.5" />}
             />
           )}
-          {row.group !== 'staged' && (
+          {row.group !== 'staged' && row.group !== 'conflicts' && (
             <RowButton
-              label={row.group === 'conflicts' ? t('scm.resolve') : t('scm.stage')}
+              label={t('scm.stage')}
               onClick={() => runStage([item])}
               icon={<PlusIcon className="size-3.5" />}
             />
@@ -760,6 +861,32 @@ export function ScmView(): JSX.Element {
       </div>
     )
   }
+}
+
+function ConflictChip({
+  label,
+  title,
+  onClick
+}: {
+  label: string
+  title: string
+  onClick: () => void
+}): JSX.Element {
+  return (
+    <button
+      type="button"
+      tabIndex={-1}
+      title={title}
+      className="rounded border border-line px-1 py-px text-[10px] text-muted hover:bg-ink/10 hover:text-ink"
+      onMouseDown={(event) => event.stopPropagation()}
+      onClick={(event) => {
+        event.stopPropagation()
+        onClick()
+      }}
+    >
+      {label}
+    </button>
+  )
 }
 
 function RowButton({

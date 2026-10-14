@@ -32,12 +32,17 @@ export const COMMAND_IDS = {
   toggleLocale: 'appearance.toggleLocale',
   checkoutBranch: 'git.checkoutBranch',
   createBranch: 'git.createBranch',
+  mergeInto: 'git.mergeInto',
+  rebaseCurrent: 'git.rebaseCurrent',
   fetchRepo: 'git.fetchRepo',
   fetchAll: 'git.fetchAll',
   pullRepo: 'git.pullRepo',
   pushBranch: 'git.pushBranch',
   manageRemotes: 'git.remotes',
   manageTags: 'git.tags',
+  stashCreate: 'git.stashCreate',
+  stashes: 'git.stashes',
+  restoreBackup: 'git.restoreBackup',
   toggleOutput: 'view.toggleOutput'
 } as const
 
@@ -83,15 +88,21 @@ export interface BuiltinContext {
   editorQuickOpen: () => void
   gitBranches: () => void
   gitCreateBranch: () => void
+  gitMergeInto: () => void
+  gitRebaseCurrent: () => void
   gitFetch: () => void
   gitFetchAll: () => void
   gitPull: () => void
   gitPush: () => void
   gitRemotes: () => void
   gitTags: () => void
+  gitStashCreate: () => void
+  gitStashes: () => void
+  gitRestoreBackup: () => void
   gitHasTarget: () => boolean
   gitHasRepos: () => boolean
   gitCanSync: () => boolean
+  gitHasWorktree: () => boolean
   toggleOutput: () => void
 }
 
@@ -312,6 +323,20 @@ export function createBuiltinCommands(get: () => BuiltinContext): CommandDefinit
       run: () => get().gitCreateBranch()
     },
     {
+      id: COMMAND_IDS.mergeInto,
+      titleKey: 'commands.mergeInto',
+      categoryKey: 'commands.categories.git',
+      enabled: () => get().gitCanSync(),
+      run: () => get().gitMergeInto()
+    },
+    {
+      id: COMMAND_IDS.rebaseCurrent,
+      titleKey: 'commands.rebaseCurrent',
+      categoryKey: 'commands.categories.git',
+      enabled: () => get().gitCanSync(),
+      run: () => get().gitRebaseCurrent()
+    },
+    {
       id: COMMAND_IDS.fetchRepo,
       titleKey: 'commands.fetchRepo',
       categoryKey: 'commands.categories.git',
@@ -352,6 +377,27 @@ export function createBuiltinCommands(get: () => BuiltinContext): CommandDefinit
       categoryKey: 'commands.categories.git',
       enabled: () => get().gitHasTarget(),
       run: () => get().gitTags()
+    },
+    {
+      id: COMMAND_IDS.stashCreate,
+      titleKey: 'commands.stashCreate',
+      categoryKey: 'commands.categories.git',
+      enabled: () => get().gitHasWorktree(),
+      run: () => get().gitStashCreate()
+    },
+    {
+      id: COMMAND_IDS.stashes,
+      titleKey: 'commands.stashes',
+      categoryKey: 'commands.categories.git',
+      enabled: () => get().gitHasWorktree(),
+      run: () => get().gitStashes()
+    },
+    {
+      id: COMMAND_IDS.restoreBackup,
+      titleKey: 'commands.restoreBackup',
+      categoryKey: 'commands.categories.git',
+      enabled: () => get().gitHasTarget(),
+      run: () => get().gitRestoreBackup()
     },
     {
       id: COMMAND_IDS.toggleOutput,

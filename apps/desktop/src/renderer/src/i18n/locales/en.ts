@@ -67,7 +67,10 @@ const en = {
     pullSelected: 'Pull Selected (Fast-forward Only)',
     push: 'Push…',
     remotes: 'Remotes…',
-    tags: 'Tags…'
+    tags: 'Tags…',
+    stashCreate: 'Stash Changes…',
+    stashes: 'Stashes…',
+    restoreBackup: 'Restore from Backup…'
   },
   dialogs: {
     cancel: 'Cancel',
@@ -368,6 +371,163 @@ const en = {
       'This replaces “{{branch}}” on {{remote}} with your local branch. Commits that exist only on the remote will be lost from it.',
     forceAction: 'Force Push'
   },
+  undo: {
+    action: 'Undo',
+    restored: 'Undone — the previous state is restored'
+  },
+  operation: {
+    inProgress: '{{operation}} in progress',
+    kinds: {
+      merge: 'Merge',
+      rebase: 'Rebase',
+      'rebase-interactive': 'Interactive rebase',
+      'cherry-pick': 'Cherry-pick',
+      revert: 'Revert',
+      bisect: 'Bisect'
+    },
+    unresolved: '{{count}} unresolved',
+    continue: 'Continue',
+    skip: 'Skip',
+    abort: 'Abort',
+    finished: 'Operation finished',
+    stoppedAgain: 'Stopped again — the operation still needs attention',
+    skipped: 'Skipped the current commit',
+    aborted: 'Operation aborted',
+    abortTitle: 'Abort the {{operation}}?',
+    abortBody:
+      'The operation stops and the repository returns to its pre-operation state. Staged resolutions are discarded.',
+    blockedTitle: '{{operation}} in progress',
+    blockedBody:
+      'Finish the current operation before starting another one. Continue it once the conflicts are resolved, or abort it to return to the earlier state.',
+    continueBlockedTitle: 'Resolve the conflicts first',
+    continueBlockedBody:
+      '{{count}} files still have unresolved conflicts. Resolve them, then continue.'
+  },
+  conflict: {
+    ours: 'Ours',
+    theirs: 'Theirs',
+    both: 'Both',
+    oursHint: 'Keep our side of the conflict',
+    theirsHint: 'Keep the incoming side of the conflict',
+    bothHint: 'Keep both sides',
+    resolved: 'Resolved {{name}}',
+    openInEditor: 'Open in Editor',
+    openTool: 'Open in External Merge Tool'
+  },
+  merge: {
+    menu: 'Merge into Current Branch…',
+    title: 'Merge into {{branch}}',
+    action: 'Merge',
+    modes: {
+      default: 'Fast-forward when possible',
+      'no-ff': 'Always create a merge commit',
+      'ff-only': 'Fast-forward only',
+      squash: 'Squash into staged changes'
+    },
+    descriptions: {
+      default: 'Fast-forwards when the branch can; otherwise creates a merge commit.',
+      'no-ff': 'Creates a merge commit even when a fast-forward would be possible.',
+      'ff-only': 'Refuses the merge when it cannot be fast-forwarded.',
+      squash: 'Combines the changes and stages them without committing or moving HEAD.'
+    },
+    upToDate: 'Already up to date',
+    fastForward: 'Fast-forwarded {{branch}} to {{rev}}',
+    merged: 'Merged {{rev}} into {{branch}}',
+    squashed: 'Squashed {{rev}} into the index — commit when ready',
+    stopped: 'Conflicts stopped the merge — resolve them in Source Control'
+  },
+  rebase: {
+    menu: 'Rebase Current Branch onto This…',
+    action: 'Rebase',
+    confirmTitle: 'Rebase “{{current}}” onto “{{onto}}”?',
+    confirmBody:
+      'The commits of the current branch are replayed on top of “{{onto}}”. A backup is taken first, so this can be undone.',
+    done: 'Rebased “{{current}}” onto “{{onto}}”',
+    stopped: 'The rebase stopped — continue it from the operation banner',
+    interactiveMenu: 'Interactive Rebase from Here…',
+    interactiveTitle: 'Interactive rebase — {{name}}',
+    interactiveBase: 'Commits replayed on top of {{base}}, oldest first',
+    empty: 'No commits to replay above this point',
+    actions: {
+      pick: 'Pick',
+      reword: 'Reword',
+      edit: 'Edit',
+      squash: 'Squash',
+      fixup: 'Fixup',
+      drop: 'Drop'
+    },
+    actionHints: {
+      pick: 'Replay the commit as is',
+      reword: 'Replay it and edit the message',
+      edit: 'Pause after the commit to amend it',
+      squash: 'Merge into the previous commit and combine messages',
+      fixup: 'Merge into the previous commit, keeping its message',
+      drop: 'Omit the commit'
+    },
+    messageLabel: 'New message',
+    moveUp: 'Move up',
+    moveDown: 'Move down',
+    run: 'Start Rebase',
+    runCount: 'Start Rebase ({{count}} commits)',
+    firstStepHint: 'The first step cannot be squashed or fixed up',
+    invalidRequest: 'A reword step needs a message'
+  },
+  stash: {
+    createMenu: 'Stash Changes…',
+    selectedMenu: 'Stash Selected Paths…',
+    title: 'Stash changes — {{name}}',
+    messageLabel: 'Message',
+    messagePlaceholder: 'e.g. wip before rebase',
+    includeUntracked: 'Include untracked files',
+    keepIndex: 'Keep staged changes staged',
+    pathsNote: 'Only the {{count}} selected paths are stashed.',
+    action: 'Stash',
+    created: 'Stashed the changes',
+    createdPaths: 'Stashed {{count}} selected paths',
+    nothing: 'Nothing to stash',
+    listMenu: 'Stashes…',
+    listTitle: 'Stashes — {{name}}',
+    empty: 'No stashes yet',
+    files: '{{count}} files',
+    apply: 'Apply',
+    pop: 'Pop',
+    drop: 'Drop',
+    show: 'Show',
+    applied: 'Applied the stash',
+    popped: 'Popped the stash',
+    applyStopped: 'Applying the stash produced conflicts — resolve them in Source Control',
+    popStopped: 'Popping the stash produced conflicts — the entry is kept',
+    dropTitle: 'Drop this stash?',
+    dropBody:
+      '“{{message}}” is removed from the stash list. A backup is taken first, so you can undo this.',
+    dropAction: 'Drop',
+    dropped: 'Dropped the stash entry',
+    newButton: 'New Stash…',
+    loadFiles: 'Could not read the stash files'
+  },
+  backup: {
+    menu: 'Restore from Backup…',
+    title: 'Restore from backup — {{name}}',
+    empty: 'No backups yet',
+    ops: {
+      merge: 'Merge',
+      rebase: 'Rebase',
+      'rebase-interactive': 'Interactive rebase',
+      'reset-hard': 'Hard reset',
+      'reset-soft': 'Soft reset',
+      'reset-mixed': 'Mixed reset',
+      'stash-drop': 'Stash drop',
+      'branch-delete': 'Branch delete',
+      restore: 'Restore',
+      'commit-amend': 'Commit amend'
+    },
+    targetLabel: 'restores {{target}}',
+    restore: 'Restore',
+    confirmTitle: 'Restore this backup?',
+    confirmBody:
+      'The repository returns to the state captured by “{{op}}” from {{time}}. The current state is backed up first.',
+    restored: 'Restored the “{{op}}” backup'
+  },
   output: {
     title: 'Output',
     clear: 'Clear',
@@ -389,7 +549,9 @@ const en = {
     exists: 'Something with that name already exists',
     notOpen: 'No workspace is open',
     disposed: 'The workspace was closed',
-    branchUnmerged: 'The branch holds commits that are not merged elsewhere'
+    branchUnmerged: 'The branch holds commits that are not merged elsewhere',
+    mergeToolMissing: 'No external merge tool is configured',
+    operationInProgress: 'Another Git operation is in progress — finish it first'
   },
   statusbar: {
     opening: 'Opening…',
@@ -464,6 +626,11 @@ const en = {
     pushBranch: 'Push',
     manageRemotes: 'Manage Remotes…',
     manageTags: 'Manage Tags…',
+    mergeInto: 'Merge into Current Branch…',
+    rebaseCurrent: 'Rebase Current Branch onto…',
+    stashCreate: 'Stash Changes…',
+    stashes: 'Stashes…',
+    restoreBackup: 'Restore from Backup…',
     toggleOutput: 'Toggle Output Panel',
     categories: {
       workspace: 'Workspace',

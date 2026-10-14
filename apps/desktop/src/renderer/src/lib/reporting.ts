@@ -1,6 +1,7 @@
-import type { AutoStashReport } from '@gitreedesk/shared'
+import type { AutoStashReport, UndoHint } from '@gitreedesk/shared'
 import { GtdIpcError } from '@gitreedesk/shared'
-import { notifyError } from '../notify'
+import { api } from '../api'
+import { notify, notifyError } from '../notify'
 
 /** Minimal translate signature; avoids depending on the full i18next types. */
 export type Translate = (key: string, options?: Record<string, unknown>) => string
@@ -35,6 +36,10 @@ export function errorText(error: unknown, t: Translate): string {
         return t('errors.disposed')
       case 'branch-unmerged':
         return t('errors.branchUnmerged')
+      case 'operation-in-progress':
+        return t('errors.operationInProgress')
+      case 'merge-tool-missing':
+        return t('errors.mergeToolMissing')
       case 'git-failed':
         return error.message
       default:
@@ -61,9 +66,43 @@ export function isRejectedPush(error: unknown): boolean {
   return /non-fast-forward|\[rejected\]|fetch first|Updates were rejected/i.test(text)
 }
 
+/** The service refused an operation because another one is already in progress. */
+export function isOperationBlocked(error: unknown): boolean {
+  return error instanceof GtdIpcError && error.code === 'operation-in-progress'
+}
+
 /** One-line notice for an auto-stash guard; `null` when no stash was involved. */
 export function stashNotice(stash: AutoStashReport, t: Translate): string | null {
   if (!stash.stashed) return null
   if (stash.stashConflict) return t('sync.stashConflict')
   return stash.stashRestored ? t('sync.autoStashed') : null
+}
+
+/** Reports a finished operation, offering Undo when the result carried a hint. */
+export function notifyUndoable(
+  t: Translate,
+  gitDir: string,
+  message: string,
+  undo: UndoHint | null
+): void {
+  if (undo === null) {
+    notify({ message })
+    return
+  }
+  notify({
+    message,
+    action: {
+      label: t('undo.action'),
+      run: () => {
+        void (async () => {
+          try {
+            await api.invoke('git:oplogUndo', { gitDir, entryId: undo.entryId })
+            notify({ message: t('undo.restored') })
+          } catch (failure) {
+            notifyServiceError(failure, t)
+          }
+        })()
+      }
+    }
+  })
 }

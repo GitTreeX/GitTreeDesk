@@ -290,12 +290,38 @@ export function BranchPicker({
         { label: t('branches.copyName'), onSelect: () => copyName(ref.name) }
       ]
     }
+    const onBranch = status !== null && status.head.ref !== null
+    const mergeDisabled = isHead || bare || !onBranch
     return [
       { label: t('branches.checkout'), disabled: isHead || bare, onSelect: () => checkout(ref) },
       {
         label: ref.upstream === null ? t('branches.publish') : t('branches.push'),
         onSelect: () =>
           operations.pushBranch(record, ref.name, { hasUpstream: ref.upstream !== null })
+      },
+      {
+        label: t('merge.menu'),
+        disabled: mergeDisabled,
+        onSelect: () => {
+          onClose()
+          operations.beginMerge(record, ref.name)
+        }
+      },
+      {
+        label: t('rebase.menu'),
+        disabled: mergeDisabled,
+        onSelect: () => {
+          onClose()
+          operations.rebaseOnto(record, ref.name)
+        }
+      },
+      {
+        label: t('rebase.interactiveMenu'),
+        disabled: mergeDisabled,
+        onSelect: () => {
+          onClose()
+          operations.beginInteractiveRebase(record, ref.name)
+        }
       },
       { label: t('branches.rename'), disabled: bare, onSelect: () => setRenameTarget(ref) },
       {

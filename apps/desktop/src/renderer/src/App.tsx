@@ -187,6 +187,8 @@ function AppRoot(): JSX.Element {
     editorQuickOpen: () => editor.openQuickOpen(),
     gitBranches: () => withActiveRecord((record) => operations.openBranches(record)),
     gitCreateBranch: () => withActiveRecord((record) => operations.openCreateBranch(record)),
+    gitMergeInto: () => withActiveRecord((record) => operations.openBranches(record)),
+    gitRebaseCurrent: () => withActiveRecord((record) => operations.openBranches(record)),
     gitFetch: () => operations.fetchRepos(fetchTargets()),
     gitFetchAll: () => operations.fetchRepos(workspace.descriptor?.records ?? []),
     gitPull: () => {
@@ -201,9 +203,16 @@ function AppRoot(): JSX.Element {
     },
     gitRemotes: () => withActiveRecord((record) => operations.openRemotes(record)),
     gitTags: () => withActiveRecord((record) => operations.openTags(record)),
+    gitStashCreate: () => withActiveRecord((record) => operations.openStashCreate(record)),
+    gitStashes: () => withActiveRecord((record) => operations.openStashes(record)),
+    gitRestoreBackup: () => withActiveRecord((record) => operations.openBackupRestore(record)),
     gitHasTarget: () => repoUi.activeRecord !== null,
     gitHasRepos: () => (workspace.descriptor?.records.length ?? 0) > 0,
     gitCanSync: () => syncTarget() !== null,
+    gitHasWorktree: () => {
+      const record = repoUi.activeRecord
+      return record !== null && record.kind !== 'bare' && record.gitDir.length > 0
+    },
     toggleOutput: () => operations.setOutputOpen(!operations.outputOpen)
   }
 

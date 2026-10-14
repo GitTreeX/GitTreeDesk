@@ -31,6 +31,22 @@ export interface OperationsValue {
   openCreateBranch: (record: RepoRecord, options?: { startPoint?: string; initialName?: string }) => void
   openRemotes: (record: RepoRecord) => void
   openTags: (record: RepoRecord) => void
+  /** Opens the merge dialog that merges `branch` into the current branch. */
+  beginMerge: (record: RepoRecord, branch: string) => void
+  /** Confirms, then rebases the current branch onto `onto`. */
+  rebaseOnto: (record: RepoRecord, onto: string) => void
+  /** Opens the interactive rebase planner based on `base`. */
+  beginInteractiveRebase: (record: RepoRecord, base: string) => void
+  /** Opens the stash-creation dialog; `paths` restricts it to the picked paths. */
+  openStashCreate: (record: RepoRecord, options?: { paths?: readonly string[] }) => void
+  openStashes: (record: RepoRecord) => void
+  openBackupRestore: (record: RepoRecord) => void
+  /** Validates unresolved conflicts, then continues the stopped operation. */
+  continueOperation: (record: RepoRecord) => void
+  skipOperation: (record: RepoRecord) => void
+  abortOperation: (record: RepoRecord) => void
+  /** Explains that another operation is in progress and offers continue/abort. */
+  openBlockedOperation: (record: RepoRecord) => void
   closeDialog: () => void
   /** Fetch one repository (toast) or several (output panel summary). */
   fetchRepos: (records: readonly RepoRecord[]) => void

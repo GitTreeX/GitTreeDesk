@@ -69,7 +69,10 @@ export const zhHansResource: TranslationResource = {
     pullSelected: '拉取已选中（仅快进）',
     push: '推送…',
     remotes: '远端…',
-    tags: '标签…'
+    tags: '标签…',
+    stashCreate: '贮藏更改…',
+    stashes: '贮藏…',
+    restoreBackup: '从备份恢复…'
   },
   dialogs: {
     cancel: '取消',
@@ -367,6 +370,157 @@ export const zhHansResource: TranslationResource = {
     forceFinalBody: '这会将 {{remote}} 上的“{{branch}}”替换为本地分支。仅存在于远端的提交将从该分支中丢失。',
     forceAction: '强制推送'
   },
+  undo: {
+    action: '撤销',
+    restored: '已撤销 — 已恢复到之前的状态'
+  },
+  operation: {
+    inProgress: '正在{{operation}}',
+    kinds: {
+      merge: '合并',
+      rebase: '变基',
+      'rebase-interactive': '交互式变基',
+      'cherry-pick': '拣选',
+      revert: '还原',
+      bisect: '二分查找'
+    },
+    unresolved: '{{count}} 个未解决',
+    continue: '继续',
+    skip: '跳过',
+    abort: '中止',
+    finished: '操作已完成',
+    stoppedAgain: '操作再次停止 — 仍需继续处理',
+    skipped: '已跳过当前提交',
+    aborted: '操作已中止',
+    abortTitle: '中止{{operation}}？',
+    abortBody: '操作将停止，仓库回到操作开始之前的状态。已暂存的冲突解决结果将被丢弃。',
+    blockedTitle: '{{operation}}正在进行',
+    blockedBody: '请先完成当前操作：解决冲突后继续，或中止操作以回到之前的状态。',
+    continueBlockedTitle: '请先解决冲突',
+    continueBlockedBody: '仍有 {{count}} 个文件存在未解决的冲突。请解决后再继续。'
+  },
+  conflict: {
+    ours: '本地',
+    theirs: '传入',
+    both: '两者',
+    oursHint: '保留冲突中本地一侧的内容',
+    theirsHint: '保留冲突中传入一侧的内容',
+    bothHint: '保留两侧的内容',
+    resolved: '已解决 {{name}}',
+    openInEditor: '在编辑器中打开',
+    openTool: '用外部合并工具打开'
+  },
+  merge: {
+    menu: '合并到当前分支…',
+    title: '合并到 {{branch}}',
+    action: '合并',
+    modes: {
+      default: '可快进时快进',
+      'no-ff': '总是创建合并提交',
+      'ff-only': '仅允许快进',
+      squash: '压缩为已暂存的更改'
+    },
+    descriptions: {
+      default: '可以快进时直接快进，否则创建合并提交。',
+      'no-ff': '即使可以快进也创建合并提交。',
+      'ff-only': '无法快进时拒绝合并。',
+      squash: '合并更改并暂存，不提交、不移动 HEAD。'
+    },
+    upToDate: '已是最新',
+    fastForward: '已将 {{branch}} 快进到 {{rev}}',
+    merged: '已将 {{rev}} 合并到 {{branch}}',
+    squashed: '已将 {{rev}} 压缩到暂存区 — 可随时提交',
+    stopped: '冲突导致合并停止 — 请在源代码管理中解决'
+  },
+  rebase: {
+    menu: '将当前分支变基到此分支…',
+    action: '变基',
+    confirmTitle: '将“{{current}}”变基到“{{onto}}”？',
+    confirmBody: '当前分支的提交将依次重新应用到“{{onto}}”之上。会先创建备份，因此可以撤销。',
+    done: '已将“{{current}}”变基到“{{onto}}”',
+    stopped: '变基已停止 — 请通过操作横幅继续',
+    interactiveMenu: '从此处开始交互式变基…',
+    interactiveTitle: '交互式变基 — {{name}}',
+    interactiveBase: '重新应用 {{base}} 之上的提交（从旧到新）',
+    empty: '此位置之上没有需要重新应用的提交',
+    actions: {
+      pick: '保留',
+      reword: '改信息',
+      edit: '暂停编辑',
+      squash: '压缩合并',
+      fixup: '压缩并弃信息',
+      drop: '丢弃'
+    },
+    actionHints: {
+      pick: '按原样重新应用该提交',
+      reword: '重新应用并编辑提交信息',
+      edit: '应用后暂停，可修订后再继续',
+      squash: '并入上一个提交并合并提交信息',
+      fixup: '并入上一个提交，保留其提交信息',
+      drop: '不要该提交'
+    },
+    messageLabel: '新的提交信息',
+    moveUp: '上移',
+    moveDown: '下移',
+    run: '开始变基',
+    runCount: '开始变基（{{count}} 个提交）',
+    firstStepHint: '第一个步骤不能压缩合并',
+    invalidRequest: '“改信息”步骤需要填写新的提交信息'
+  },
+  stash: {
+    createMenu: '贮藏更改…',
+    selectedMenu: '贮藏选中的路径…',
+    title: '贮藏更改 — {{name}}',
+    messageLabel: '说明',
+    messagePlaceholder: '例如：变基前的临时保存',
+    includeUntracked: '包含未跟踪的文件',
+    keepIndex: '保留已暂存的更改',
+    pathsNote: '仅贮藏选中的 {{count}} 个路径。',
+    action: '贮藏',
+    created: '已贮藏更改',
+    createdPaths: '已贮藏选中的 {{count}} 个路径',
+    nothing: '没有需要贮藏的更改',
+    listMenu: '贮藏…',
+    listTitle: '贮藏 — {{name}}',
+    empty: '尚无贮藏记录',
+    files: '{{count}} 个文件',
+    apply: '应用',
+    pop: '弹出',
+    drop: '删除',
+    show: '查看',
+    applied: '已应用该贮藏',
+    popped: '已弹出该贮藏',
+    applyStopped: '应用贮藏时产生冲突 — 请在源代码管理中解决',
+    popStopped: '弹出贮藏时产生冲突 — 该条目已保留',
+    dropTitle: '删除该贮藏？',
+    dropBody: '“{{message}}” 将从贮藏列表中移除。删除前会先创建备份，可以撤销。',
+    dropAction: '删除',
+    dropped: '已删除该贮藏条目',
+    newButton: '新建贮藏…',
+    loadFiles: '无法读取该贮藏的文件列表'
+  },
+  backup: {
+    menu: '从备份恢复…',
+    title: '从备份恢复 — {{name}}',
+    empty: '暂无备份',
+    ops: {
+      merge: '合并',
+      rebase: '变基',
+      'rebase-interactive': '交互式变基',
+      'reset-hard': '硬重置',
+      'reset-soft': '软重置',
+      'reset-mixed': '混合重置',
+      'stash-drop': '删除贮藏',
+      'branch-delete': '删除分支',
+      restore: '恢复',
+      'commit-amend': '修订提交'
+    },
+    targetLabel: '恢复 {{target}}',
+    restore: '恢复',
+    confirmTitle: '恢复该备份？',
+    confirmBody: '仓库将回到“{{op}}”（{{time}}）时的状态。当前状态会先备份。',
+    restored: '已恢复“{{op}}”备份'
+  },
   output: {
     title: '输出',
     clear: '清空',
@@ -388,7 +542,9 @@ export const zhHansResource: TranslationResource = {
     exists: '已存在同名内容',
     notOpen: '尚未打开工作区',
     disposed: '工作区已关闭',
-    branchUnmerged: '该分支包含未合并到其他位置的提交'
+    branchUnmerged: '该分支包含未合并到其他位置的提交',
+    mergeToolMissing: '尚未配置外部合并工具',
+    operationInProgress: '另一个 Git 操作正在进行 — 请先完成它'
   },
   statusbar: {
     opening: '正在打开…',
@@ -461,6 +617,11 @@ export const zhHansResource: TranslationResource = {
     pushBranch: '推送',
     manageRemotes: '管理远端…',
     manageTags: '管理标签…',
+    mergeInto: '合并到当前分支…',
+    rebaseCurrent: '将当前分支变基到…',
+    stashCreate: '贮藏更改…',
+    stashes: '贮藏…',
+    restoreBackup: '从备份恢复…',
     toggleOutput: '切换输出面板',
     categories: {
       workspace: '工作区',
