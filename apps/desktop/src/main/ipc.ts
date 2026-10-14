@@ -1,9 +1,11 @@
+import { dirname } from 'node:path'
 import { BrowserWindow, clipboard, dialog, ipcMain, shell } from 'electron'
 import {
   INVOKE_CHANNELS,
   type AppInfo,
   type EditorOpenRequest,
   type EventChannel,
+  type GitOpenMergeToolRequest,
   type IpcErrorInfo,
   type IpcResult,
   type SettingsChangedEvent
@@ -11,7 +13,8 @@ import {
 import { invokeSchemas } from '@gitreedesk/shared/validate'
 import type { InvokeHandlers } from '@gitreedesk/shared'
 import type { SettingsChange } from '@gitreedesk/store'
-import { nativePath, openInEditor } from './editor-launcher'
+import { buildEditorCommand } from './editor-command'
+import { launchShell, nativePath, openInEditor } from './editor-launcher'
 import { ServiceError } from './services/errors'
 import { StatusBatcher } from './services/status-batcher'
 import type { WorkspaceService, WorkspaceServiceEvent } from './services/workspace-service'
@@ -160,6 +163,7 @@ function createHandlers(service: WorkspaceService): InvokeHandlers {
     'git:revert': (request) => service.gitRevert(request),
     'git:reset': (request) => service.gitReset(request),
     'git:conflictResolve': (request) => service.gitConflictResolve(request),
+    'git:openMergeTool': (request) => openMergeToolEntry(service, request),
     'git:stashCreate': (request) => service.gitStashCreate(request),
     'git:stashList': (request) => service.gitStashList(request),
     'git:stashFiles': (request) => service.gitStashFiles(request),
@@ -249,6 +253,28 @@ async function openInCodeEntry(
   const { value } = await service.settingsGetEffective(['editor', 'command'])
   const command = typeof value === 'string' && value.trim().length > 0 ? value.trim() : 'code'
   return openInEditor(entry, request.line, command)
+}
+
+/** Launches the configured external merge tool on a conflicted file. */
+async function openMergeToolEntry(
+  service: WorkspaceService,
+  request: GitOpenMergeToolRequest
+): Promise<{ ok: boolean }> {
+  const entry = await service.resolveEntry(request.path)
+  const { value } = await service.settingsGetEffective(['merge', 'toolCommand'])
+  const command = typeof value === 'string' ? value.trim() : ''
+  if (command.length === 0) {
+    throw new ServiceError(
+      'merge-tool-missing',
+      'No external merge tool is configured. Set merge.toolCommand in settings.'
+    )
+  }
+  const ok = await launchShell(
+    buildEditorCommand(command, entry, undefined, process.platform),
+    dirname(entry)
+  )
+  if (!ok) throw new ServiceError('fs-failed', 'The merge tool command could not be started')
+  return { ok }
 }
 
 async function appInfo(service: WorkspaceService): Promise<AppInfo> {

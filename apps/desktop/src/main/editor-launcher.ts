@@ -25,6 +25,11 @@ export async function openInEditor(
   return { ok }
 }
 
+/** Runs a fully built shell command line detached from the app (external tools). */
+export function launchShell(commandLine: string, cwd: string): Promise<boolean> {
+  return launch(commandLine, cwd)
+}
+
 function launch(commandLine: string, cwd: string): Promise<boolean> {
   return new Promise((resolveDone) => {
     let settled = false

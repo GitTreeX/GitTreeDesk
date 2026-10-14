@@ -15,6 +15,7 @@ export type ServiceErrorCode =
   | 'no-operation'
   | 'unresolved-conflicts'
   | 'not-conflicted'
+  | 'merge-tool-missing'
   | 'disposed'
 
 /** Expected failures of the main-process services; surfaced to the renderer with their code. */

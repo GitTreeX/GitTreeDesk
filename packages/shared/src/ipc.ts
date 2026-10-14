@@ -579,6 +579,12 @@ export interface GitConflictResolveRequest {
   resolution: ConflictSide
 }
 
+export interface GitOpenMergeToolRequest {
+  gitDir: string
+  /** Absolute path of the conflicted file (forward slashes). */
+  path: string
+}
+
 export interface GitStashCreateRequest {
   gitDir: string
   message?: string
@@ -853,6 +859,7 @@ export interface InvokeMap {
   'git:revert': { request: GitRevertRequest; response: GitOperationResponse }
   'git:reset': { request: GitResetRequest; response: GitResetResponse }
   'git:conflictResolve': { request: GitConflictResolveRequest; response: null }
+  'git:openMergeTool': { request: GitOpenMergeToolRequest; response: { ok: boolean } }
   'git:stashCreate': { request: GitStashCreateRequest; response: GitStashCreateResponse }
   'git:stashList': { request: GitCheckoutRequest; response: GitStashListResponse }
   'git:stashFiles': { request: GitStashRequest; response: GitStashFilesResponse }
@@ -966,6 +973,7 @@ export const INVOKE_CHANNELS = [
   'git:revert',
   'git:reset',
   'git:conflictResolve',
+  'git:openMergeTool',
   'git:stashCreate',
   'git:stashList',
   'git:stashFiles',

@@ -207,6 +207,7 @@ export const invokeSchemas = {
     path: repoRelPath,
     resolution: z.enum(['ours', 'theirs', 'both'])
   }),
+  'git:openMergeTool': z.object({ gitDir: pathString, path: pathString }),
   'git:stashCreate': z.object({
     gitDir: pathString,
     message: z.string().max(10_000).optional(),
