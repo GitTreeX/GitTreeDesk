@@ -1,4 +1,7 @@
 import { randomUUID } from 'node:crypto'
+import { access } from 'node:fs/promises'
+import { constants } from 'node:fs'
+import { isAbsolute } from 'node:path'
 import type {
   TerminalQuickRunRequest,
   TerminalProfileInfo,
@@ -110,6 +113,15 @@ interface StartSessionInput {
 
 const DEFAULT_CREATE_TIMEOUT_MS = 10_000
 
+async function fileExists(path: string): Promise<boolean> {
+  try {
+    await access(path, constants.F_OK)
+    return true
+  } catch {
+    return false
+  }
+}
+
 /** Terminal sessions over a pty host process: resolution, lifecycle and frame routing. */
 export class TerminalService {
   readonly #workspace: TerminalWorkspace
@@ -155,7 +167,11 @@ export class TerminalService {
       settingsDefaultProfile: defaultProfile,
       quickCommandsAllowed: trusted
     })
-    return { dir: normalizePath(dir), ...resolved }
+    return {
+      dir: normalizePath(dir),
+      ...resolved,
+      profiles: await this.#markMissingProfiles(resolved.profiles)
+    }
   }
 
   /** Starts an interactive session from one of the resolved profiles. */
@@ -423,6 +439,22 @@ export class TerminalService {
       repoRoot: this.#workspace.findRepoRootFor(dir),
       workspaceRoot: this.#workspace.currentRoot()
     }
+  }
+
+  /** Marks config profiles whose shell cannot be resolved; pickers grey them out. */
+  async #markMissingProfiles(
+    profiles: readonly TerminalProfileInfo[]
+  ): Promise<TerminalProfileInfo[]> {
+    return Promise.all(
+      profiles.map(async (profile) => {
+        if (profile.origin !== 'config') return profile
+        const found = isAbsolute(profile.shell)
+          ? await fileExists(profile.shell)
+          : (await findExecutable(profile.shell, { platform: this.#platform, env: this.#env })) !==
+            null
+        return found ? profile : { ...profile, missing: true }
+      })
+    )
   }
 
   #detectedProfiles(): Promise<TerminalProfileInfo[]> {
