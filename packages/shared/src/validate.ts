@@ -234,6 +234,49 @@ export const invokeSchemas = {
   'git:oplogUndo': z.object({ gitDir: pathString, entryId: z.number().int().positive() }),
   'git:backups': z.object({ gitDir: pathString }),
   'git:restoreBackup': z.object({ gitDir: pathString, ref: refString }),
+  'git:worktrees': z.object({ gitDir: pathString }),
+  'git:worktreeAdd': z
+    .object({
+      gitDir: pathString,
+      path: pathString,
+      branch: branchName.optional(),
+      newBranch: branchName.optional(),
+      base: refString.optional(),
+      detachAt: refString.optional()
+    })
+    .refine(
+      (value) => {
+        const modes = [value.branch, value.newBranch, value.detachAt].filter(
+          (entry) => entry !== undefined
+        )
+        return modes.length === 1 && (value.base === undefined || value.newBranch !== undefined)
+      },
+      { message: 'exactly one of branch, newBranch or detachAt is required; base requires newBranch' }
+    ),
+  'git:worktreeRemove': z.object({
+    gitDir: pathString,
+    path: pathString,
+    force: z.boolean().optional()
+  }),
+  'git:worktreePrune': z.object({ gitDir: pathString }),
+  'git:worktreeLock': z.object({
+    gitDir: pathString,
+    path: pathString,
+    reason: z.string().max(1000).optional()
+  }),
+  'git:worktreeUnlock': z.object({ gitDir: pathString, path: pathString }),
+  'git:submodules': z.object({ gitDir: pathString }),
+  'git:submoduleUpdate': z.object({
+    gitDir: pathString,
+    paths: z.array(repoRelPath).min(1).max(1024).optional(),
+    init: z.boolean().optional(),
+    recursive: z.boolean().optional()
+  }),
+  'git:submoduleSync': z.object({
+    gitDir: pathString,
+    paths: z.array(repoRelPath).min(1).max(1024).optional(),
+    recursive: z.boolean().optional()
+  }),
   'fs:readDir': z.object({ path: pathString }),
   'fs:readFile': z.object({ path: pathString, allowLarge: z.boolean().optional() }),
   'fs:stat': z.object({ path: pathString }),

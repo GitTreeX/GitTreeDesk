@@ -104,4 +104,58 @@ describe('invokeSchemas', () => {
     expect(invokeSchemas['app:copyText'].safeParse({ text: '/work/acme/src/main.ts' }).success).toBe(true)
     expect(invokeSchemas['app:copyText'].safeParse({}).success).toBe(false)
   })
+
+  it('validates worktree requests', () => {
+    const gitDir = '/work/acme/.git'
+    const path = '/work/acme-feat'
+
+    expect(invokeSchemas['git:worktrees'].safeParse({ gitDir }).success).toBe(true)
+    expect(invokeSchemas['git:worktrees'].safeParse({}).success).toBe(false)
+
+    expect(invokeSchemas['git:worktreeAdd'].safeParse({ gitDir, path, branch: 'feat' }).success).toBe(true)
+    expect(
+      invokeSchemas['git:worktreeAdd'].safeParse({ gitDir, path, newBranch: 'feat', base: 'main' }).success
+    ).toBe(true)
+    expect(invokeSchemas['git:worktreeAdd'].safeParse({ gitDir, path, detachAt: 'v1.0.0' }).success).toBe(true)
+
+    // Exactly one mode, and base belongs to newBranch only.
+    expect(invokeSchemas['git:worktreeAdd'].safeParse({ gitDir, path }).success).toBe(false)
+    expect(
+      invokeSchemas['git:worktreeAdd'].safeParse({ gitDir, path, branch: 'a', detachAt: 'b' }).success
+    ).toBe(false)
+    expect(
+      invokeSchemas['git:worktreeAdd'].safeParse({ gitDir, path, branch: 'feat', base: 'main' }).success
+    ).toBe(false)
+
+    expect(
+      invokeSchemas['git:worktreeRemove'].safeParse({ gitDir, path, force: true }).success
+    ).toBe(true)
+    expect(invokeSchemas['git:worktreeRemove'].safeParse({ gitDir }).success).toBe(false)
+    expect(invokeSchemas['git:worktreePrune'].safeParse({ gitDir }).success).toBe(true)
+    expect(
+      invokeSchemas['git:worktreeLock'].safeParse({ gitDir, path, reason: 'in use' }).success
+    ).toBe(true)
+    expect(invokeSchemas['git:worktreeUnlock'].safeParse({ gitDir, path }).success).toBe(true)
+  })
+
+  it('validates submodule requests', () => {
+    const gitDir = '/work/acme/.git'
+
+    expect(invokeSchemas['git:submodules'].safeParse({ gitDir }).success).toBe(true)
+    expect(invokeSchemas['git:submoduleUpdate'].safeParse({ gitDir }).success).toBe(true)
+    expect(
+      invokeSchemas['git:submoduleUpdate'].safeParse({
+        gitDir,
+        paths: ['libs/core'],
+        init: true,
+        recursive: true
+      }).success
+    ).toBe(true)
+    expect(invokeSchemas['git:submoduleUpdate'].safeParse({ gitDir, paths: ['../escape'] }).success).toBe(false)
+    expect(invokeSchemas['git:submoduleUpdate'].safeParse({ gitDir, paths: [] }).success).toBe(false)
+    expect(
+      invokeSchemas['git:submoduleSync'].safeParse({ gitDir, paths: ['libs/core'], recursive: true }).success
+    ).toBe(true)
+    expect(invokeSchemas['git:submoduleSync'].safeParse({ gitDir, paths: ['libs\\core'] }).success).toBe(false)
+  })
 })

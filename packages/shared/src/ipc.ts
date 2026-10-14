@@ -10,7 +10,9 @@ import type {
   RemoteInfo,
   RemoteTag,
   RepoStatus,
-  StashEntry
+  RepoWorktree,
+  StashEntry,
+  SubmoduleInfo
 } from './git'
 import type { DiscoveryStats, RepoRecord, WatchScopeKind, WorkspaceConfig } from './workspace'
 
@@ -686,6 +688,95 @@ export interface GitOpLogUndoRequest {
   entryId: number
 }
 
+export interface GitWorktreesResponse {
+  worktrees: RepoWorktree[]
+}
+
+export interface GitWorktreeAddRequest {
+  /** Checkout key: the record's git dir. */
+  gitDir: string
+  /** Target directory of the new working tree; created if missing. */
+  path: string
+  /** Existing branch to check out; one of `branch`, `newBranch` or `detachAt` is required. */
+  branch?: string
+  /** New branch created for the worktree. */
+  newBranch?: string
+  /** Starting point of the new branch; defaults to the source repository's HEAD. */
+  base?: string
+  /** Detaches at this revision instead of checking out a branch. */
+  detachAt?: string
+}
+
+export interface GitWorktreeAddResponse {
+  /** Normalized absolute path of the created working tree. */
+  path: string
+}
+
+export interface GitWorktreeTargetRequest {
+  /** Checkout key: the record's git dir. */
+  gitDir: string
+  /** Absolute path of the worktree, as reported by the worktree list. */
+  path: string
+}
+
+export interface GitWorktreeRemoveRequest extends GitWorktreeTargetRequest {
+  /** Confirms removing a dirty worktree; a backup ref is taken first. */
+  force?: boolean
+}
+
+export interface GitWorktreeRemoveResponse {
+  /** Safety ref taken before a forced removal; `null` otherwise. */
+  backup: BackupRef | null
+  /** Undo affordance that recreates the worktree. */
+  undo: UndoHint | null
+}
+
+export interface GitWorktreeLockRequest extends GitWorktreeTargetRequest {
+  reason?: string
+}
+
+export interface GitSubmodulesResponse {
+  submodules: SubmoduleInfo[]
+}
+
+export interface GitSubmoduleUpdateRequest {
+  /** Checkout key: the record's git dir. */
+  gitDir: string
+  /** Repo-relative submodule paths; omitted updates every submodule of the repository. */
+  paths?: string[]
+  /** Clones uninitialized submodules. */
+  init?: boolean
+  /** Updates nested submodules too. */
+  recursive?: boolean
+}
+
+export interface GitSubmoduleUpdateResult {
+  /** Repo-relative path of the submodule. */
+  path: string
+  /** The submodule is checked out at the recorded commit now. */
+  ok: boolean
+  /** The submodule was out of sync before this update. */
+  updated: boolean
+  error: string | null
+  /** Raw git output of this submodule's update. */
+  output: string
+}
+
+export interface GitSubmoduleUpdateResponse {
+  results: GitSubmoduleUpdateResult[]
+}
+
+export interface GitSubmoduleSyncRequest {
+  gitDir: string
+  /** Repo-relative submodule paths; omitted syncs every submodule of the repository. */
+  paths?: string[]
+  recursive?: boolean
+}
+
+export interface GitSubmoduleSyncResponse {
+  output: string
+}
+
 export interface WorkspaceListFilesRequest {
   limit?: number
 }
@@ -783,6 +874,15 @@ export interface CommitOutputEvent {
   chunk: string
 }
 
+export interface SubmoduleOutputEvent {
+  root: string
+  gitDir: string
+  /** Repo-relative path of the submodule that produced this chunk. */
+  path: string
+  /** stdout/stderr chunk of the running submodule update. */
+  chunk: string
+}
+
 export interface SettingsChangedEvent {
   scope: SettingsScope
   /** Workspace root for workspace-scope changes; `null` otherwise. */
@@ -872,6 +972,15 @@ export interface InvokeMap {
   'git:oplogUndo': { request: GitOpLogUndoRequest; response: null }
   'git:backups': { request: GitCheckoutRequest; response: GitBackupsResponse }
   'git:restoreBackup': { request: GitRestoreBackupRequest; response: null }
+  'git:worktrees': { request: GitCheckoutRequest; response: GitWorktreesResponse }
+  'git:worktreeAdd': { request: GitWorktreeAddRequest; response: GitWorktreeAddResponse }
+  'git:worktreeRemove': { request: GitWorktreeRemoveRequest; response: GitWorktreeRemoveResponse }
+  'git:worktreePrune': { request: GitCheckoutRequest; response: null }
+  'git:worktreeLock': { request: GitWorktreeLockRequest; response: null }
+  'git:worktreeUnlock': { request: GitWorktreeTargetRequest; response: null }
+  'git:submodules': { request: GitCheckoutRequest; response: GitSubmodulesResponse }
+  'git:submoduleUpdate': { request: GitSubmoduleUpdateRequest; response: GitSubmoduleUpdateResponse }
+  'git:submoduleSync': { request: GitSubmoduleSyncRequest; response: GitSubmoduleSyncResponse }
   'fs:readDir': { request: FsReadDirRequest; response: { entries: FsEntry[] } }
   'fs:readFile': { request: FsReadFileRequest; response: FsReadFileResponse }
   'fs:stat': { request: FsPathRequest; response: FsStatResponse }
@@ -904,6 +1013,7 @@ export interface EventMap {
   'workspace:reposChanged': ReposChangedEvent
   'git:statusChanged': StatusChangedEvent
   'git:commitOutput': CommitOutputEvent
+  'git:submoduleOutput': SubmoduleOutputEvent
   'fs:changed': TreeChangedEvent
   'workspace:issues': IssuesEvent
   'watcher:degraded': WatcherDegradedEvent
@@ -986,6 +1096,15 @@ export const INVOKE_CHANNELS = [
   'git:oplogUndo',
   'git:backups',
   'git:restoreBackup',
+  'git:worktrees',
+  'git:worktreeAdd',
+  'git:worktreeRemove',
+  'git:worktreePrune',
+  'git:worktreeLock',
+  'git:worktreeUnlock',
+  'git:submodules',
+  'git:submoduleUpdate',
+  'git:submoduleSync',
   'fs:readDir',
   'fs:readFile',
   'fs:stat',
@@ -1018,6 +1137,7 @@ export const EVENT_CHANNELS = [
   'workspace:reposChanged',
   'git:statusChanged',
   'git:commitOutput',
+  'git:submoduleOutput',
   'fs:changed',
   'workspace:issues',
   'watcher:degraded',
