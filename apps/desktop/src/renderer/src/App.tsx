@@ -1,9 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type JSX } from 'react'
+import { useCallback, useEffect, useRef, useState, type DragEvent, type JSX } from 'react'
 import type { RepoRecord } from '@gitreedesk/shared'
 import { api } from './api'
 import { createBuiltinCommands, type BuiltinContext } from './commands/builtin'
-import { KeyBindingService, buildBindings } from './commands/defaults'
-import { CommandRegistry } from './commands/registry'
 import { AppShell } from './components/AppShell'
 import { CommandPalette } from './components/CommandPalette'
 import { OutputPanel } from './components/OutputPanel'
@@ -14,6 +12,7 @@ import { TerminalPanel } from './components/TerminalPanel'
 import { ToastHost } from './components/ToastHost'
 import { TrustDialog } from './components/TrustDialog'
 import { WelcomeView } from './components/WelcomeView'
+import { CommandsProvider, useCommands } from './contexts/commands'
 import { EditorProvider, useEditor } from './contexts/editor'
 import { GraphProvider, useGraph } from './contexts/graph'
 import { OperationsProvider } from './contexts/operations'
@@ -46,23 +45,25 @@ function persist(key: string, value: unknown): void {
 export function App({ initialSettings }: { initialSettings: InitialSettings }): JSX.Element {
   return (
     <SettingsProvider initial={initialSettings}>
-      <WorkspaceProvider>
-        <TreeUiProvider>
-          <EditorProvider>
-            <GraphProvider>
-              <ReposUiProvider>
-                <TerminalProvider>
-                  <SubmodulesProvider>
-                    <OperationsProvider>
-                      <AppRoot />
-                    </OperationsProvider>
-                  </SubmodulesProvider>
-                </TerminalProvider>
-              </ReposUiProvider>
-            </GraphProvider>
-          </EditorProvider>
-        </TreeUiProvider>
-      </WorkspaceProvider>
+      <CommandsProvider>
+        <WorkspaceProvider>
+          <TreeUiProvider>
+            <EditorProvider>
+              <GraphProvider>
+                <ReposUiProvider>
+                  <TerminalProvider>
+                    <SubmodulesProvider>
+                      <OperationsProvider>
+                        <AppRoot />
+                      </OperationsProvider>
+                    </SubmodulesProvider>
+                  </TerminalProvider>
+                </ReposUiProvider>
+              </GraphProvider>
+            </EditorProvider>
+          </TreeUiProvider>
+        </WorkspaceProvider>
+      </CommandsProvider>
     </SettingsProvider>
   )
 }
@@ -77,6 +78,7 @@ function AppRoot(): JSX.Element {
   const operations = useOperations()
   const submodules = useSubmodules()
   const terminal = useTerminal()
+  const { registry, keybindings } = useCommands()
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH)
@@ -85,12 +87,6 @@ function AppRoot(): JSX.Element {
   const dragDepth = useRef(0)
   const collapsedRef = useRef(sidebarCollapsed)
   collapsedRef.current = sidebarCollapsed
-
-  const registry = useMemo(() => new CommandRegistry(), [])
-  const keybindings = useMemo(
-    () => new KeyBindingService(registry, api.platform, buildBindings(api.platform)),
-    [registry]
-  )
 
   const selectPanel = (next: SidebarPanel): void => {
     if (!collapsedRef.current && tree.panel === next) {
@@ -166,6 +162,7 @@ function AppRoot(): JSX.Element {
     cycleTheme: () => void settings.setTheme(nextTheme(settings.theme)),
     toggleLocale: () => void settings.setLocale(settings.locale === 'en' ? 'zh-Hans' : 'en'),
     openSettings: () => editor.openSettings(),
+    openShortcuts: () => editor.openShortcuts(),
     trust: () => void workspace.setTrusted(true),
     revokeTrust: () => void workspace.setTrusted(false),
     togglePalette: () => setPaletteOpen((current) => !current),
@@ -199,6 +196,12 @@ function AppRoot(): JSX.Element {
       if (activeId !== null) editor.requestClose([activeId])
     },
     editorQuickOpen: () => editor.openQuickOpen(),
+    editorCanNavigateBack: () => editor.canNavigateBack(),
+    editorNavigateBack: () => editor.navigateBack(),
+    editorCanNavigateForward: () => editor.canNavigateForward(),
+    editorNavigateForward: () => editor.navigateForward(),
+    commitCanRun: () => tree.commitActions.current?.canCommit() ?? false,
+    commitStaged: () => tree.commitActions.current?.commit(),
     gitBranches: () => withActiveRecord((record) => operations.openBranches(record)),
     gitCreateBranch: () => withActiveRecord((record) => operations.openCreateBranch(record)),
     gitOpenGraph: () => withActiveRecord((record) => graph.openGraph(record)),

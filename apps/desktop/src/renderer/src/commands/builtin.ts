@@ -28,9 +28,13 @@ export const COMMAND_IDS = {
   saveFile: 'editor.save',
   closeTab: 'editor.closeTab',
   quickOpen: 'editor.quickOpen',
+  navigateBack: 'editor.navigateBack',
+  navigateForward: 'editor.navigateForward',
   cycleTheme: 'appearance.cycleTheme',
   toggleLocale: 'appearance.toggleLocale',
   openSettings: 'settings.open',
+  openShortcuts: 'keyboard.openShortcuts',
+  commitStaged: 'commit.commitStaged',
   checkoutBranch: 'git.checkoutBranch',
   createBranch: 'git.createBranch',
   openGraph: 'git.openGraph',
@@ -68,6 +72,7 @@ export interface BuiltinContext {
   cycleTheme: () => void
   toggleLocale: () => void
   openSettings: () => void
+  openShortcuts: () => void
   trust: () => void
   revokeTrust: () => void
   togglePalette: () => void
@@ -94,6 +99,12 @@ export interface BuiltinContext {
   editorHasTab: () => boolean
   editorCloseTab: () => void
   editorQuickOpen: () => void
+  editorCanNavigateBack: () => boolean
+  editorNavigateBack: () => void
+  editorCanNavigateForward: () => boolean
+  editorNavigateForward: () => void
+  commitCanRun: () => boolean
+  commitStaged: () => void
   gitBranches: () => void
   gitCreateBranch: () => void
   gitOpenGraph: () => void
@@ -300,6 +311,20 @@ export function createBuiltinCommands(get: () => BuiltinContext): CommandDefinit
       run: () => get().editorQuickOpen()
     },
     {
+      id: COMMAND_IDS.navigateBack,
+      titleKey: 'commands.navigateBack',
+      categoryKey: 'commands.categories.editor',
+      enabled: () => get().editorCanNavigateBack(),
+      run: () => get().editorNavigateBack()
+    },
+    {
+      id: COMMAND_IDS.navigateForward,
+      titleKey: 'commands.navigateForward',
+      categoryKey: 'commands.categories.editor',
+      enabled: () => get().editorCanNavigateForward(),
+      run: () => get().editorNavigateForward()
+    },
+    {
       id: COMMAND_IDS.cycleTheme,
       titleKey: 'commands.cycleTheme',
       categoryKey: 'commands.categories.appearance',
@@ -310,6 +335,19 @@ export function createBuiltinCommands(get: () => BuiltinContext): CommandDefinit
       titleKey: 'commands.openSettings',
       categoryKey: 'commands.categories.preferences',
       run: () => get().openSettings()
+    },
+    {
+      id: COMMAND_IDS.openShortcuts,
+      titleKey: 'commands.openShortcuts',
+      categoryKey: 'commands.categories.preferences',
+      run: () => get().openShortcuts()
+    },
+    {
+      id: COMMAND_IDS.commitStaged,
+      titleKey: 'commands.commitStaged',
+      categoryKey: 'commands.categories.scm',
+      enabled: () => get().commitCanRun(),
+      run: () => get().commitStaged()
     },
     {
       id: COMMAND_IDS.toggleLocale,

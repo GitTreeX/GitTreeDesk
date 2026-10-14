@@ -213,7 +213,8 @@ export const zhHansResource: TranslationResource = {
     discardBodyMany: '{{count}} 个文件的更改将丢失，此操作无法撤销。'
   },
   commit: {
-    messagePlaceholder: '提交信息（Ctrl+Enter 提交）',
+    messagePlaceholder: '提交信息（{{shortcut}} 提交）',
+    messagePlaceholderPlain: '提交信息',
     action: '提交',
     amendAction: '修订提交',
     menu: '更多提交操作',
@@ -862,6 +863,26 @@ export const zhHansResource: TranslationResource = {
       logLevel: { error: '错误', warn: '警告', info: '信息', debug: '调试' }
     }
   },
+  keyboard: {
+    title: '键盘快捷键',
+    searchPlaceholder: '搜索快捷键…',
+    noResults: '没有匹配的快捷键',
+    commandsTitle: '命令',
+    defaultChip: '默认快捷键',
+    record: '录制',
+    recording: '请按键…',
+    reset: '重置',
+    pendingSave: '保存',
+    pendingCancel: '取消',
+    custom: '自定义',
+    invalid: '无效',
+    conflict: '已被“{{command}}”使用',
+    unassigned: '未绑定',
+    contextTitle: '上下文交互',
+    contextNote: '这些按键作用于当前聚焦的行，且固定不可修改。',
+    contextSpace: '暂存或取消暂存聚焦的更改',
+    contextEnter: '打开聚焦的条目'
+  },
   palette: {
     placeholder: '输入命令…',
     noResults: '没有匹配的命令'
@@ -890,6 +911,8 @@ export const zhHansResource: TranslationResource = {
     cycleTheme: '切换主题',
     toggleLocale: '切换语言',
     openSettings: '打开设置',
+    openShortcuts: '打开键盘快捷键',
+    commitStaged: '提交已暂存的更改',
     trust: '信任此工作区',
     revokeTrust: '撤销信任',
     palette: '显示所有命令',
@@ -897,6 +920,8 @@ export const zhHansResource: TranslationResource = {
     save: '保存文件',
     closeTab: '关闭编辑器标签页',
     quickOpen: '转到文件…',
+    navigateBack: '后退',
+    navigateForward: '前进',
     checkoutBranch: '检出分支…',
     createBranch: '创建分支…',
     openGraph: '打开提交图',

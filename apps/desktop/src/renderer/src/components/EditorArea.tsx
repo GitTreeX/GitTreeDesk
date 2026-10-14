@@ -11,6 +11,7 @@ import { ContextMenu, type ContextMenuItem } from './ContextMenu'
 import { FileDiffView } from './FileDiffView'
 import { FileEditor } from './FileEditor'
 import { GraphView } from './GraphView'
+import { KeyboardShortcutsView } from './KeyboardShortcutsView'
 import { SettingsView } from './SettingsView'
 import { WorkspaceOverview } from './WorkspaceOverview'
 
@@ -77,6 +78,8 @@ export function EditorArea(): JSX.Element {
               <GraphView tab={tab} />
             ) : tab.kind === 'settings' ? (
               <SettingsView />
+            ) : tab.kind === 'shortcuts' ? (
+              <KeyboardShortcutsView />
             ) : (
               <FileDiffView tab={tab} />
             )}
@@ -103,7 +106,7 @@ function TabStrip(): JSX.Element {
   const absolutePath = useCallback((tab: EditorTab): string | null => {
     if (tab.kind === 'file') return tab.path
     if (tab.kind === 'graph') return tab.repo.repoPath
-    if (tab.kind === 'settings') return null
+    if (tab.kind === 'settings' || tab.kind === 'shortcuts') return null
     return `${tab.repo.repoPath}/${tab.path}`
   }, [])
 
@@ -142,12 +145,18 @@ function TabStrip(): JSX.Element {
         const active = tab.id === editor.activeId
         const dirty = editor.dirtyIds.has(tab.id)
         const preview = tab.id === editor.previewId
+        const label =
+          tab.kind === 'settings'
+            ? t('settings.title')
+            : tab.kind === 'shortcuts'
+              ? t('keyboard.title')
+              : tabLabel(tab)
         return (
           <div
             key={tab.id}
             role="tab"
             aria-selected={active}
-            title={absolutePath(tab) ?? t('settings.title')}
+            title={absolutePath(tab) ?? label}
             className={`group flex max-w-56 shrink-0 cursor-default items-center gap-1.5 border-r border-line px-2.5 text-xs select-none ${
               active ? 'bg-canvas text-ink' : 'text-muted hover:bg-ink/5 hover:text-ink'
             }`}
@@ -165,9 +174,7 @@ function TabStrip(): JSX.Element {
             }}
           >
             {dirty && <span className="size-1.5 shrink-0 rounded-full bg-accent" />}
-            <span className={`min-w-0 truncate ${preview ? 'italic' : ''}`}>
-              {tab.kind === 'settings' ? t('settings.title') : tabLabel(tab)}
-            </span>
+            <span className={`min-w-0 truncate ${preview ? 'italic' : ''}`}>{label}</span>
             <button
               type="button"
               tabIndex={-1}
@@ -206,7 +213,13 @@ function ClosePrompt(): JSX.Element {
     () =>
       editor.tabs
         .filter((tab) => ids.includes(tab.id))
-        .map((tab) => (tab.kind === 'settings' ? t('settings.title') : tabLabel(tab))),
+        .map((tab) =>
+          tab.kind === 'settings'
+            ? t('settings.title')
+            : tab.kind === 'shortcuts'
+              ? t('keyboard.title')
+              : tabLabel(tab)
+        ),
     [editor.tabs, ids, t]
   )
   const body =

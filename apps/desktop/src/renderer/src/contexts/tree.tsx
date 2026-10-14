@@ -68,6 +68,12 @@ export interface ScmActions {
   discardSelected: () => void
 }
 
+/** Imperative surface a focused commit box advertises for commands. */
+export interface CommitActions {
+  canCommit: () => boolean
+  commit: () => void
+}
+
 /** Imperative surface the Repos view advertises while it is the visible view. */
 export interface ReposActions {
   /** Selected repositories; empty when nothing is selected. */
@@ -114,6 +120,8 @@ interface TreeUiContextValue {
   explorerActions: MutableRefObject<ExplorerActions | null>
   scmActions: MutableRefObject<ScmActions | null>
   reposActions: MutableRefObject<ReposActions | null>
+  /** Set while a commit box has focus, so the commit command reaches it. */
+  commitActions: MutableRefObject<CommitActions | null>
 }
 
 const TreeUiContext = createContext<TreeUiContextValue | null>(null)
@@ -196,6 +204,7 @@ export function TreeUiProvider({ children }: { children: ReactNode }): JSX.Eleme
   const explorerActions = useRef<ExplorerActions | null>(null)
   const scmActions = useRef<ScmActions | null>(null)
   const reposActions = useRef<ReposActions | null>(null)
+  const commitActions = useRef<CommitActions | null>(null)
 
   const isScmSelected = useCallback(
     (key: string) => !scmDeselected.includes(key),
@@ -284,7 +293,8 @@ export function TreeUiProvider({ children }: { children: ReactNode }): JSX.Eleme
       requestScmFocus,
       explorerActions,
       scmActions,
-      reposActions
+      reposActions,
+      commitActions
     }),
     [
       view,

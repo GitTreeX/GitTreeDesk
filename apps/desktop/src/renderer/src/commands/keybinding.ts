@@ -143,6 +143,54 @@ const DISPLAY_KEYS: Record<string, string> = {
   pagedown: 'PageDown'
 }
 
+/** Storage spellings that read better than plain capitalization (`ArrowUp`). */
+const CANONICAL_KEYS: Record<string, string> = {
+  arrowup: 'ArrowUp',
+  arrowdown: 'ArrowDown',
+  arrowleft: 'ArrowLeft',
+  arrowright: 'ArrowRight',
+  pageup: 'PageUp',
+  pagedown: 'PageDown'
+}
+
+/** Keys pressed on their own that never form a shortcut. */
+const MODIFIER_ONLY_KEYS = new Set([
+  'control',
+  'shift',
+  'alt',
+  'meta',
+  'altgraph',
+  'capslock',
+  'numlock',
+  'scrolllock',
+  'dead',
+  'os',
+  'unidentified',
+  'contextmenu'
+])
+
+/**
+ * Renders a captured key event as accelerator text that {@link parseAccelerator}
+ * reads back, e.g. `Ctrl+Shift+P` or `Alt+ArrowLeft`. Returns null while only
+ * modifiers are held.
+ */
+export function acceleratorFromEvent(event: KeyEventLike, platform: string): string | null {
+  const key = normalizeKeyName(event.key)
+  if (key.length === 0 || MODIFIER_ONLY_KEYS.has(key)) return null
+
+  const parts: string[] = []
+  if (event.ctrlKey) parts.push('Ctrl')
+  if (event.altKey) parts.push('Alt')
+  if (event.shiftKey) parts.push('Shift')
+  if (event.metaKey) parts.push(isMacPlatform(platform) ? 'Cmd' : 'Win')
+
+  const named = CANONICAL_KEYS[key]
+  if (named !== undefined) parts.push(named)
+  else if (key.length === 1) parts.push(key.toUpperCase())
+  else parts.push(key.charAt(0).toUpperCase() + key.slice(1))
+  return parts.join('+')
+}
+
 function displayKey(accelerator: ParsedAccelerator): string {
   const named = DISPLAY_KEYS[accelerator.key]
   if (named !== undefined) return named

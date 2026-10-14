@@ -211,7 +211,8 @@ const en = {
     discardBodyMany: 'Changes to {{count}} files will be lost. This cannot be undone.'
   },
   commit: {
-    messagePlaceholder: 'Commit message (Ctrl+Enter to commit)',
+    messagePlaceholder: 'Commit message ({{shortcut}} to commit)',
+    messagePlaceholderPlain: 'Commit message',
     action: 'Commit',
     amendAction: 'Amend',
     menu: 'More commit actions',
@@ -876,6 +877,26 @@ const en = {
       logLevel: { error: 'Error', warn: 'Warning', info: 'Info', debug: 'Debug' }
     }
   },
+  keyboard: {
+    title: 'Keyboard Shortcuts',
+    searchPlaceholder: 'Search shortcuts…',
+    noResults: 'No shortcuts match',
+    commandsTitle: 'Commands',
+    defaultChip: 'Default shortcut',
+    record: 'Record',
+    recording: 'Press keys…',
+    reset: 'Reset',
+    pendingSave: 'Save',
+    pendingCancel: 'Cancel',
+    custom: 'Custom',
+    invalid: 'Invalid',
+    conflict: 'Already used by “{{command}}”',
+    unassigned: 'Unassigned',
+    contextTitle: 'Context interactions',
+    contextNote: 'These keys act on the focused row and stay fixed.',
+    contextSpace: 'Stage or unstage the focused change',
+    contextEnter: 'Open the focused entry'
+  },
   palette: {
     placeholder: 'Type a command…',
     noResults: 'No matching commands'
@@ -904,6 +925,8 @@ const en = {
     cycleTheme: 'Change Theme',
     toggleLocale: 'Switch Language',
     openSettings: 'Open Settings',
+    openShortcuts: 'Open Keyboard Shortcuts',
+    commitStaged: 'Commit Staged Changes',
     trust: 'Trust This Workspace',
     revokeTrust: 'Revoke Trust',
     palette: 'Show All Commands',
@@ -911,6 +934,8 @@ const en = {
     save: 'Save File',
     closeTab: 'Close Editor Tab',
     quickOpen: 'Go to File…',
+    navigateBack: 'Go Back',
+    navigateForward: 'Go Forward',
     checkoutBranch: 'Checkout Branch…',
     createBranch: 'Create Branch…',
     openGraph: 'Open Commit Graph',

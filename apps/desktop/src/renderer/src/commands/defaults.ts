@@ -5,6 +5,7 @@ import {
   matchesAccelerator,
   parseAccelerator,
   type EditableTargetLike,
+  type KeyEventLike,
   type ParsedAccelerator
 } from './keybinding'
 
@@ -28,12 +29,46 @@ export const DEFAULT_BINDINGS: readonly DefaultBinding[] = [
   { command: 'editor.save', keys: 'Mod+S', allowInInput: true },
   { command: 'editor.closeTab', keys: 'Mod+W', allowInInput: true },
   { command: 'editor.quickOpen', keys: 'Mod+P', allowInInput: true },
+  { command: 'editor.navigateBack', keys: 'Alt+Left', allowInInput: true },
+  { command: 'editor.navigateForward', keys: 'Alt+Right', allowInInput: true },
   { command: 'git.fetchRepo', keys: 'Mod+Shift+F', allowInInput: true },
+  { command: 'commit.commitStaged', keys: 'Mod+Enter', allowInInput: true },
   // Control, not Mod: on macOS the window shortcut is ⌃` and ⌘` cycles windows.
   { command: 'terminal.toggle', keys: 'Ctrl+`', allowInInput: true },
   { command: 'explorer.rename', keys: 'F2' },
   { command: 'explorer.delete', keys: 'Delete' }
 ]
+
+/**
+ * Merges user overrides over the shipped defaults; `null` unbinds a default.
+ * Overridden commands sort first so a user binding outranks a default one that
+ * shares the same keys.
+ */
+export function mergeBindings(
+  defaults: readonly DefaultBinding[],
+  overrides: Readonly<Record<string, string | null>>
+): DefaultBinding[] {
+  const merged = new Map<string, DefaultBinding>()
+  for (const binding of defaults) merged.set(binding.command, binding)
+  for (const [command, keys] of Object.entries(overrides)) {
+    if (keys === null) {
+      merged.delete(command)
+      continue
+    }
+    const base = merged.get(command)
+    merged.set(command, { ...base, command, keys })
+  }
+  const defaultOrder = new Map(defaults.map((binding, index) => [binding.command, index]))
+  return [...merged.values()].sort((a, b) => {
+    const aOverridden = overrides[a.command] !== undefined ? 0 : 1
+    const bOverridden = overrides[b.command] !== undefined ? 0 : 1
+    if (aOverridden !== bOverridden) return aOverridden - bOverridden
+    return (
+      (defaultOrder.get(a.command) ?? Number.MAX_SAFE_INTEGER) -
+      (defaultOrder.get(b.command) ?? Number.MAX_SAFE_INTEGER)
+    )
+  })
+}
 
 export interface ResolvedBinding {
   command: string
@@ -76,12 +111,25 @@ export class KeyBindingService {
     this.#bindings = bindings
   }
 
+  get bindings(): readonly ResolvedBinding[] {
+    return this.#bindings
+  }
+
   bindingsFor(command: string): ResolvedBinding[] {
     return this.#bindings.filter((binding) => binding.command === command)
   }
 
   formatFor(command: string): string | null {
     return this.bindingsFor(command)[0]?.display ?? null
+  }
+
+  /** The first other command whose binding the press would also trigger. */
+  findConflict(event: KeyEventLike, command: string): ResolvedBinding | null {
+    for (const binding of this.#bindings) {
+      if (binding.command === command) continue
+      if (matchesAccelerator(event, binding.accelerator, this.#platform)) return binding
+    }
+    return null
   }
 
   attach(target: Window): () => void {

@@ -70,12 +70,27 @@ export interface SettingsTab {
   id: string
 }
 
-export type EditorTab = FileTab | DiffTab | CommitTab | GraphTab | SettingsTab
+export interface ShortcutsTab {
+  kind: 'shortcuts'
+  id: string
+}
+
+export type EditorTab = FileTab | DiffTab | CommitTab | GraphTab | SettingsTab | ShortcutsTab
 
 export const SETTINGS_TAB_ID = 'settings'
+export const SHORTCUTS_TAB_ID = 'shortcuts'
 
 /** Graph tabs kept open at once; the least recently used one closes to make room. */
 export const GRAPH_TAB_LIMIT = 5
+
+/** Editor navigation history depth. */
+const NAV_LIMIT = 50
+
+/** One remembered file location for Alt+← / Alt+→. */
+interface NavLocation {
+  path: string
+  line: number | null
+}
 
 /** Imperative surface a file tab advertises while its document is mounted. */
 export interface FileTabActions {
@@ -138,6 +153,7 @@ export function tabLabel(tab: EditorTab): string {
   if (tab.kind === 'file') return tab.name
   if (tab.kind === 'graph') return `${tab.repo.name} (Graph)`
   if (tab.kind === 'settings') return 'Settings'
+  if (tab.kind === 'shortcuts') return 'Shortcuts'
   if (tab.kind === 'diff') return baseName(tab.path)
   return `${baseName(tab.path)} @ ${tab.sha.slice(0, 7)}`
 }
@@ -174,6 +190,12 @@ interface EditorContextValue {
   openGraph: (repo: RepoTabInfo) => void
   /** Opens (or activates) the singleton settings tab. */
   openSettings: () => void
+  /** Opens (or activates) the singleton keyboard shortcuts tab. */
+  openShortcuts: () => void
+  canNavigateBack: () => boolean
+  navigateBack: () => void
+  canNavigateForward: () => boolean
+  navigateForward: () => void
   setDiffSource: (id: string, from: DiffSource) => void
   activateTab: (id: string) => void
   pinTab: (id: string) => void
@@ -245,6 +267,7 @@ export function EditorProvider({ children }: { children: ReactNode }): JSX.Eleme
   stateRef.current = state
   const closePromptRef = useRef(closePrompt)
   closePromptRef.current = closePrompt
+  const navRef = useRef<{ entries: NavLocation[]; index: number }>({ entries: [], index: -1 })
 
   // Tabs, prompts and the picker die with their workspace.
   useEffect(() => {
@@ -252,6 +275,7 @@ export function EditorProvider({ children }: { children: ReactNode }): JSX.Eleme
     setClosePrompt(null)
     setQuickOpen(false)
     graphOrder.current = []
+    navRef.current = { entries: [], index: -1 }
   }, [root])
 
   const activeTab = useMemo(
@@ -259,8 +283,18 @@ export function EditorProvider({ children }: { children: ReactNode }): JSX.Eleme
     [state.tabs, state.activeId]
   )
 
-  const openFile = useCallback(
-    (path: string, options?: { preview?: boolean; line?: number }) => {
+  const pushNav = useCallback((path: string, line: number | null): void => {
+    const current = navRef.current
+    const last = current.entries[current.index]
+    if (last !== undefined && last.path === path && last.line === line) return
+    const entries = [...current.entries.slice(0, current.index + 1), { path, line }]
+    if (entries.length > NAV_LIMIT) entries.splice(0, entries.length - NAV_LIMIT)
+    navRef.current = { entries, index: entries.length - 1 }
+  }, [])
+
+  const openFileAt = useCallback(
+    (path: string, options: { preview?: boolean; line?: number } | undefined, record: boolean) => {
+      if (record) pushNav(path, options?.line ?? null)
       setState((current) => {
         const index = current.tabs.findIndex((tab) => tab.kind === 'file' && tab.path === path)
         if (index >= 0) {
@@ -288,8 +322,40 @@ export function EditorProvider({ children }: { children: ReactNode }): JSX.Eleme
         )
       })
     },
+    [pushNav]
+  )
+
+  const openFile = useCallback(
+    (path: string, options?: { preview?: boolean; line?: number }) => openFileAt(path, options, true),
+    [openFileAt]
+  )
+
+  const applyNav = useCallback(
+    (index: number): void => {
+      const entry = navRef.current.entries[index]
+      if (entry === undefined) return
+      navRef.current = { ...navRef.current, index }
+      openFileAt(entry.path, entry.line === null ? undefined : { line: entry.line }, false)
+    },
+    [openFileAt]
+  )
+
+  const canNavigateBack = useCallback(() => navRef.current.index > 0, [])
+
+  const navigateBack = useCallback(() => {
+    const { index } = navRef.current
+    if (index > 0) applyNav(index - 1)
+  }, [applyNav])
+
+  const canNavigateForward = useCallback(
+    () => navRef.current.index < navRef.current.entries.length - 1,
     []
   )
+
+  const navigateForward = useCallback(() => {
+    const { entries, index } = navRef.current
+    if (index < entries.length - 1) applyNav(index + 1)
+  }, [applyNav])
 
   const openDiff = useCallback(
     (repo: RepoTabInfo, spec: ScmDiffSpec, options?: { preview?: boolean }) => {
@@ -365,6 +431,15 @@ export function EditorProvider({ children }: { children: ReactNode }): JSX.Eleme
         return current.activeId === SETTINGS_TAB_ID ? current : { ...current, activeId: SETTINGS_TAB_ID }
       }
       return insertTab(current, { kind: 'settings', id: SETTINGS_TAB_ID }, false)
+    })
+  }, [])
+
+  const openShortcuts = useCallback(() => {
+    setState((current) => {
+      if (current.tabs.some((tab) => tab.kind === 'shortcuts')) {
+        return current.activeId === SHORTCUTS_TAB_ID ? current : { ...current, activeId: SHORTCUTS_TAB_ID }
+      }
+      return insertTab(current, { kind: 'shortcuts', id: SHORTCUTS_TAB_ID }, false)
     })
   }, [])
 
@@ -497,6 +572,11 @@ export function EditorProvider({ children }: { children: ReactNode }): JSX.Eleme
       openCommitDiff,
       openGraph,
       openSettings,
+      openShortcuts,
+      canNavigateBack,
+      navigateBack,
+      canNavigateForward,
+      navigateForward,
       setDiffSource,
       activateTab,
       pinTab,
@@ -523,6 +603,11 @@ export function EditorProvider({ children }: { children: ReactNode }): JSX.Eleme
       openCommitDiff,
       openGraph,
       openSettings,
+      openShortcuts,
+      canNavigateBack,
+      navigateBack,
+      canNavigateForward,
+      navigateForward,
       setDiffSource,
       activateTab,
       pinTab,

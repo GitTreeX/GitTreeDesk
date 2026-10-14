@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useRef, useState, type JSX, type KeyboardEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { CommitDraftVariant, HeadCommit, RepoRecord, RepoStatus } from '@gitreedesk/shared'
 import { api } from '../api'
+import { useCommands } from '../contexts/commands'
 import { useOperations } from '../contexts/operations-context'
+import { useTreeUi, type CommitActions } from '../contexts/tree'
 import { errorText } from '../lib/reporting'
 import { notify } from '../notify'
 import { ConfirmDialog } from './ConfirmDialog'
@@ -44,6 +46,8 @@ export function CommitBox({
 }): JSX.Element | null {
   const { t } = useTranslation()
   const operations = useOperations()
+  const tree = useTreeUi()
+  const { keybindings } = useCommands()
   const [message, setMessage] = useState('')
   const [signOff, setSignOff] = useState(false)
   const [amendSha, setAmendSha] = useState<string | null>(null)
@@ -318,6 +322,17 @@ export function CommitBox({
     void run({ message, amend: false, stageAll: false })
   }, [amendSha, genPhase, gitDir, message, run, status, t])
 
+  // While the message box is focused it serves the commit command from the keyboard.
+  const primaryRef = useRef(primary)
+  const canPrimaryRef = useRef(false)
+  const commitActions = useMemo<CommitActions>(
+    () => ({
+      canCommit: () => canPrimaryRef.current,
+      commit: () => void primaryRef.current()
+    }),
+    []
+  )
+
   const confirmPushed = useCallback((): void => {
     const ask = pushedAsk
     setPushedAsk(null)
@@ -338,6 +353,9 @@ export function CommitBox({
   const canEdit = !blocked && !running
   const canRun = canEdit && !generating
   const canPrimary = canRun && message.trim().length > 0
+  const commitShortcut = keybindings.formatFor('commit.commitStaged')
+  primaryRef.current = primary
+  canPrimaryRef.current = canPrimary
   const generateDisabled =
     running || genPhase === 'preparing' || (genPhase === 'idle' && (blocked || stagedCount === 0))
 
@@ -377,18 +395,22 @@ export function CommitBox({
         rows={2}
         value={message}
         disabled={!canEdit}
-        aria-label={t('commit.messagePlaceholder')}
-        placeholder={t('commit.messagePlaceholder')}
+        aria-label={t('commit.messagePlaceholderPlain')}
+        placeholder={
+          commitShortcut === null
+            ? t('commit.messagePlaceholderPlain')
+            : t('commit.messagePlaceholder', { shortcut: commitShortcut })
+        }
         className="max-h-40 w-full resize-none rounded border border-line bg-canvas px-2 py-1 text-sm text-ink placeholder:text-muted focus:border-accent/60 focus:outline-none disabled:opacity-60"
         onChange={(event) => {
           if (streamRef.current !== null) streamRef.current.edited = true
           setMessage(event.target.value)
         }}
-        onKeyDown={(event: KeyboardEvent<HTMLTextAreaElement>) => {
-          if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
-            event.preventDefault()
-            void primary()
-          }
+        onFocus={() => {
+          tree.commitActions.current = commitActions
+        }}
+        onBlur={() => {
+          if (tree.commitActions.current === commitActions) tree.commitActions.current = null
         }}
       />
       {drafts !== null && drafts.variants.length > 1 && genPhase === 'idle' && (
