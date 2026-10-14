@@ -1098,4 +1098,111 @@ describe('submodule operations', () => {
     },
     60_000
   )
+
+  it('pages the commit graph with refs, filters and upstream marks', async () => {
+    const root = await tempDir('gtd-svc-graph-')
+    const userData = await tempDir('gtd-svc-data-')
+    const repo = join(root, 'api-server')
+    await initRepo(repo)
+    await writeFile(join(repo, 'app.txt'), 'one\n')
+    await commitAll(repo, 'second')
+    await writeFile(join(repo, 'app.txt'), 'two\n')
+    await commitAll(repo, 'third')
+
+    const events: WorkspaceServiceEvent[] = []
+    const instance = service(userData, events)
+    const descriptor = await instance.open(root)
+    const gitDir = descriptor.records[0]?.gitDir ?? ''
+
+    const page = await instance.gitGraph({ gitDir, countTotal: true })
+    expect(page.commits.map((commit) => commit.subject)).toEqual(['third', 'second', 'init'])
+    expect(page.hasMore).toBe(false)
+    expect(page.total).toBe(3)
+    expect(page.refs.some((ref) => ref.fullName === 'refs/heads/main' && ref.isHead)).toBe(true)
+    expect(page.upstream).toBeNull()
+    expect(page.outgoing).toEqual([])
+    expect(page.incoming).toEqual([])
+
+    const limited = await instance.gitGraph({ gitDir, limit: 2, countTotal: true })
+    expect(limited.commits).toHaveLength(2)
+    expect(limited.hasMore).toBe(true)
+    expect(limited.total).toBe(3)
+
+    const rest = await instance.gitGraph({ gitDir, limit: 2, skip: 2 })
+    expect(rest.commits.map((commit) => commit.subject)).toEqual(['init'])
+    expect(rest.hasMore).toBe(false)
+    expect(rest.total).toBeNull()
+
+    const none = await instance.gitGraph({ gitDir, author: 'Nobody' })
+    expect(none.commits).toEqual([])
+
+    const head = await instance.gitGraph({ gitDir, revs: ['HEAD'] })
+    expect(head.commits).toHaveLength(3)
+  })
+
+  it('reads commit details and rewrites history with a backup and undo', async () => {
+    const root = await tempDir('gtd-svc-edit-')
+    const userData = await tempDir('gtd-svc-data-')
+    const repo = join(root, 'api-server')
+    await initRepo(repo)
+    await writeFile(join(repo, 'app.txt'), 'one\ntwo\n')
+    await commitAll(repo, 'add app')
+
+    const events: WorkspaceServiceEvent[] = []
+    const instance = service(userData, events)
+    const descriptor = await instance.open(root)
+    const gitDir = descriptor.records[0]?.gitDir ?? ''
+    const head = (await git(repo, ['rev-parse', 'HEAD'])).trim()
+
+    const details = await instance.gitCommitDetails({ gitDir, sha: head })
+    expect(details.commit.message).toBe('add app')
+    expect(details.commit.author.name).toBe('GitTreeDesk Test')
+    expect(details.commit.pushed).toBe(false)
+    const stat = details.commit.files.find((file) => file.path === 'app.txt')
+    expect(stat?.additions).toBe(2)
+    expect(stat?.deletions).toBe(0)
+    await expect(instance.gitCommitDetails({ gitDir, sha: 'deadbeef' })).rejects.toMatchObject({
+      code: 'git-failed'
+    })
+
+    await expect(
+      instance.gitEditCommit({ gitDir, targets: ['a', 'b'], message: 'shared' })
+    ).rejects.toMatchObject({ code: 'invalid-request' })
+
+    const result = await instance.gitEditCommit({
+      gitDir,
+      targets: [head],
+      message: 'add app (reworded)'
+    })
+    expect(result.stopped).toBe(false)
+    expect(result.sha).not.toBe(head)
+    expect(result.backup.op).toBe('edit-commit')
+    expect(result.undo.entryId).toBeGreaterThan(0)
+    expect((await git(repo, ['log', '-1', '--format=%s'])).trim()).toBe('add app (reworded)')
+
+    const oplog = await instance.gitOpLog({ gitDir })
+    expect(oplog.entries[0]).toMatchObject({ op: 'edit-commit', target: 'main' })
+
+    const backups = await instance.gitBackups({ gitDir })
+    expect(backups.entries[0]).toMatchObject({ op: 'edit-commit', target: 'main' })
+
+    // Undo through the operation log restores the pre-rewrite tip.
+    await instance.gitOpLogUndo({ gitDir, entryId: result.undo.entryId })
+    expect((await git(repo, ['rev-parse', 'HEAD'])).trim()).toBe(head)
+
+    // A batch rewrite including the root applies the author to every target.
+    const shas = (await git(repo, ['log', '--format=%H'])).trim().split('\n')
+    const batch = await instance.gitEditCommit({
+      gitDir,
+      targets: [shas[1] ?? '', shas[0] ?? ''],
+      authorName: 'Batch Author',
+      authorEmail: 'batch@example.com'
+    })
+    expect(batch.stopped).toBe(false)
+    expect((await git(repo, ['log', '--format=%an|%ae'])).trim().split('\n')).toEqual([
+      'Batch Author|batch@example.com',
+      'Batch Author|batch@example.com'
+    ])
+    expect((await git(repo, ['log', '--format=%s'])).trim().split('\n')).toEqual(['add app', 'init'])
+  }, 60_000)
 })

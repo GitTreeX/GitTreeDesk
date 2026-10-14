@@ -28,15 +28,21 @@ import type {
   GitCheckoutDetachRequest,
   GitCheckoutRequest,
   GitCherryPickRequest,
+  GitCommitDetailsRequest,
+  GitCommitDetailsResponse,
   GitCommitRequest,
   GitConflictResolveRequest,
   GitDiffFilesRequest,
   GitDiffRequest,
   GitDiffResponse,
+  GitEditCommitRequest,
+  GitEditCommitResponse,
   GitFetchManyRequest,
   GitFetchRequest,
   GitFetchResponse,
   GitFileLogRequest,
+  GitGraphRequest,
+  GitGraphResponse,
   GitHeadCommitRequest,
   GitHeadCommitResponse,
   GitIgnoreRequest,
@@ -130,6 +136,7 @@ import {
   checkoutBranch,
   checkoutDetach,
   commit as createCommit,
+  countCommits,
   createBackupRef,
   createBranch,
   createStash,
@@ -140,6 +147,7 @@ import {
   detectOperation,
   discardWorktreePaths,
   dropStash,
+  editCommits,
   encodeUndoState,
   fetchRemote,
   GitCommandError,
@@ -174,6 +182,7 @@ import {
   pushTag,
   readBackupSha,
   readBranchTip,
+  readCommitDetails,
   readDiff,
   readFileSnapshot,
   readHeadCommit,
@@ -182,6 +191,7 @@ import {
   readStashDiff,
   readStashEntry,
   readStatus,
+  readUpstreamMarks,
   rebaseAction,
   rebaseInteractive,
   rebaseOnto,
@@ -603,6 +613,60 @@ export class WorkspaceService {
     })
   }
 
+  /** One page of the commit graph with ref labels and upstream marks. */
+  async gitGraph(request: GitGraphRequest): Promise<GitGraphResponse> {
+    const record = this.#requireCheckout(this.#requireSession(), request.gitDir)
+    const filters = {
+      author: request.author,
+      since: request.since,
+      until: request.until,
+      grep: request.grep
+    }
+    const start = request.revs === undefined ? ({ all: true } as const) : { revs: request.revs }
+    const firstPage = request.skip === undefined || request.skip === 0
+    try {
+      const [page, marks, refs, total] = await Promise.all([
+        logCommits({
+          repoPath: record.path,
+          ...start,
+          ...filters,
+          path: request.path,
+          maxCount: request.limit,
+          skip: request.skip
+        }),
+        // The marks describe HEAD against its upstream, so appended pages reuse them.
+        firstPage
+          ? readUpstreamMarks({ repoPath: record.path })
+          : Promise.resolve({ upstream: null, outgoing: [], incoming: [] }),
+        listRefs({ repoPath: record.path }),
+        request.countTotal === true
+          ? countCommits({ repoPath: record.path, ...start, ...filters, path: request.path })
+          : Promise.resolve(null)
+      ])
+      return {
+        commits: page.commits,
+        hasMore: page.hasMore,
+        upstream: marks.upstream,
+        outgoing: marks.outgoing,
+        incoming: marks.incoming,
+        refs,
+        total
+      }
+    } catch (error) {
+      throw toGitServiceError(error)
+    }
+  }
+
+  /** Full message, identities, parents and per-file stats of one commit. */
+  async gitCommitDetails(request: GitCommitDetailsRequest): Promise<GitCommitDetailsResponse> {
+    const record = this.#requireCheckout(this.#requireSession(), request.gitDir)
+    try {
+      return { commit: await readCommitDetails({ repoPath: record.path, sha: request.sha }) }
+    } catch (error) {
+      throw toGitServiceError(error)
+    }
+  }
+
   async gitRefs(request: GitRefsRequest): Promise<{ refs: GitRef[] }> {
     const record = this.#requireCheckout(this.#requireSession(), request.gitDir)
     return { refs: await listRefs({ repoPath: record.path }) }
@@ -699,6 +763,41 @@ export class WorkspaceService {
         })
       })
       return { ...result, undo }
+    })
+  }
+
+  /** Rewrites the metadata of one or more commits; the old tip is backed up first. */
+  async gitEditCommit(request: GitEditCommitRequest): Promise<GitEditCommitResponse> {
+    const session = this.#requireSession()
+    const record = this.#requireWriteCheckout(request.gitDir)
+    if (request.targets.length > 1 && request.message !== undefined) {
+      throw new ServiceError(
+        'invalid-request',
+        'A replacement message is only valid for a single commit'
+      )
+    }
+    await this.#assertNoOperation(record, 'History rewrite')
+    const suppressHooks = !this.#workspaces.isTrusted(session.root)
+    return await this.#gitOperation(record, async (repoPath) => {
+      const edits = request.targets.map((sha) => ({
+        sha,
+        message: request.message,
+        authorName: request.authorName,
+        authorEmail: request.authorEmail,
+        authorDate: request.authorDate,
+        committerDate: request.committerDate
+      }))
+      const backup = await createBackupRef({ repoPath, op: 'edit-commit', target: 'HEAD' })
+      const result = await editCommits(repoPath, { edits, suppressHooks })
+      const undo = this.#recordOperation(record, 'edit-commit', {
+        backupRef: backup.ref,
+        undoState: encodeUndoState({
+          kind: 'rebase',
+          before: backup.sha,
+          target: await this.#headRef(repoPath)
+        })
+      })
+      return { stopped: result.stopped, sha: result.sha, backup, undo }
     })
   }
 
@@ -1854,7 +1953,7 @@ export class WorkspaceService {
     if (backupRef === null || backupSha === null) return null
     const slug = parseBackupRefName(backupRef)?.op ?? ''
     if (slug === 'reset-hard') return { kind: 'reset', mode: 'hard', before: backupSha }
-    if (slug === 'rebase' || slug === 'rebase-interactive') {
+    if (slug === 'rebase' || slug === 'rebase-interactive' || slug === 'edit-commit') {
       return { kind: 'rebase', before: backupSha }
     }
     if (slug === 'stash-drop') return { kind: 'stash-drop', before: backupSha }
