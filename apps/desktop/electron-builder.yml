@@ -1,0 +1,31 @@
+appId: com.gitreedesk.app
+productName: GitTreeDesk
+directories:
+  buildResources: build
+  output: ../../release
+files:
+  - out/**
+  - package.json
+  - '!**/*.map'
+# Native modules ship N-API prebuilds that load under Electron as-is; rebuilding
+# them would only re-download toolchains the prebuilds already cover.
+npmRebuild: false
+asarUnpack:
+  - node_modules/better-sqlite3/**
+  - node_modules/node-pty/**
+  - node_modules/@parcel/watcher/**
+  - node_modules/@parcel/watcher-*/**
+win:
+  icon: build/icon.ico
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: zip
+      arch:
+        - x64
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  artifactName: ${productName}-${version}-setup.${ext}
