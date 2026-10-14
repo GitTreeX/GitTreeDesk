@@ -229,4 +229,30 @@ describe('discoverRepositories', () => {
     },
     30_000
   )
+
+  it(
+    'discovers bare repositories by their shape without descending into them',
+    async () => {
+      const parent = await tempDir()
+      const ws = join(parent, 'ws')
+      await mkdir(ws, { recursive: true })
+      await initRepo(join(ws, 'api-server'))
+
+      const bare = join(ws, 'mirror.git')
+      await mkdir(bare, { recursive: true })
+      await git(bare, ['init', '-q', '--bare'])
+
+      const result = await discoverRepositories({ root: ws, config: defaultWorkspaceConfig('acme'), pool: pool() })
+      const byRel = new Map(result.repos.map((record) => [record.relPath, record]))
+      expect([...byRel.keys()].sort()).toEqual(['api-server', 'mirror.git'])
+
+      const record = byRel.get('mirror.git')
+      expect(record?.kind).toBe('bare')
+      expect(record?.gitDir).toBe(record?.path)
+      expect(record?.id).toBe(record?.path)
+      expect(record?.parentId).toBeNull()
+      expect(record?.hasSubmodules).toBe(false)
+    },
+    60_000
+  )
 })

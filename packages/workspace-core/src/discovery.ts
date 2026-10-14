@@ -21,7 +21,7 @@ export interface DiscoverOptions {
 }
 
 interface Candidate {
-  /** Native absolute path of the directory carrying the `.git` marker. */
+  /** Native absolute path of the directory carrying a `.git` marker or a bare git dir shape. */
   path: string
 }
 
@@ -50,6 +50,22 @@ function depthOf(root: string, dir: string): number {
   const rel = toPosix(relative(root, dir))
   if (rel === '' || rel === '.') return 0
   return rel.split('/').length
+}
+
+/**
+ * A bare git directory carries `HEAD`, `objects/` and `refs/` directly and has
+ * no `.git` marker, so the scan checks its shape to find it.
+ */
+function looksLikeBareGitDir(entries: readonly Dirent[]): boolean {
+  let head = false
+  let objects = false
+  let refs = false
+  for (const entry of entries) {
+    if (entry.name === 'HEAD' && entry.isFile()) head = true
+    else if (entry.name === 'objects' && entry.isDirectory()) objects = true
+    else if (entry.name === 'refs' && entry.isDirectory()) refs = true
+  }
+  return head && objects && refs
 }
 
 interface ScanOutcome {
@@ -99,6 +115,8 @@ async function scanDirectories(
     }
     entries.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
 
+    const bareLike = looksLikeBareGitDir(entries)
+
     let hasMarker = false
     for (const entry of entries) {
       const name = entry.name
@@ -107,6 +125,8 @@ async function scanDirectories(
         continue
       }
       if (BUILTIN_SKIP.has(name)) continue
+      // A bare git directory has no worktree; nothing inside it is scannable.
+      if (bareLike) continue
 
       const childPath = join(current.dir, name)
       if (exclude(toPosix(relative(root, childPath)))) continue
@@ -132,7 +152,7 @@ async function scanDirectories(
       queue.push({ dir: childPath, depth: current.depth + 1 })
     }
 
-    if (hasMarker) candidates.push({ path: current.dir })
+    if (hasMarker || bareLike) candidates.push({ path: current.dir })
   }
 
   return { candidates, dirsScanned, budgetExceeded, maxDepthReached }
