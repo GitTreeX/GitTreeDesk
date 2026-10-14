@@ -528,7 +528,8 @@ export const zhHansResource: TranslationResource = {
       'stash-drop': '删除贮藏',
       'branch-delete': '删除分支',
       restore: '恢复',
-      'commit-amend': '修订提交'
+      'commit-amend': '修订提交',
+      'edit-commit': '历史改写'
     },
     targetLabel: '恢复 {{target}}',
     restore: '恢复',
@@ -574,7 +575,133 @@ export const zhHansResource: TranslationResource = {
     loadingMore: '正在加载更早的提交…',
     empty: '没有可显示的提交。',
     retry: '重试',
-    loaded: '{{count}} 个提交'
+    loaded: '{{count}} 个提交',
+    capped: '超大仓库 — 仅显示最新的 {{count}} 个提交；可用筛选缩小范围。',
+    toolbar: {
+      search: '筛选提交消息…',
+      author: '作者',
+      path: '路径',
+      since: '起始日期',
+      until: '截止日期',
+      refs: '引用',
+      refsAll: '全部引用',
+      refsCount: '引用（{{count}}）',
+      refsEmpty: '还没有任何引用',
+      clear: '清除筛选',
+      currentBranch: '仅当前分支',
+      kinds: {
+        branch: '本地分支',
+        remote: '远端分支',
+        tag: '标签'
+      }
+    },
+    marks: {
+      outgoing: '尚未推送',
+      incoming: '尚未拉取'
+    },
+    chips: {
+      head: 'HEAD → {{branch}}',
+      detached: '游离 HEAD'
+    },
+    details: {
+      title: '提交详情',
+      more: '提交操作',
+      loading: '正在加载提交…',
+      author: '作者',
+      committer: '提交者',
+      files: '{{count}} 个文件变更',
+      noFiles: '没有文件变更'
+    },
+    compare: {
+      select: '选择用于对比',
+      with: '与所选提交对比',
+      title: '对比 {{from}} → {{to}}',
+      files: '{{count}} 个文件',
+      noDiff: '两个提交之间没有差异'
+    },
+    checkout: {
+      done: '已检出 {{sha}} — HEAD 现在处于游离状态'
+    },
+    menu: {
+      checkout: '检出此提交',
+      createBranch: '在此新建分支…',
+      createTag: '在此新建标签…',
+      cherryPick: '拣选…',
+      revert: '还原…',
+      reset: '重置当前分支到此提交…',
+      rebaseOnto: '将当前分支变基到此处…',
+      rebaseInteractive: '从此处开始交互式变基…',
+      edit: '编辑提交…',
+      editMany: '编辑 {{count}} 个提交…',
+      copySha: '复制 SHA',
+      copyRef: '复制引用名',
+      selectCompare: '选择用于对比',
+      compareWith: '与“{{sha}}”对比'
+    },
+    apply: {
+      mainline: '主线父提交',
+      mainlineHint:
+        '该提交是一个合并 — 更改将相对所选父提交应用。父提交 1 是合并时所在的分支。',
+      parent: '父提交 {{number}} · {{sha}}'
+    },
+    cherryPick: {
+      title: '拣选 {{sha}}',
+      action: '拣选',
+      done: '已拣选 {{sha}}',
+      staged: '已拣选 {{sha}} — 更改已暂存，可自行提交',
+      stopped: '冲突导致拣选停止 — 请在源代码管理中解决',
+      noCommit: '提交前暂停',
+      noCommitHint: '暂存更改，提交由你完成。'
+    },
+    revert: {
+      title: '还原 {{sha}}',
+      action: '还原',
+      done: '已还原 {{sha}}',
+      staged: '已还原 {{sha}} — 更改已暂存，可自行提交',
+      stopped: '冲突导致还原停止 — 请在源代码管理中解决',
+      noCommit: '提交前暂停',
+      noCommitHint: '暂存反向更改，提交由你完成。'
+    },
+    reset: {
+      title: '将当前分支重置到 {{sha}}',
+      action: '重置',
+      modes: {
+        soft: '软',
+        mixed: '混合',
+        hard: '硬'
+      },
+      descriptions: {
+        soft: '分支移动；索引与工作区保持不变 — 差异保持已暂存。',
+        mixed: '分支与索引移动；更改留在工作区，未暂存。',
+        hard: '分支、索引与工作区全部重置 — 本地更改会被丢弃。'
+      },
+      dropped: '将被丢弃的提交（{{count}}）',
+      droppedMore: '……还有 {{count}} 个',
+      none: '没有提交会被丢弃 — 分支已指向此提交。',
+      listing: '正在加载提交…',
+      listFailed: '无法加载提交列表。',
+      hardWarning: '工作区更改会丢失。操作前会先创建备份，因此可以撤销。',
+      done: '已重置到 {{sha}}（{{mode}} 模式）'
+    },
+    edit: {
+      singleTitle: '编辑提交 {{sha}}',
+      manyTitle: '编辑 {{count}} 个提交',
+      message: '提交信息',
+      authorName: '作者姓名',
+      authorEmail: '作者邮箱',
+      authorDate: '作者日期',
+      committerDate: '提交者日期',
+      batchHint: '填写的内容将应用到所有选中的提交。',
+      more: '……还有 {{count}} 个',
+      loadFailed: '无法读取当前提交 — 表单从空白开始。',
+      authorPair: '请同时填写作者姓名和邮箱。',
+      pushedWarning: '该提交已推送到远端。改写会改变已发布的历史；之后推送将替换远端提交。',
+      pushedConfirm: '我了解这会改写已发布的历史。',
+      action: '改写',
+      doneSingle: '已编辑提交 — HEAD 现在为 {{sha}}',
+      done: '已编辑 {{count}} 个提交 — HEAD 现在为 {{sha}}',
+      stopped: '改写已停止 — 请通过操作横幅继续'
+    }
   },
   output: {
     title: '输出',

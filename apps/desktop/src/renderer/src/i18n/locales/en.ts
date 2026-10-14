@@ -534,7 +534,8 @@ const en = {
       'stash-drop': 'Stash drop',
       'branch-delete': 'Branch delete',
       restore: 'Restore',
-      'commit-amend': 'Commit amend'
+      'commit-amend': 'Commit amend',
+      'edit-commit': 'History rewrite'
     },
     targetLabel: 'restores {{target}}',
     restore: 'Restore',
@@ -583,7 +584,135 @@ const en = {
     loadingMore: 'Loading older commits…',
     empty: 'No commits to show.',
     retry: 'Retry',
-    loaded: '{{count}} commits'
+    loaded: '{{count}} commits',
+    capped: 'Huge repository — showing the newest {{count}} commits; filters narrow the window.',
+    toolbar: {
+      search: 'Filter messages…',
+      author: 'Author',
+      path: 'Path',
+      since: 'Since',
+      until: 'Until',
+      refs: 'Refs',
+      refsAll: 'All refs',
+      refsCount: 'Refs ({{count}})',
+      refsEmpty: 'No refs yet',
+      clear: 'Clear filters',
+      currentBranch: 'Current branch only',
+      kinds: {
+        branch: 'Branches',
+        remote: 'Remotes',
+        tag: 'Tags'
+      }
+    },
+    marks: {
+      outgoing: 'Not pushed yet',
+      incoming: 'Not pulled yet'
+    },
+    chips: {
+      head: 'HEAD → {{branch}}',
+      detached: 'Detached HEAD'
+    },
+    details: {
+      title: 'Commit details',
+      more: 'Commit actions',
+      loading: 'Loading the commit…',
+      author: 'Author',
+      committer: 'Committer',
+      files: '{{count}} files changed',
+      noFiles: 'No file changes'
+    },
+    compare: {
+      select: 'Select for Compare',
+      with: 'Compare with selected',
+      title: 'Comparing {{from}} → {{to}}',
+      files: '{{count}} files',
+      noDiff: 'The two commits have no differences'
+    },
+    checkout: {
+      done: 'Checked out {{sha}} — HEAD is now detached'
+    },
+    menu: {
+      checkout: 'Checkout Commit',
+      createBranch: 'Create Branch Here…',
+      createTag: 'Create Tag Here…',
+      cherryPick: 'Cherry-pick…',
+      revert: 'Revert…',
+      reset: 'Reset Current Branch to Here…',
+      rebaseOnto: 'Rebase Current Branch onto This…',
+      rebaseInteractive: 'Interactive Rebase from Here…',
+      edit: 'Edit Commit…',
+      editMany: 'Edit {{count}} Commits…',
+      copySha: 'Copy SHA',
+      copyRef: 'Copy Ref Name',
+      selectCompare: 'Select for Compare',
+      compareWith: 'Compare with “{{sha}}”'
+    },
+    apply: {
+      mainline: 'Mainline parent',
+      mainlineHint:
+        'This commit is a merge — the change is taken relative to the chosen parent. Parent 1 is the branch the merge was made into.',
+      parent: 'Parent {{number}} · {{sha}}'
+    },
+    cherryPick: {
+      title: 'Cherry-pick {{sha}}',
+      action: 'Cherry-pick',
+      done: 'Cherry-picked {{sha}}',
+      staged: 'Cherry-picked {{sha}} — changes staged, commit when ready',
+      stopped: 'Conflicts stopped the cherry-pick — resolve them in Source Control',
+      noCommit: 'Stop before committing',
+      noCommitHint: 'Stage the changes and leave the commit to you.'
+    },
+    revert: {
+      title: 'Revert {{sha}}',
+      action: 'Revert',
+      done: 'Reverted {{sha}}',
+      staged: 'Reverted {{sha}} — changes staged, commit when ready',
+      stopped: 'Conflicts stopped the revert — resolve them in Source Control',
+      noCommit: 'Stop before committing',
+      noCommitHint: 'Stage the inverse changes and leave the commit to you.'
+    },
+    reset: {
+      title: 'Reset the current branch to {{sha}}',
+      action: 'Reset',
+      modes: {
+        soft: 'Soft',
+        mixed: 'Mixed',
+        hard: 'Hard'
+      },
+      descriptions: {
+        soft: 'The branch moves; the index and working tree stay untouched — the difference remains staged.',
+        mixed: 'The branch and index move; the changes stay in the working tree, unstaged.',
+        hard: 'The branch, index and working tree are reset — local changes are discarded.'
+      },
+      dropped: 'Commits that will be dropped ({{count}})',
+      droppedMore: '… and {{count}} more',
+      none: 'Nothing is dropped — the branch already points at this commit.',
+      listing: 'Loading the commits…',
+      listFailed: 'Could not load the list of commits.',
+      hardWarning:
+        'Working-tree changes are lost. A backup is taken first, so this can be undone.',
+      done: 'Reset to {{sha}} ({{mode}} mode)'
+    },
+    edit: {
+      singleTitle: 'Edit commit {{sha}}',
+      manyTitle: 'Edit {{count}} commits',
+      message: 'Message',
+      authorName: 'Author name',
+      authorEmail: 'Author email',
+      authorDate: 'Author date',
+      committerDate: 'Committer date',
+      batchHint: 'The fields you fill are applied to every selected commit.',
+      more: '… and {{count}} more',
+      loadFailed: 'Could not read the current commit — the form starts empty.',
+      authorPair: 'Provide the author name and email together.',
+      pushedWarning:
+        'This commit is already pushed. Rewriting it changes published history; pushing later replaces the remote commits.',
+      pushedConfirm: 'I understand this rewrites published history.',
+      action: 'Rewrite',
+      doneSingle: 'Edited the commit — HEAD is now {{sha}}',
+      done: 'Edited {{count}} commits — HEAD is now {{sha}}',
+      stopped: 'The rewrite stopped — continue it from the operation banner'
+    }
   },
   output: {
     title: 'Output',
