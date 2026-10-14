@@ -3,12 +3,13 @@
  * isolated user-data dir and a temp workspace, then drives it over the Chrome
  * DevTools Protocol the way a user would — open from the welcome screen, trust
  * the workspace, Ctrl+` to show the panel, start a shell with +, type into it,
- * hide and show the panel (replay), and finally run a configured quick command.
- * A screenshot is saved for visual review. Run after `pnpm build`:
+ * hide and show the panel (replay), run a configured quick command, and open
+ * terminals from the Explorer, Repos, Source Control and diff "Open Terminal
+ * Here" entries. A screenshot is saved for visual review. Run after `pnpm build`:
  *
  *   node scripts/terminal-ui-smoke.cjs
  */
-const { spawn } = require('node:child_process')
+const { spawn, spawnSync } = require('node:child_process')
 const { mkdirSync, mkdtempSync, writeFileSync } = require('node:fs')
 const { tmpdir } = require('node:os')
 const { join } = require('node:path')
@@ -24,6 +25,10 @@ const shotPath = join(baseDir, 'terminal-panel.png')
 
 const MARKER = 'smoke-marker-ok'
 const QUICK_MARKER = 'quick-ok'
+const OPEN_TERMINAL = 'Open Terminal Here'
+const WS_DIR = workspaceDir.replace(/\\/g, '/')
+const REPO_DIR = `${WS_DIR}/repo-one`
+const REPO_SUB_DIR = `${REPO_DIR}/sub`
 
 let child = null
 let ws = null
@@ -54,7 +59,7 @@ function shutdown(code) {
 process.on('uncaughtException', (error) => fail(error.stack ?? String(error)))
 process.on('unhandledRejection', (error) => fail(String(error)))
 
-const failsafe = setTimeout(() => fail('failsafe timeout'), 120_000)
+const failsafe = setTimeout(() => fail('failsafe timeout'), 180_000)
 
 function send(method, params) {
   return new Promise((resolve, reject) => {
@@ -119,6 +124,49 @@ async function typeText(text) {
   }
 }
 
+/** Dispatches a contextmenu event on the first element matching `find`. */
+async function rightClick(find) {
+  const found = await evaluate(`(() => {
+    const el = ${find}
+    if (el === undefined) return false
+    const rect = el.getBoundingClientRect()
+    el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: rect.left + 6, clientY: rect.top + 6 }))
+    return true
+  })()`)
+  if (found !== true) throw new Error(`right-click target not found: ${find}`)
+}
+
+async function clickMenuItem(label) {
+  const find = `[...document.querySelectorAll('button[role="menuitem"]')].find((b) => b.textContent.trim() === ${JSON.stringify(label)})`
+  await until(`menu item ${label}`, () => evaluate(`${find} !== undefined`))
+  await evaluate(`${find}.click(), true`)
+}
+
+/**
+ * Waits for a new session at `dir`, then closes it so later steps see a tidy
+ * strip. Sessions append to the strip; pre-existing tabs may share the same
+ * cwd, so both the count growth and the last matching tab are checked.
+ */
+async function expectTerminalAt(dir) {
+  const titlesExpr = `[...document.querySelectorAll('[role="tab"]')].map((el) => el.title ?? '')`
+  const before = await evaluate(titlesExpr)
+  await until(
+    `terminal at ${dir}`,
+    () =>
+      evaluate(`(() => {
+        const titles = ${titlesExpr}
+        return titles.length > ${before.length} && titles[titles.length - 1].endsWith(${JSON.stringify(dir)})
+      })()`),
+    20_000
+  )
+  await evaluate(`(() => {
+    const tabs = [...document.querySelectorAll('[role="tab"]')].filter((el) => (el.title ?? '').endsWith(${JSON.stringify(dir)}))
+    tabs[tabs.length - 1].querySelector('button[aria-label="Close"]').click()
+    return true
+  })()`)
+  await sleep(400)
+}
+
 async function fetchTarget() {
   const response = await fetch(`http://127.0.0.1:${PORT}/json/list`)
   const targets = await response.json()
@@ -126,7 +174,6 @@ async function fetchTarget() {
 }
 
 async function main() {
-  mkdirSync(workspaceDir, { recursive: true })
   mkdirSync(join(workspaceDir, '.gitreedesk'), { recursive: true })
   writeFileSync(
     join(workspaceDir, '.gitreedesk', 'terminal.json'),
@@ -137,6 +184,21 @@ async function main() {
     }),
     'utf8'
   )
+  // A real repository with one modified nested file backs the Repos, SCM and
+  // diff entries. The file is committed then edited, so SCM shows a file row
+  // (a fully untracked folder would collapse into one directory row).
+  mkdirSync(join(workspaceDir, 'repo-one', 'sub'), { recursive: true })
+  const nestedPath = join(workspaceDir, 'repo-one', 'sub', 'nested.txt')
+  writeFileSync(nestedPath, 'first\n', 'utf8')
+  const git = (...args) =>
+    spawnSync('git', args, { cwd: join(workspaceDir, 'repo-one'), stdio: 'ignore' })
+  if (git('init', '-q').status !== 0) throw new Error('git init failed for the smoke workspace')
+  git('-c', 'user.email=smoke@example.com', '-c', 'user.name=Smoke', 'add', '.')
+  const committed = git(
+    '-c', 'user.email=smoke@example.com', '-c', 'user.name=Smoke', 'commit', '-q', '-m', 'init'
+  )
+  if (committed.status !== 0) throw new Error('git commit failed for the smoke workspace')
+  writeFileSync(nestedPath, 'changed\n', 'utf8')
 
   process.stdout.write(`SMOKE: workspace=${workspaceDir}\nSMOKE: base=${baseDir}\n`)
   const logStream = require('node:fs').createWriteStream(logPath)
@@ -307,6 +369,59 @@ async function main() {
       )
   )
   process.stdout.write('SMOKE: quick command ran and exited\n')
+
+  // ---- "Open Terminal Here" entries ----
+  // Explorer: a folder row targets that folder.
+  await rightClick(
+    `[...document.querySelectorAll('[role="treeitem"]')].find((el) => el.textContent.includes('.gitreedesk'))`
+  )
+  await clickMenuItem(OPEN_TERMINAL)
+  await expectTerminalAt(`${WS_DIR}/.gitreedesk`)
+  process.stdout.write('SMOKE: explorer entry\n')
+
+  // Repos: a repository row targets the repository root.
+  await evaluate(
+    `[...document.querySelectorAll('button[role="tab"]')].find((b) => b.textContent.trim() === 'Repos').click(), true`
+  )
+  await until('repos row', () =>
+    evaluate(
+      `[...document.querySelectorAll('[role="treeitem"]')].some((el) => el.title === ${JSON.stringify(REPO_DIR)})`
+    ),
+    20_000
+  )
+  await rightClick(
+    `[...document.querySelectorAll('[role="treeitem"]')].find((el) => el.title === ${JSON.stringify(REPO_DIR)})`
+  )
+  await clickMenuItem(OPEN_TERMINAL)
+  await expectTerminalAt(REPO_DIR)
+  process.stdout.write('SMOKE: repos entry\n')
+
+  // Source Control: a file row targets the file's directory.
+  await evaluate(`document.querySelector('button[aria-label="Source Control"]').click(), true`)
+  await until('scm file row', () =>
+    evaluate(
+      `[...document.querySelectorAll('[role="treeitem"]')].some((el) => el.textContent.includes('nested.txt'))`
+    ),
+    20_000
+  )
+  await rightClick(
+    `[...document.querySelectorAll('[role="treeitem"]')].find((el) => el.textContent.includes('nested.txt'))`
+  )
+  await clickMenuItem(OPEN_TERMINAL)
+  await expectTerminalAt(REPO_SUB_DIR)
+  process.stdout.write('SMOKE: scm entry\n')
+
+  // Diff view: the toolbar button targets the file's directory.
+  await evaluate(`(() => {
+    const row = [...document.querySelectorAll('[role="treeitem"]')].find((el) => el.textContent.includes('nested.txt'))
+    row.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0 }))
+    return true
+  })()`)
+  const diffButton = `[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === ${JSON.stringify(OPEN_TERMINAL)})`
+  await until('diff open terminal button', () => evaluate(`${diffButton} !== undefined`), 20_000)
+  await evaluate(`${diffButton}.click(), true`)
+  await expectTerminalAt(REPO_SUB_DIR)
+  process.stdout.write('SMOKE: diff entry\n')
 
   const shot = await send('Page.captureScreenshot', { format: 'png' })
   writeFileSync(shotPath, Buffer.from(shot.data, 'base64'))
