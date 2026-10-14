@@ -234,7 +234,22 @@ const en = {
     amendPushedTitle: 'Amend a pushed commit?',
     amendPushedBody:
       'This commit is already on the remote. Amending replaces it, and pushing later will rewrite the remote history (force push). Others working on this branch may be affected.',
-    amendPushedConfirm: 'Amend Anyway'
+    amendPushedConfirm: 'Amend Anyway',
+    generate: {
+      action: 'Generate a commit message from the staged changes',
+      cancel: 'Stop generating',
+      variants: 'Alternatives',
+      replaceTitle: 'Replace the commit message?',
+      replaceBody: 'The generated draft replaces what is in the commit box. Your text cannot be restored.',
+      replaceConfirm: 'Replace',
+      hostTitle: 'Send the staged diff to “{{host}}”?',
+      hostBody:
+        'The staged diff will be sent to “{{host}}” to generate the commit message. Approval is kept for this host.',
+      hostConfirm: 'Send',
+      timeoutFallback: 'The request timed out — showing an offline draft instead.',
+      networkFallback: 'The provider could not be reached — showing an offline draft instead.',
+      failed: 'Could not generate a commit message'
+    }
   },
   branches: {
     title: 'Branches — {{name}}',
@@ -741,6 +756,8 @@ const en = {
     worktreeDirty: 'The worktree has uncommitted changes',
     worktreeLocked: 'The worktree is locked and must be unlocked first',
     mergeToolMissing: 'No external merge tool is configured',
+    nothingStaged: 'Nothing is staged to describe — stage changes first',
+    llmNotConfigured: 'Commit-message generation is not set up yet — check Settings → Commit message',
     operationInProgress: 'Another Git operation is in progress — finish it first'
   },
   statusbar: {

@@ -46,6 +46,10 @@ export function errorText(error: unknown, t: Translate): string {
         return t('errors.operationInProgress')
       case 'merge-tool-missing':
         return t('errors.mergeToolMissing')
+      case 'nothing-staged':
+        return t('errors.nothingStaged')
+      case 'llm-not-configured':
+        return t('errors.llmNotConfigured')
       case 'git-failed':
         return error.message
       default:

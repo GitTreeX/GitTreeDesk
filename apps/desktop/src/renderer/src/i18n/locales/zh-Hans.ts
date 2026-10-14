@@ -235,7 +235,21 @@ export const zhHansResource: TranslationResource = {
     amendPushedTitle: '要修订已推送的提交吗？',
     amendPushedBody:
       '该提交已在远端。修订会替换它，之后推送将改写远端历史（强制推送），可能影响其他使用该分支的人。',
-    amendPushedConfirm: '仍要修订'
+    amendPushedConfirm: '仍要修订',
+    generate: {
+      action: '根据暂存的更改生成提交信息',
+      cancel: '停止生成',
+      variants: '备选',
+      replaceTitle: '替换当前提交信息？',
+      replaceBody: '生成的草稿会替换提交框中的内容，你输入的文字将无法恢复。',
+      replaceConfirm: '替换',
+      hostTitle: '将暂存的差异发送到“{{host}}”？',
+      hostBody: '生成提交信息时，暂存的差异内容会发送到“{{host}}”。对该主机的批准会被记住。',
+      hostConfirm: '发送',
+      timeoutFallback: '请求超时 — 已改为提供离线草稿。',
+      networkFallback: '无法连接到服务商 — 已改为提供离线草稿。',
+      failed: '无法生成提交信息'
+    }
   },
   branches: {
     title: '分支 — {{name}}',
@@ -730,6 +744,8 @@ export const zhHansResource: TranslationResource = {
     worktreeDirty: '该工作树包含未提交的更改',
     worktreeLocked: '该工作树已锁定，需先解锁',
     mergeToolMissing: '尚未配置外部合并工具',
+    nothingStaged: '没有可描述的暂存更改 — 请先暂存',
+    llmNotConfigured: '提交信息生成尚未配置 — 请检查“设置 → 提交信息”',
     operationInProgress: '另一个 Git 操作正在进行 — 请先完成它'
   },
   statusbar: {

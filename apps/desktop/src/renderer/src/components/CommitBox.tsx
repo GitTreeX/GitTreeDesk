@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type JSX, type KeyboardEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { HeadCommit, RepoRecord, RepoStatus } from '@gitreedesk/shared'
+import type { CommitDraftVariant, HeadCommit, RepoRecord, RepoStatus } from '@gitreedesk/shared'
 import { api } from '../api'
 import { useOperations } from '../contexts/operations-context'
+import { errorText } from '../lib/reporting'
 import { notify } from '../notify'
 import { ConfirmDialog } from './ConfirmDialog'
 import { ContextMenu, type ContextMenuItem } from './ContextMenu'
@@ -12,7 +13,25 @@ const OUTPUT_LIMIT = 40_000
 
 type AmendVariant = 'keep' | 'edit' | 'include'
 
+type GeneratePhase = 'idle' | 'preparing' | 'streaming'
+
 type PushedAsk = { kind: 'variant'; variant: AmendVariant; head: HeadCommit } | { kind: 'primary' }
+
+interface DraftState {
+  variants: readonly CommitDraftVariant[]
+  active: number
+}
+
+interface StreamState {
+  generationId: string
+  buffer: string
+  edited: boolean
+}
+
+function firstLine(text: string): string {
+  const [line = ''] = text.split('\n')
+  return line
+}
 
 export function CommitBox({
   record,
@@ -34,8 +53,17 @@ export function CommitBox({
   const [error, setError] = useState<string | null>(null)
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
   const [pushedAsk, setPushedAsk] = useState<PushedAsk | null>(null)
+  const [genPhase, setGenPhase] = useState<GeneratePhase>('idle')
+  const [drafts, setDrafts] = useState<DraftState | null>(null)
+  const [hostAsk, setHostAsk] = useState<string | null>(null)
+  const [replaceAsk, setReplaceAsk] = useState<{ run: () => void } | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const runningRef = useRef(false)
+  /** The box content the generator wrote; anything else counts as typed by the user. */
+  const ownedRef = useRef('')
+  const streamRef = useRef<StreamState | null>(null)
+  const messageRef = useRef('')
+  messageRef.current = message
 
   const gitDir = record.gitDir
 
@@ -61,6 +89,143 @@ export function CommitBox({
     element.style.height = `${Math.min(element.scrollHeight, 160)}px`
   }, [message])
 
+  const applyText = useCallback((text: string): void => {
+    ownedRef.current = text
+    setMessage(text)
+  }, [])
+
+  /** Shows the variants; `keepText` leaves text the user touched untouched. */
+  const applyVariants = useCallback(
+    (variants: readonly CommitDraftVariant[], keepText: boolean): void => {
+      const first = variants[0]
+      if (first === undefined) {
+        setDrafts(null)
+        return
+      }
+      const found = variants.findIndex((variant) => variant.primary)
+      const active = found >= 0 ? found : 0
+      setDrafts({ variants, active })
+      if (!keepText) applyText(variants[active]?.message ?? first.message)
+    },
+    [applyText]
+  )
+
+  const beginGenerate = useCallback(async (): Promise<void> => {
+    if (runningRef.current || streamRef.current !== null) return
+    setGenPhase('preparing')
+    setError(null)
+    try {
+      const response = await api.invoke('commitmsg:generate', { gitDir })
+      const current = messageRef.current
+      const edited = current.trim().length > 0 && current !== ownedRef.current
+      if (response.source === 'llm' && response.generationId !== null) {
+        if (!edited) {
+          ownedRef.current = ''
+          setMessage('')
+        }
+        setDrafts(null)
+        streamRef.current = { generationId: response.generationId, buffer: '', edited }
+        setGenPhase('streaming')
+        return
+      }
+      applyVariants(response.drafts, edited)
+      setGenPhase('idle')
+      if (response.llm !== null && !response.llm.approved) setHostAsk(response.llm.host)
+    } catch (failure) {
+      setGenPhase('idle')
+      setError(errorText(failure, t))
+    }
+  }, [applyVariants, gitDir, t])
+
+  useEffect(() => {
+    const offOutput = api.on('commitmsg:output', (event) => {
+      const stream = streamRef.current
+      if (event.gitDir !== gitDir || stream === null || event.generationId !== stream.generationId) {
+        return
+      }
+      stream.buffer += event.chunk
+      if (stream.edited) return
+      ownedRef.current = stream.buffer
+      setMessage(stream.buffer)
+    })
+    const offDone = api.on('commitmsg:done', (event) => {
+      const stream = streamRef.current
+      if (event.gitDir !== gitDir || stream === null || event.generationId !== stream.generationId) {
+        return
+      }
+      streamRef.current = null
+      setGenPhase('idle')
+      if (event.status === 'complete') {
+        if (!stream.edited && event.message !== undefined) applyText(event.message)
+        return
+      }
+      if (event.status === 'fallback') {
+        applyVariants(event.drafts ?? [], stream.edited)
+        notify({
+          message:
+            event.reason === 'timeout'
+              ? t('commit.generate.timeoutFallback')
+              : t('commit.generate.networkFallback')
+        })
+        return
+      }
+      if (event.status === 'failed') setError(event.error ?? t('commit.generate.failed'))
+    })
+    return () => {
+      offOutput()
+      offDone()
+    }
+  }, [applyText, applyVariants, gitDir, t])
+
+  const selectVariant = useCallback(
+    (index: number): void => {
+      if (drafts === null) return
+      const variant = drafts.variants[index]
+      if (variant === undefined) return
+      const apply = (): void => {
+        applyText(variant.message)
+        setDrafts({ variants: drafts.variants, active: index })
+      }
+      if (message.trim().length > 0 && message !== ownedRef.current) setReplaceAsk({ run: apply })
+      else apply()
+    },
+    [applyText, drafts, message]
+  )
+
+  const onGenerateClick = useCallback((): void => {
+    if (genPhase === 'streaming') {
+      const stream = streamRef.current
+      if (stream !== null) void api.invoke('commitmsg:cancel', { generationId: stream.generationId })
+      return
+    }
+    if (genPhase !== 'idle' || runningRef.current) return
+    if (message.trim().length > 0 && message !== ownedRef.current) {
+      setReplaceAsk({ run: () => void beginGenerate() })
+      return
+    }
+    void beginGenerate()
+  }, [beginGenerate, genPhase, message])
+
+  const approveHost = useCallback((): void => {
+    const host = hostAsk
+    setHostAsk(null)
+    if (host === null) return
+    void (async () => {
+      try {
+        await api.invoke('commitmsg:approveHost', { host })
+        await beginGenerate()
+      } catch (failure) {
+        setError(errorText(failure, t))
+      }
+    })()
+  }, [beginGenerate, hostAsk, t])
+
+  const confirmReplace = useCallback((): void => {
+    const ask = replaceAsk
+    setReplaceAsk(null)
+    ask?.run()
+  }, [replaceAsk])
+
   const run = useCallback(
     async (input: { message: string; amend: boolean; stageAll: boolean; push?: boolean }): Promise<void> => {
       if (runningRef.current) return
@@ -78,6 +243,8 @@ export function CommitBox({
           ...(input.stageAll ? { stageAll: true } : {})
         })
         if (input.message.trim().length > 0) setMessage('')
+        ownedRef.current = ''
+        setDrafts(null)
         setAmendSha(null)
         setOutputOpen(false)
         setOutput([])
@@ -99,6 +266,8 @@ export function CommitBox({
   const applyAmend = useCallback(
     (variant: AmendVariant, head: HeadCommit): void => {
       if (variant === 'edit') {
+        ownedRef.current = ''
+        setDrafts(null)
         setMessage(head.message)
         setAmendSha(head.sha)
         return
@@ -127,7 +296,7 @@ export function CommitBox({
   )
 
   const primary = useCallback(async (): Promise<void> => {
-    if (runningRef.current || message.trim().length === 0) return
+    if (runningRef.current || genPhase !== 'idle' || message.trim().length === 0) return
     if (amendSha !== null) {
       try {
         const info = await api.invoke('git:headCommit', { gitDir })
@@ -147,7 +316,7 @@ export function CommitBox({
       return
     }
     void run({ message, amend: false, stageAll: false })
-  }, [amendSha, gitDir, message, run, status, t])
+  }, [amendSha, genPhase, gitDir, message, run, status, t])
 
   const confirmPushed = useCallback((): void => {
     const ask = pushedAsk
@@ -163,14 +332,20 @@ export function CommitBox({
   const operating = status !== null && status.operation !== 'none'
   const blocked = conflicted || operating
   const unborn = status?.head.unborn === true
-  const canRun = !blocked && !running
+  const streaming = genPhase === 'streaming'
+  const generating = genPhase !== 'idle'
+  const stagedCount = status?.staged.length ?? 0
+  const canEdit = !blocked && !running
+  const canRun = canEdit && !generating
   const canPrimary = canRun && message.trim().length > 0
+  const generateDisabled =
+    running || genPhase === 'preparing' || (genPhase === 'idle' && (blocked || stagedCount === 0))
 
   const menuItems: ContextMenuItem[] = [
     { label: t('commit.menuCommit'), disabled: !canPrimary, onSelect: () => void primary() },
     {
       label: t('commit.commitAndPush'),
-      disabled: !canPrimary || amendSha !== null || (status?.staged.length ?? 0) === 0,
+      disabled: !canPrimary || amendSha !== null || stagedCount === 0,
       onSelect: () => void run({ message, amend: false, stageAll: false, push: true })
     },
     {
@@ -201,11 +376,14 @@ export function CommitBox({
         ref={textareaRef}
         rows={2}
         value={message}
-        disabled={!canRun}
+        disabled={!canEdit}
         aria-label={t('commit.messagePlaceholder')}
         placeholder={t('commit.messagePlaceholder')}
         className="max-h-40 w-full resize-none rounded border border-line bg-canvas px-2 py-1 text-sm text-ink placeholder:text-muted focus:border-accent/60 focus:outline-none disabled:opacity-60"
-        onChange={(event) => setMessage(event.target.value)}
+        onChange={(event) => {
+          if (streamRef.current !== null) streamRef.current.edited = true
+          setMessage(event.target.value)
+        }}
         onKeyDown={(event: KeyboardEvent<HTMLTextAreaElement>) => {
           if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
             event.preventDefault()
@@ -213,12 +391,47 @@ export function CommitBox({
           }
         }}
       />
+      {drafts !== null && drafts.variants.length > 1 && genPhase === 'idle' && (
+        <div className="mt-1 flex flex-wrap items-center gap-1">
+          <span className="shrink-0 text-xs text-muted">{t('commit.generate.variants')}</span>
+          {drafts.variants.map((variant, index) => (
+            <button
+              key={`${index}:${variant.message}`}
+              type="button"
+              title={variant.message}
+              disabled={running || blocked}
+              className={`max-w-56 truncate rounded border px-1.5 py-0.5 text-xs disabled:opacity-60 ${
+                index === drafts.active
+                  ? 'border-accent/60 bg-accent/15 text-ink'
+                  : 'border-line text-muted hover:bg-ink/5 hover:text-ink'
+              }`}
+              onClick={() => selectVariant(index)}
+            >
+              {firstLine(variant.message)}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="mt-1 flex items-center gap-1">
+        <button
+          type="button"
+          title={streaming ? t('commit.generate.cancel') : t('commit.generate.action')}
+          aria-label={streaming ? t('commit.generate.cancel') : t('commit.generate.action')}
+          disabled={generateDisabled}
+          className={`whitespace-nowrap rounded border px-1.5 py-0.5 text-xs ${
+            generating
+              ? 'border-accent/60 bg-accent/15 text-ink'
+              : 'border-line text-muted hover:bg-ink/5 hover:text-ink'
+          } disabled:opacity-60`}
+          onClick={onGenerateClick}
+        >
+          {streaming ? '■' : genPhase === 'preparing' ? '⋯' : '✨'}
+        </button>
         <button
           type="button"
           aria-pressed={signOff}
           title={t('commit.signOffTitle')}
-          disabled={!canRun}
+          disabled={!canEdit}
           className={`whitespace-nowrap rounded border px-1.5 py-0.5 text-xs ${
             signOff
               ? 'border-accent/60 bg-accent/15 text-ink'
@@ -310,6 +523,16 @@ export function CommitBox({
       {menu !== null && (
         <ContextMenu x={menu.x} y={menu.y} items={menuItems} onClose={() => setMenu(null)} />
       )}
+      {replaceAsk !== null && (
+        <ConfirmDialog
+          title={t('commit.generate.replaceTitle')}
+          body={t('commit.generate.replaceBody')}
+          confirmLabel={t('commit.generate.replaceConfirm')}
+          danger
+          onConfirm={confirmReplace}
+          onClose={() => setReplaceAsk(null)}
+        />
+      )}
       {pushedAsk !== null && (
         <ConfirmDialog
           title={t('commit.amendPushedTitle')}
@@ -318,6 +541,15 @@ export function CommitBox({
           danger
           onConfirm={confirmPushed}
           onClose={() => setPushedAsk(null)}
+        />
+      )}
+      {hostAsk !== null && (
+        <ConfirmDialog
+          title={t('commit.generate.hostTitle', { host: hostAsk })}
+          body={t('commit.generate.hostBody', { host: hostAsk })}
+          confirmLabel={t('commit.generate.hostConfirm')}
+          onConfirm={approveHost}
+          onClose={() => setHostAsk(null)}
         />
       )}
     </div>
