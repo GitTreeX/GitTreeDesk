@@ -1,4 +1,5 @@
-import { BrowserWindow, app, nativeTheme, safeStorage, shell } from 'electron'
+import { BrowserWindow, app, nativeImage, nativeTheme, safeStorage, shell } from 'electron'
+import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import type { HostCommandId } from '@gitreedesk/shared'
 import { createEventBroadcaster, registerIpcHandlers, type IpcBridge } from './ipc'
@@ -33,6 +34,23 @@ function sendCommand(command: HostCommandId): void {
   win.webContents.send('app:command', { command })
 }
 
+// Resolve the brand window icon from the build assets. In dev this points at
+// apps/desktop/build; when packaged the OS pulls the icon from the executable,
+// so a missing file here is harmless.
+function resolveWindowIcon(): string | null {
+  const candidates =
+    process.platform === 'win32'
+      ? ['build/icon.ico', 'build/icon.png']
+      : ['build/icon.png', 'build/icon.ico']
+  for (const rel of candidates) {
+    for (const base of [app.getAppPath(), join(__dirname, '../..')]) {
+      const p = join(base, rel)
+      if (existsSync(p)) return p
+    }
+  }
+  return null
+}
+
 function createWindow(): void {
   const win = new BrowserWindow({
     width: 1440,
@@ -49,6 +67,9 @@ function createWindow(): void {
       nodeIntegration: false
     }
   })
+
+  const iconPath = resolveWindowIcon()
+  if (iconPath !== null) win.setIcon(nativeImage.createFromPath(iconPath))
 
   win.once('ready-to-show', () => {
     win.show()
