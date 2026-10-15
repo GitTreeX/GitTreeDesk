@@ -60,6 +60,8 @@ const en = {
     revealInExplorer: 'Reveal in Explorer',
     copyPath: 'Copy Path',
     copyPaths: 'Copy Paths',
+    copyRelativePath: 'Copy Relative Path',
+    moreActions: 'More Actions',
     rename: 'Rename',
     delete: 'Move to Trash',
     checkoutBranch: 'Checkout Branch…',

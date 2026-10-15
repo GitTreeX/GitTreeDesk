@@ -101,6 +101,11 @@ export function ExplorerView(): JSX.Element {
     [descriptor]
   )
 
+  const absolutePathFor = useCallback(
+    (path: string): string => (root === '' ? path : `${root}/${path}`),
+    [root]
+  )
+
   const cursorIndex = cursorPath === null ? -1 : rows.findIndex((row) => row.path === cursorPath)
 
   const scrollRef = useRef<HTMLDivElement | null>(null)
@@ -368,7 +373,7 @@ export function ExplorerView(): JSX.Element {
       },
       copyPath: () => {
         const row = cursorRow(rowsRef.current, cursorRef.current)
-        if (row !== null) copyPath(row.path)
+        if (row !== null) copyPath(absolutePathFor(row.path))
       },
       openInEditor: () => {
         const row = cursorRow(rowsRef.current, cursorRef.current)
@@ -454,9 +459,20 @@ export function ExplorerView(): JSX.Element {
   const menuItems = (row: ExplorerRow): ContextMenuItem[] => {
     const target = row.kind === 'dir' ? row.path : (parentOf(row.path) ?? root)
     const repo = repoForPath(row.path)
-    return [
+    const items: ContextMenuItem[] = []
+    if (repo !== null) {
+      items.push({
+        label: t('menu.openGraph'),
+        onSelect: () => {
+          repoUi.setActiveKey(repo.gitDir)
+          graph.openGraph(repo)
+        }
+      })
+    }
+    items.push(
       {
         label: t('menu.newFile'),
+        divider: items.length > 0,
         disabled: row.kind !== 'dir',
         onSelect: () => setNewEntry({ dir: target, kind: 'file' })
       },
@@ -465,24 +481,19 @@ export function ExplorerView(): JSX.Element {
         disabled: row.kind !== 'dir',
         onSelect: () => setNewEntry({ dir: target, kind: 'dir' })
       },
+      { label: t('menu.reveal'), divider: true, onSelect: () => reveal(row.path) },
       { label: t('menu.openInEditor'), onSelect: () => openInEditor(row.path) },
       { label: t('menu.openTerminal'), onSelect: () => terminal.open(target) },
-      ...(repo === null
-        ? []
-        : [
-            {
-              label: t('menu.openGraph'),
-              onSelect: () => {
-                repoUi.setActiveKey(repo.gitDir)
-                graph.openGraph(repo)
-              }
-            }
-          ]),
-      { label: t('menu.reveal'), onSelect: () => reveal(row.path) },
-      { label: t('menu.copyPath'), onSelect: () => copyPath(row.path) },
-      { label: t('menu.rename'), onSelect: () => setRenaming(row) },
+      {
+        label: t('menu.copyPath'),
+        divider: true,
+        onSelect: () => copyPath(absolutePathFor(row.path))
+      },
+      { label: t('menu.copyRelativePath'), onSelect: () => copyPath(row.path) },
+      { label: t('menu.rename'), divider: true, onSelect: () => setRenaming(row) },
       { label: t('menu.delete'), onSelect: () => setTrashing(row) }
-    ]
+    )
+    return items
   }
 
   const empty = rows.length === 0

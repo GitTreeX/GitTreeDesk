@@ -62,6 +62,8 @@ export const zhHansResource: TranslationResource = {
     revealInExplorer: '在资源管理器中显示',
     copyPath: '复制路径',
     copyPaths: '复制多个路径',
+    copyRelativePath: '复制相对路径',
+    moreActions: '更多操作',
     rename: '重命名',
     delete: '移到回收站',
     checkoutBranch: '检出分支…',

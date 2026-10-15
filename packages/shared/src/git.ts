@@ -118,6 +118,8 @@ export interface CommitInfo {
   author: PersonInfo
   committer: PersonInfo
   subject: string
+  /** Message text after the subject line, trimmed; empty when the commit has none. */
+  body: string
   /** Decoration names (branches, tags, HEAD), without the `HEAD ->` prefix. */
   refs: string[]
 }

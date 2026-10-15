@@ -13,7 +13,7 @@ import {
 
 function commit(sha: string, parents: string[] = []): CommitInfo {
   const person = { name: 'Test', email: 'test@gitreedesk.invalid', date: '2026-01-01T00:00:00Z' }
-  return { sha, parents, author: person, committer: person, subject: sha, refs: [] }
+  return { sha, parents, author: person, committer: person, subject: sha, body: '', refs: [] }
 }
 
 function ref(name: string, sha: string, kind: RefKind = 'branch', isHead = false): GitRef {

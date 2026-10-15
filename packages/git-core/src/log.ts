@@ -3,8 +3,8 @@ import { GitCommandError } from './errors'
 import { runGit } from './run'
 import { LITERAL_PATHS_ENV } from './staging'
 
-const FORMAT = ['%H', '%P', '%an', '%ae', '%aI', '%cn', '%ce', '%cI', '%s', '%D'].join('%x00')
-const FIELDS_PER_COMMIT = 10
+const FORMAT = ['%H', '%P', '%an', '%ae', '%aI', '%cn', '%ce', '%cI', '%s', '%D', '%b'].join('%x00')
+const FIELDS_PER_COMMIT = 11
 
 function parseDecoration(value: string): string[] {
   if (value.length === 0) return []
@@ -32,7 +32,8 @@ export function parseLog(stdout: string): CommitInfo[] {
       author: { name: tokens[i + 2] ?? '', email: tokens[i + 3] ?? '', date: tokens[i + 4] ?? '' },
       committer: { name: tokens[i + 5] ?? '', email: tokens[i + 6] ?? '', date: tokens[i + 7] ?? '' },
       subject: tokens[i + 8] ?? '',
-      refs: parseDecoration(tokens[i + 9] ?? '')
+      refs: parseDecoration(tokens[i + 9] ?? ''),
+      body: (tokens[i + 10] ?? '').trim()
     })
   }
   return commits

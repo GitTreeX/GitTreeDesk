@@ -52,7 +52,13 @@ export function ReposView(): JSX.Element {
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set())
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
   const [cursorKey, setCursorKey] = useState<string | null>(null)
-  const [menu, setMenu] = useState<{ x: number; y: number; node: RepoNode } | null>(null)
+  const [menu, setMenu] = useState<{
+    x: number
+    y: number
+    node: RepoNode
+    /** The row button's menu leaves the graph entry to the row context menu. */
+    includeGraph: boolean
+  } | null>(null)
 
   const statusFor = useCallback(
     (record: RepoRecord): RepoStatus | null => statuses.get(record.gitDir)?.status ?? null,
@@ -309,7 +315,7 @@ export function ReposView(): JSX.Element {
     })
   }, [])
 
-  const menuItems = (node: RepoNode): ContextMenuItem[] => {
+  const menuItems = (node: RepoNode, includeGraph: boolean): ContextMenuItem[] => {
     const record = node.record
     // Row keys are checkout paths, so the selection is directly copyable.
     const inSelection = selected.has(node.key) && selected.size > 0
@@ -364,14 +370,18 @@ export function ReposView(): JSX.Element {
           operations.openCreateBranch(record)
         }
       },
-      {
-        label: t('menu.openGraph'),
-        disabled: !canTarget,
-        onSelect: () => {
-          repoUi.setActiveKey(record.gitDir)
-          graph.openGraph(record)
-        }
-      },
+      ...(includeGraph
+        ? [
+            {
+              label: t('menu.openGraph'),
+              disabled: !canTarget,
+              onSelect: () => {
+                repoUi.setActiveKey(record.gitDir)
+                graph.openGraph(record)
+              }
+            }
+          ]
+        : []),
       {
         label: syncTargets.length > 1 ? t('menu.fetchSelected') : t('menu.fetch'),
         disabled: syncTargets.length === 0,
@@ -641,7 +651,7 @@ export function ReposView(): JSX.Element {
                   setCursorKey(node.key)
                   if (!selected.has(node.key)) setSelected(new Set([node.key]))
                   if (record.gitDir.length > 0) repoUi.setActiveKey(record.gitDir)
-                  setMenu({ x: event.clientX, y: event.clientY, node })
+                  setMenu({ x: event.clientX, y: event.clientY, node, includeGraph: true })
                 }}
               >
                 <button
@@ -680,6 +690,24 @@ export function ReposView(): JSX.Element {
                   </span>
                 )}
                 <span className="min-w-0 flex-1" />
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  title={t('menu.moreActions')}
+                  aria-label={t('menu.moreActions')}
+                  className="hidden shrink-0 rounded p-0.5 text-muted hover:bg-ink/10 hover:text-ink group-hover/repo:block"
+                  onMouseDown={(event) => event.stopPropagation()}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    setCursorKey(node.key)
+                    if (!selected.has(node.key)) setSelected(new Set([node.key]))
+                    if (record.gitDir.length > 0) repoUi.setActiveKey(record.gitDir)
+                    const rect = event.currentTarget.getBoundingClientRect()
+                    setMenu({ x: rect.left, y: rect.bottom, node, includeGraph: false })
+                  }}
+                >
+                  …
+                </button>
                 <RepoBadges
                   record={record}
                   status={status}
@@ -694,7 +722,12 @@ export function ReposView(): JSX.Element {
       </div>
 
       {menu !== null && (
-        <ContextMenu x={menu.x} y={menu.y} items={menuItems(menu.node)} onClose={() => setMenu(null)} />
+        <ContextMenu
+          x={menu.x}
+          y={menu.y}
+          items={menuItems(menu.node, menu.includeGraph)}
+          onClose={() => setMenu(null)}
+        />
       )}
     </div>
   )

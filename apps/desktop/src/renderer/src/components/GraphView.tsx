@@ -72,8 +72,16 @@ function laneColor(lane: number): string {
   return LANE_COLORS[lane % LANE_COLORS.length] as string
 }
 
-function isEditableTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false
+/** First non-empty line of a commit body, for the two-line comfortable layout. */
+function firstBodyLine(body: string): string {
+  for (const line of body.split('\n')) {
+    const trimmed = line.trim()
+    if (trimmed.length > 0) return trimmed
+  }
+  return ''
+}
+
+function isEditableTarget(target: EventTarget | null): boolean {  if (!(target instanceof HTMLElement)) return false
   const tag = target.tagName
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable
 }
@@ -981,8 +989,18 @@ export function GraphView({ tab }: { tab: GraphTab }): JSX.Element | null {
                         </span>
                       )}
                     </span>
-                    <span className="min-w-0 flex-1 truncate text-ink" title={commit.subject}>
-                      {commit.subject}
+                    <span className="flex min-w-0 flex-1 flex-col justify-center">
+                      <span className="truncate text-ink" title={commit.subject}>
+                        {commit.subject}
+                      </span>
+                      {rowDensity === 'comfortable' && firstBodyLine(commit.body) !== '' && (
+                        <span
+                          className="truncate text-[10px] leading-3 text-muted"
+                          title={commit.body}
+                        >
+                          {firstBodyLine(commit.body)}
+                        </span>
+                      )}
                     </span>
                     <span className="w-28 shrink-0 truncate text-right text-muted">
                       {commit.author.name}

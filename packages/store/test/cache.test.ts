@@ -57,6 +57,7 @@ function commit(sha: string, date: string, subject: string): CommitInfo {
     author: { name: 'Ada', email: 'ada@example.com', date },
     committer: { name: 'Ada', email: 'ada@example.com', date },
     subject,
+    body: '',
     refs: ['HEAD -> main']
   }
 }

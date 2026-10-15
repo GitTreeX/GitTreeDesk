@@ -9,6 +9,7 @@ function commit(fields: {
   subject: string
   decoration: string
   authorName?: string
+  body?: string
 }): string {
   return [
     fields.sha,
@@ -20,7 +21,8 @@ function commit(fields: {
     'committer@example.com',
     '2026-10-13T08:05:00+08:00',
     fields.subject,
-    fields.decoration
+    fields.decoration,
+    fields.body ?? ''
   ].join(NUL)
 }
 
@@ -46,6 +48,7 @@ describe('parseLog', () => {
       author: { name: 'Test Author', email: 'author@example.com', date: '2026-10-13T08:00:00+08:00' },
       committer: { name: 'Test Committer', email: 'committer@example.com', date: '2026-10-13T08:05:00+08:00' },
       subject: 'add 中文 文档',
+      body: '',
       refs: ['main', 'origin/main', 'v1.0.0']
     })
 
@@ -58,6 +61,20 @@ describe('parseLog', () => {
       commit({ sha: 'c'.repeat(40), parents: '', subject: 'detached', decoration: 'HEAD' }) + NUL
     )
     expect(commits[0]?.refs).toEqual(['HEAD'])
+  })
+
+  it('keeps the message body trimmed', () => {
+    const commits = parseLog(
+      commit({
+        sha: 'd'.repeat(40),
+        parents: '',
+        subject: 'subject line',
+        decoration: '',
+        body: '\nExplains why the change was needed.\n\nMore detail.'
+      }) + NUL
+    )
+    expect(commits[0]?.subject).toBe('subject line')
+    expect(commits[0]?.body).toBe('Explains why the change was needed.\n\nMore detail.')
   })
 
   it('returns an empty list for empty output', () => {
