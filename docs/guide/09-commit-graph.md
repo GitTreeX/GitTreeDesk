@@ -5,7 +5,7 @@
 ## Opening
 
 - One graph **tab per repository** (titled `<repository> (Graph)`): open it from the **Graph button in the activity bar** (it acts on the active repository), the graph toolbar's repository picker, the **Source Control section header button** of that repository, the command palette ("Open commit graph"), the repo row's context menu, or any folder/file row in the Explorer whose path belongs to a repository. Up to ~5 graph tabs stay alive (LRU); reopening is instant.
-- The toolbar's **repository picker** switches to another repository's graph with one click (type to filter, Enter picks the first match) and makes that repository the active one, so the status bar and Source Control follow along.
+- The toolbar's **repository picker** switches to another repository's graph with one click (type to filter, Enter picks the first match) and makes that repository the active one, so the status bar and Source Control follow along. Next to it a **…** button opens the repository action menu (the same list as the Repos view row menu, without the graph entry) so everyday actions stay reachable from the graph.
 - The graph covers all refs by default: local branches, remote branches, tags, and HEAD.
 
 ## What you see
