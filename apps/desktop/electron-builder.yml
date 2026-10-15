@@ -45,10 +45,10 @@ linux:
   # electron-builder falls back to the package name for the binary, and a scoped
   # name (`@gitreedesk/desktop`) cannot appear in a Linux file path.
   executableName: GitTreeDesk
-  # Window/desktop-association: without desktopName, DEs may not link running
-  # windows to the .desktop entry.
-  desktopName: com.gitreedesk.app.desktop
-  synDesktopName: true
+  # Window/desktop-association: `desktopName` lives in package.json (Electron
+  # reads it as app_id / WM_CLASS); this flag makes the installed .desktop file
+  # use the same name so DEs link running windows to the entry.
+  syncDesktopName: true
   target:
     - AppImage
     - deb

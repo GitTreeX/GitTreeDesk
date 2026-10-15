@@ -9,6 +9,7 @@
   },
   "homepage": "https://github.com/GitTreeX/GitTreeDesk",
   "main": "out/main/index.js",
+  "desktopName": "com.gitreedesk.app.desktop",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
