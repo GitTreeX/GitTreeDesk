@@ -519,13 +519,15 @@ export function ScmView(): JSX.Element {
   const menuItems = (item: FlatItem): ContextMenuItem[] => {
     if (item.row.group === 'conflicts') {
       return [
+        // Resolution.
         { label: t('conflict.ours'), onSelect: () => resolveConflict(item, 'ours') },
         { label: t('conflict.theirs'), onSelect: () => resolveConflict(item, 'theirs') },
         { label: t('conflict.both'), onSelect: () => resolveConflict(item, 'both') },
-        { label: t('conflict.openInEditor'), onSelect: () => openConflictInEditor(item) },
+        { divider: true, label: t('conflict.openInEditor'), onSelect: () => openConflictInEditor(item) },
         { label: t('conflict.openTool'), onSelect: () => openMergeTool(item) },
-        { label: t('scm.resolve'), onSelect: () => runStage([item]) },
-        { label: t('menu.openTerminal'), onSelect: () => terminal.open(dirOf(item)) },
+        // Finish and file actions.
+        { divider: true, label: t('scm.resolve'), onSelect: () => runStage([item]) },
+        { divider: true, label: t('menu.openTerminal'), onSelect: () => terminal.open(dirOf(item)) },
         { label: t('menu.copyPath'), onSelect: () => copyPathOf(item) }
       ]
     }
@@ -572,9 +574,10 @@ export function ScmView(): JSX.Element {
     ]
     menu.push({
       label: t('stash.selectedMenu'),
+      divider: true,
       onSelect: () => operations.openStashCreate(item.section.record, { paths: stashPaths })
     })
-    menu.push({ label: t('menu.openTerminal'), onSelect: () => terminal.open(dirOf(item)) })
+    menu.push({ divider: true, label: t('menu.openTerminal'), onSelect: () => terminal.open(dirOf(item)) })
     menu.push({ label: t('menu.copyPath'), onSelect: () => copyPathOf(item) })
     return menu
   }

@@ -373,6 +373,7 @@ export function CommitBox({
     },
     {
       label: t('commit.amendKeep'),
+      divider: true,
       disabled: !canRun || unborn,
       onSelect: () => void beginAmend('keep')
     },

@@ -301,6 +301,7 @@ export function BranchPicker({
       },
       {
         label: t('merge.menu'),
+        divider: true,
         disabled: mergeDisabled,
         onSelect: () => {
           onClose()
@@ -323,7 +324,7 @@ export function BranchPicker({
           operations.beginInteractiveRebase(record, ref.name)
         }
       },
-      { label: t('branches.rename'), disabled: bare, onSelect: () => setRenameTarget(ref) },
+      { divider: true, label: t('branches.rename'), disabled: bare, onSelect: () => setRenameTarget(ref) },
       {
         label: t('branches.delete'),
         disabled: isHead || bare,
@@ -336,6 +337,7 @@ export function BranchPicker({
       },
       {
         label: t('branches.compare'),
+        divider: true,
         disabled: isHead || status === null,
         onSelect: () => runCompare(ref)
       },

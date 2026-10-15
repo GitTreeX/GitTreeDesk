@@ -355,6 +355,7 @@ export function FileDiffView({ tab }: { tab: DiffTab | CommitTab }): JSX.Element
     if (response !== null && response.patch !== '') {
       items.push({
         label: t('diff.hunk.copyPatch'),
+        divider: items.length > 0,
         onSelect: () => {
           const patch = singleHunkPatch(parsedRef.current, hunkMenu.index)
           if (patch !== null) copyPatch(patch)

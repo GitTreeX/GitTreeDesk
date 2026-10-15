@@ -121,7 +121,7 @@ function TabStrip(): JSX.Element {
       if (path === null) return items
       return [
         ...items,
-        { label: t('menu.copyPath'), onSelect: () => copyPath(path) },
+        { divider: true, label: t('menu.copyPath'), onSelect: () => copyPath(path) },
         {
           label: t('menu.reveal'),
           onSelect: () => {

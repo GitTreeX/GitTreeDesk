@@ -95,7 +95,25 @@ export function useRepoMenu(): (
               candidate.id === record.id && candidate.gitDir.length > 0 && candidate.kind !== 'bare'
           ) ?? null)
 
+    const submoduleItems: ContextMenuItem[] =
+      isSubmodule && submoduleParent !== null && submodulePath !== null
+        ? [
+            {
+              label: drifted ? t('menu.checkoutRecordedCommit') : t('menu.updateSubmodule'),
+              onSelect: () => operations.updateSubmodule(submoduleParent, submodulePath)
+            },
+            {
+              label: t('menu.openAsRepository'),
+              onSelect: () => {
+                if (record.gitDir.length > 0) repoUi.setActiveKey(record.gitDir)
+                tree.requestRepoFocus(record.path)
+              }
+            }
+          ]
+        : []
+
     return [
+      // Branch.
       {
         label: t('menu.checkoutBranch'),
         disabled: !canTarget || record.kind === 'bare',
@@ -124,8 +142,10 @@ export function useRepoMenu(): (
             }
           ]
         : []),
+      // Sync.
       {
         label: syncTargets.length > 1 ? t('menu.fetchSelected') : t('menu.fetch'),
+        divider: true,
         disabled: syncTargets.length === 0,
         onSelect: () => operations.fetchRepos(syncTargets)
       },
@@ -144,23 +164,13 @@ export function useRepoMenu(): (
           })
         }
       },
-      ...(isSubmodule && submoduleParent !== null && submodulePath !== null
-        ? [
-            {
-              label: drifted ? t('menu.checkoutRecordedCommit') : t('menu.updateSubmodule'),
-              onSelect: () => operations.updateSubmodule(submoduleParent, submodulePath)
-            },
-            {
-              label: t('menu.openAsRepository'),
-              onSelect: () => {
-                if (record.gitDir.length > 0) repoUi.setActiveKey(record.gitDir)
-                tree.requestRepoFocus(record.path)
-              }
-            }
-          ]
+      // Submodules.
+      ...(submoduleItems.length > 0
+        ? [{ ...(submoduleItems[0] as ContextMenuItem), divider: true }, ...submoduleItems.slice(1)]
         : []),
       {
         label: t('menu.updateSubmodules'),
+        divider: submoduleItems.length === 0,
         disabled: !canTarget || record.kind === 'bare' || !hasSubmodules,
         onSelect: () => operations.updateSubmodules(record)
       },
@@ -169,8 +179,10 @@ export function useRepoMenu(): (
         disabled: !canTarget || record.kind === 'bare' || !hasSubmodules,
         onSelect: () => operations.syncSubmoduleUrls(record)
       },
+      // Remotes, tags, stashes, backups.
       {
         label: t('menu.remotes'),
+        divider: true,
         disabled: !canTarget,
         onSelect: () => {
           repoUi.setActiveKey(record.gitDir)
@@ -209,8 +221,10 @@ export function useRepoMenu(): (
           operations.openBackupRestore(record)
         }
       },
+      // Worktrees.
       {
         label: t('menu.newWorktree'),
+        divider: true,
         disabled: !canTarget || record.kind === 'bare',
         onSelect: () => {
           repoUi.setActiveKey(record.gitDir)
@@ -235,8 +249,10 @@ export function useRepoMenu(): (
           if (pruneAnchor !== null) operations.pruneWorktrees(pruneAnchor)
         }
       },
+      // Copy and open.
       {
         label: paths.length > 1 ? t('menu.copyPaths') : t('menu.copyPath'),
+        divider: true,
         onSelect: () => copyPath(paths.join('\n'))
       },
       { label: t('menu.reveal'), onSelect: () => reveal(record.path) },
