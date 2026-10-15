@@ -67,6 +67,17 @@ function monacoWorkerFallback(): Plugin {
   }
 }
 
+/**
+ * zod ships `@__PURE__` notes as ordinary comments in positions Rollup reads as
+ * annotations. Rollup strips those comments (the intended behaviour) and warns about each
+ * one on every bundle, so the warning is filtered out of the build output.
+ */
+const ZOD_MODULE_PATH = /[\\/]zod[\\/]/
+
+function isZodAnnotationWarning(warning: { code?: string; id?: string }): boolean {
+  return warning.code === 'INVALID_ANNOTATION' && ZOD_MODULE_PATH.test(warning.id ?? '')
+}
+
 const workspacePackages = [
   '@gitreedesk/shared',
   '@gitreedesk/ui',
@@ -86,6 +97,9 @@ export default defineConfig({
         input: {
           index: resolve(__dirname, 'src/main/index.ts'),
           ptyHost: resolve(__dirname, 'src/pty-host/index.ts')
+        },
+        onwarn(warning, warn) {
+          if (!isZodAnnotationWarning(warning)) warn(warning)
         }
       }
     }
@@ -94,6 +108,13 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin({ exclude: workspacePackages })]
   },
   renderer: {
-    plugins: [monacoWorkerFallback(), react(), tailwindcss(), contentSecurityPolicy()]
+    plugins: [monacoWorkerFallback(), react(), tailwindcss(), contentSecurityPolicy()],
+    build: {
+      rollupOptions: {
+        onwarn(warning, warn) {
+          if (!isZodAnnotationWarning(warning)) warn(warning)
+        }
+      }
+    }
   }
 })

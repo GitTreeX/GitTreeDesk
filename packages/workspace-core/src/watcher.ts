@@ -43,6 +43,15 @@ export interface WatchBackend {
   subscribe(options: WatchBackendOptions): Promise<WatchSubscription>
 }
 
+/**
+ * `@parcel/watcher` resolves its "default" backend by probing `watchman` first. The probe
+ * shells out to `watchman ... get-sockname`, so on a machine without watchman the console
+ * gets cmd.exe's "'watchman' is not recognized" before the probe falls back to the native
+ * backend. Naming the platform backend keeps that fallback without the noise.
+ */
+const FS_BACKEND: 'windows' | 'fs-events' | 'inotify' =
+  process.platform === 'win32' ? 'windows' : process.platform === 'darwin' ? 'fs-events' : 'inotify'
+
 export const parcelWatchBackend: WatchBackend = {
   async subscribe({ dir, ignore, onEvents, onError }) {
     const subscription = await subscribeFs(
@@ -54,7 +63,7 @@ export const parcelWatchBackend: WatchBackend = {
         }
         onEvents(events.map((event) => ({ path: event.path, kind: event.type })))
       },
-      ignore === undefined || ignore.length === 0 ? undefined : { ignore: [...ignore] }
+      { backend: FS_BACKEND, ignore: ignore === undefined ? [] : [...ignore] }
     )
     return { close: () => subscription.unsubscribe() }
   }
