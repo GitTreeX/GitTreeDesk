@@ -5,6 +5,7 @@ import type { GitPool } from '@gitreedesk/git-core'
 import { loadWorkspaceConfig } from './config'
 import { discoverRepositories } from './discovery'
 import { mergeScopedRecords } from './incremental'
+import { canonicalPath } from './paths'
 import { WorkspaceRegistry, type RepoDiff } from './registry'
 import { StatusScheduler, statusTargetFor, type StatusReason } from './scheduler'
 import {
@@ -252,10 +253,9 @@ export class WorkspaceSession {
   }
 
   async #scopeDirFor(dir: string): Promise<string> {
-    const absolute = resolve(dir)
-    return realpath(absolute)
-      .then(toPosix)
-      .catch(() => toPosix(absolute))
+    // A directory deleted behind the app's back has no real path of its own, but the
+    // records it owns are still spelled canonically — hence the ancestor fallback.
+    return await canonicalPath(resolve(dir))
   }
 
   #scheduleConfirmRetry(scope: string): void {

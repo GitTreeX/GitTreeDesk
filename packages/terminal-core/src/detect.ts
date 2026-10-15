@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process'
 import { access } from 'node:fs/promises'
 import { constants } from 'node:fs'
-import { basename, posix, win32 } from 'node:path'
+import { basename, join, posix } from 'node:path'
 import type { TerminalProfileInfo } from '@gitreedesk/shared'
 
 /** Probes used by detection; tests override them to stay off the real machine. */
@@ -30,21 +30,24 @@ export async function findExecutable(
   options: { platform: NodeJS.Platform; env: Record<string, string | undefined>; pathExists?: (path: string) => Promise<boolean> }
 ): Promise<string | null> {
   const probe = options.pathExists ?? exists
-  const pathApi = options.platform === 'win32' ? win32 : posix
+  // The list separator follows the simulated platform; the Windows branch then joins with
+  // the host path module, because a simulated Windows environment (tests on macOS, say)
+  // still hands over paths in the host's spelling. POSIX detection is posix-only.
+  const listSeparator = options.platform === 'win32' ? ';' : ':'
   const path = options.env['PATH'] ?? options.env['Path'] ?? ''
-  const dirs = path.split(pathApi.delimiter).filter((entry) => entry.length > 0)
+  const dirs = path.split(listSeparator).filter((entry) => entry.length > 0)
 
   if (options.platform === 'win32') {
     const exts = (options.env['PATHEXT'] ?? '.COM;.EXE;.BAT;.CMD').split(';')
     const hasExt = /\.[^\\/]+$/.test(name)
     for (const dir of dirs) {
       if (hasExt) {
-        const candidate = pathApi.join(dir, name)
+        const candidate = join(dir, name)
         if (await probe(candidate)) return candidate
         continue
       }
       for (const ext of exts) {
-        const candidate = pathApi.join(dir, `${name}${ext.toLowerCase()}`)
+        const candidate = join(dir, `${name}${ext.toLowerCase()}`)
         if (await probe(candidate)) return candidate
       }
     }
@@ -52,7 +55,7 @@ export async function findExecutable(
   }
 
   for (const dir of dirs) {
-    const candidate = pathApi.join(dir, name)
+    const candidate = posix.join(dir, name)
     if (await probe(candidate)) return candidate
   }
   return null
@@ -144,7 +147,7 @@ async function findGitBash(options: DetectShellOptions): Promise<string | null> 
   const root = options.gitInstallRoot
   if (root === null || root === undefined || root.length === 0) return null
   const probe = options.pathExists ?? exists
-  const candidates = [win32.join(root, 'bin', 'bash.exe'), win32.join(root, 'usr', 'bin', 'bash.exe')]
+  const candidates = [join(root, 'bin', 'bash.exe'), join(root, 'usr', 'bin', 'bash.exe')]
   for (const candidate of candidates) {
     if (await probe(candidate)) return candidate
   }

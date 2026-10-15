@@ -64,7 +64,9 @@ export function shellCommandArgs(
   line: string,
   platform: NodeJS.Platform
 ): string[] {
-  const name = basename(shell).toLowerCase()
+  // `basename` only splits on the host separator; a Windows shell path has to be
+  // normalized first so `C:\pwsh.exe` still yields `pwsh.exe` when simulated elsewhere.
+  const name = basename(shell.replace(/\\/g, '/')).toLowerCase()
   if (platform === 'win32') {
     if (name === 'cmd' || name === 'cmd.exe') return [...baseArgs, '/d', '/s', '/c', line]
     if (name === 'wsl' || name === 'wsl.exe') return [...baseArgs, '--', 'sh', '-lc', line]

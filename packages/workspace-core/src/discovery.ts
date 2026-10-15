@@ -4,6 +4,7 @@ import type { Dirent } from 'node:fs'
 import type { DiscoveryResult, DiscoveryStats, RepoKind, RepoRecord, WorkspaceConfig } from '@gitreedesk/shared'
 import { type GitPool, listWorktrees, pathExists, resolveRepoDirs } from '@gitreedesk/git-core'
 import { createPathMatcher } from './glob'
+import { canonicalPath } from './paths'
 
 const BUILTIN_SKIP = new Set(['node_modules', '.git', '.svn', '.hg'])
 
@@ -263,13 +264,14 @@ export async function discoverRepositories(options: DiscoverOptions): Promise<Di
   const { config, pool, signal } = options
   const issues: string[] = []
 
-  const root = resolve(options.root)
-  const rootPosix = await realpathPosix(root)
-  const scanBase = options.scope === undefined ? root : resolve(options.scope)
+  // The root is canonicalized up front: a scope handed in from outside (or resolved
+  // through a symlinked temp directory) has to be measured against the same spelling.
+  const rootPosix = await realpathPosix(resolve(options.root))
+  const scanBase = options.scope === undefined ? rootPosix : await canonicalPath(resolve(options.scope))
   if (!(await pathExists(scanBase))) return emptyResult()
 
-  const startDepth = depthOf(root, scanBase)
-  const scan = await scanDirectories(root, scanBase, startDepth, config, signal, issues)
+  const startDepth = depthOf(rootPosix, scanBase)
+  const scan = await scanDirectories(rootPosix, scanBase, startDepth, config, signal, issues)
   const confirmed = await confirmCandidates(scan.candidates, pool, signal, issues)
 
   const groups = new Map<string, CandidateDirs[]>()
