@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs'
 import { execSync, spawn } from 'node:child_process'
-import { dirname, join } from 'node:path'
+import { dirname, win32 } from 'node:path'
 import { shell } from 'electron'
 import { buildEditorCommand } from './editor-command'
 
@@ -43,7 +43,7 @@ function resolveFromStandardLocations(base: string): string | null {
   for (const relative of candidates) {
     for (const root of roots) {
       if (root === undefined) continue
-      const full = join(root, relative)
+      const full = win32.join(root, relative)
       if (existsSync(full)) return full
     }
   }
@@ -63,7 +63,7 @@ function resolveFromAppPaths(base: string, filename: string): string | null {
       const match = output.match(/REG_SZ\s+(.+)/i)
       const exe = match?.[1]?.trim().replace(/^"|"$/g, '')
       if (exe === undefined || exe.length === 0) continue
-      const cli = join(dirname(exe), 'bin', `${base}.cmd`)
+      const cli = win32.join(win32.dirname(exe), 'bin', `${base}.cmd`)
       if (existsSync(cli)) return cli
       if (existsSync(exe)) return exe
     } catch {
