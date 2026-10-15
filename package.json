@@ -17,6 +17,7 @@
     "package:win": "pnpm --filter @gitreedesk/desktop package:win",
     "package:mac": "pnpm --filter @gitreedesk/desktop package:mac",
     "package:linux": "pnpm --filter @gitreedesk/desktop package:linux",
+    "build:native": "node scripts/build-native.mjs",
     "smoke:packaged": "node scripts/packaged-smoke.mjs",
     "perf-budget": "node scripts/perf-budget.mjs",
     "postinstall": "node scripts/install-electron.mjs",

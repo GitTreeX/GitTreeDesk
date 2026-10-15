@@ -7,8 +7,9 @@ files:
   - out/**
   - package.json
   - '!**/*.map'
-# Native modules ship N-API prebuilds that load under Electron as-is; rebuilding
-# them would only re-download toolchains the prebuilds already cover.
+# Native modules are N-API, so they load under Electron without a rebuild.
+# better-sqlite3 and node-pty ship prebuilds for macOS/Windows; on Linux
+# node-pty has none and its install script compiles build/Release/pty.node.
 npmRebuild: false
 asarUnpack:
   - node_modules/better-sqlite3/**

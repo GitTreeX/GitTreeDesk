@@ -77,15 +77,19 @@ const resourcesDir =
   process.platform === 'darwin'
     ? resolve(dirname(appPath), '..', 'Resources')
     : join(dirname(appPath), 'resources')
-const nodePtyPrebuild = join(
+// node-pty ships prebuilds only for macOS and Windows; elsewhere its install
+// script falls back to node-gyp, which lands in build/Release.
+const nodePtyDir = join(
   resourcesDir,
   'app.asar.unpacked',
   'node_modules',
-  'node-pty',
-  'prebuilds',
-  `${process.platform}-${process.arch}`,
-  'pty.node'
+  'node-pty'
 )
+const nodePtyCandidates = [
+  join(nodePtyDir, 'prebuilds', `${process.platform}-${process.arch}`, 'pty.node'),
+  join(nodePtyDir, 'build', 'Release', 'pty.node')
+]
+const nodePtyNative = nodePtyCandidates.find((candidate) => existsSync(candidate)) ?? null
 
 function findArtifact(pattern) {
   const name = readdirSync(releaseDir).find((file) => pattern.test(file))
@@ -316,7 +320,7 @@ async function main() {
     [`platform ${process.platform}`]: runtime !== null && runtime.platform === process.platform,
     [`discovered ${String(expectedRepos)} repos`]: runtime !== null && runtime.scanRepos === expectedRepos,
     'watchers subscribed': runtime !== null && runtime.watchers !== null && runtime.watchers.subscribed > 0,
-    'node-pty prebuild unpacked': existsSync(nodePtyPrebuild),
+    'node-pty native binary unpacked': nodePtyNative !== null,
     [`${primaryArtifact} built`]: artifactsMb[primaryArtifact] !== null
   }
   if (process.platform === 'win32') {
@@ -327,10 +331,16 @@ async function main() {
   const report = {
     generatedAt: new Date().toISOString(),
     artifactsMb,
+    nodePtyNative,
     runtime,
     checks
   }
   writeFileSync(join(profileDir, 'smoke-report.json'), JSON.stringify(report, null, 2))
+
+  if (nodePtyNative === null) {
+    console.error(`  node-pty checked: ${nodePtyCandidates.join(', ')}`)
+    console.error('  Linux has no node-pty prebuild — run `pnpm build:native` before packaging')
+  }
 
   for (const [name, ok] of Object.entries(checks)) {
     console.log(`${ok ? 'ok  ' : 'FAIL'}  ${name}`)
@@ -339,12 +349,12 @@ async function main() {
     Object.entries(artifactsMb)
       .map(([label, size]) => `${label} ${String(size)} MB`)
       .join(' · ') +
-      ` · repos ${String(runtime?.scanRepos)} · watchers ${String(runtime?.watchers?.subscribed)}`
+    ` · repos ${String(runtime?.scanRepos)} · watchers ${String(runtime?.watchers?.subscribed)}`
   )
   console.log(
     `recent list ${String(runtime?.recentReadyMs)} ms · window ${String(runtime?.titleMs)} ms · ` +
-      `tree ${String(runtime?.treeMs)} ms · scan ${String(runtime?.scanMs)} ms · ` +
-      `warm ${String(runtime?.warmMs)} ms · p50 ${String(runtime?.statusP50Ms)} ms`
+    `tree ${String(runtime?.treeMs)} ms · scan ${String(runtime?.scanMs)} ms · ` +
+    `warm ${String(runtime?.warmMs)} ms · p50 ${String(runtime?.statusP50Ms)} ms`
   )
   console.log(`screenshot: ${join(profileDir, 'packaged-open.png')}`)
 

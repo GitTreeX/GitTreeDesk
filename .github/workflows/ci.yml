@@ -65,6 +65,10 @@ jobs:
           restore-keys: |
             ${{ matrix.name }}-
       - run: pnpm install --frozen-lockfile
+      # node-pty has no Linux prebuild, so it is compiled here and must be
+      # verified before packaging: an unbuilt native module is invisible until
+      # the packaged smoke checks for it.
+      - run: pnpm build:native
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
