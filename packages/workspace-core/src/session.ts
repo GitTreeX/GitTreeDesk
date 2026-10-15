@@ -197,12 +197,23 @@ export class WorkspaceSession {
     return this.#watcher?.stats() ?? { scopes: 0, subscribed: 0, degraded: 0 }
   }
 
-  watchDirectory(dir: string): void {
-    this.#watcher?.watchTree(resolve(dir))
+  /**
+   * Watches a directory the UI currently shows. The path is canonicalized first: the
+   * registry spells every checkout with its realpath, so a subscription made on some
+   * other spelling (a Windows 8.3 temp path, a symlinked folder) would report events
+   * the owner lookup can never match.
+   */
+  async watchDirectory(dir: string): Promise<void> {
+    const watcher = this.#watcher
+    if (watcher === null) return
+    watcher.watchTree(await canonicalPath(resolve(dir)))
   }
 
-  unwatchDirectory(dir: string): void {
-    this.#watcher?.unwatchTree(resolve(dir))
+  /** Releases the watch for a collapsed directory; the path canonicalizes the same way. */
+  async unwatchDirectory(dir: string): Promise<void> {
+    const watcher = this.#watcher
+    if (watcher === null) return
+    watcher.unwatchTree(await canonicalPath(resolve(dir)))
   }
 
   async close(): Promise<void> {

@@ -2201,13 +2201,13 @@ export class WorkspaceService {
 
   async watchDirectory(path: string): Promise<null> {
     const session = this.#requireSession()
-    session.watchDirectory(await this.resolveInside(path))
+    await session.watchDirectory(await this.resolveInside(path))
     return null
   }
 
   async unwatchDirectory(path: string): Promise<null> {
     const session = this.#requireSession()
-    session.unwatchDirectory(await this.resolveInside(path))
+    await session.unwatchDirectory(await this.resolveInside(path))
     return null
   }
 

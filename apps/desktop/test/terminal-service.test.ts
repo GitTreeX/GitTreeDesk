@@ -1,6 +1,6 @@
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join, win32 } from 'node:path'
+import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import type {
   TerminalProfileInfo,
@@ -472,11 +472,13 @@ describe('TerminalService.quickRun', () => {
     const pending = service.quickRun({ dir: posix, name: 'tool', cols: 80, rows: 24 })
     const { child, create } = await waitForCreate(runtime)
     expect(create.shell).toBe('cmd.exe')
+    // `findExecutable` scans `PATH` with the host path module even when the platform is
+    // simulated as Windows, so the resolved script carries the host's spelling.
     expect(create.args).toEqual([
       '/d',
       '/s',
       '/c',
-      `${win32.join(dir, 'tool.cmd')}`
+      join(dir, 'tool.cmd')
     ])
     child.emit({ t: 'created', id: create.id })
     await pending

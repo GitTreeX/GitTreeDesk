@@ -195,7 +195,7 @@ describe('WorkspaceSession', () => {
       expect(statuses.get(record.gitDir)?.untracked).toEqual([])
 
       await mkdir(join(root, 'app', 'notes'), { recursive: true })
-      instance.watchDirectory(join(root, 'app', 'notes'))
+      await instance.watchDirectory(join(root, 'app', 'notes'))
 
       let counter = 0
       await vi.waitFor(
