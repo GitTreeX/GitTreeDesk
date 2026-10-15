@@ -28,7 +28,7 @@ Resolution order: **workspace > user** (per key); per-repo overrides live in the
     "path": null,                    // null = auto-detect; set for custom Git installs
     "concurrency": 6,                // parallel Git processes
     "pollIntervalSec": 60,           // fallback polling when watchers are unhealthy
-    "defaultPullStrategy": "rebase", // ff-only | merge | rebase
+    "defaultPullStrategy": "ff-only", // ff-only | merge | rebase
     "untrackedStrategy": "normal"    // normal | all (per-repo override supported)
   },
   "commitMessage": {

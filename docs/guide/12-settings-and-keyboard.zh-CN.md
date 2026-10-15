@@ -28,7 +28,7 @@
     "path": null,                    // null = 自动探测；自定义 Git 安装时填写
     "concurrency": 6,                // 并行 Git 进程数
     "pollIntervalSec": 60,           // watcher 不健康时的兜底轮询间隔
-    "defaultPullStrategy": "rebase", // ff-only | merge | rebase
+    "defaultPullStrategy": "ff-only", // ff-only | merge | rebase
     "untrackedStrategy": "normal"    // normal | all（支持按仓库覆盖）
   },
   "commitMessage": {

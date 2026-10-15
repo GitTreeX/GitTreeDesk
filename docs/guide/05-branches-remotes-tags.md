@@ -22,7 +22,7 @@ The branch picker shows for each entry: name, ahead/behind vs upstream, last com
 
 Managed per repository (repo context menu → Remotes):
 
-- **Add / remove / edit URL** per remote. Default remote for pushes is `origin`; settings can override.
+- **Add / remove / edit URL** per remote. The default remote for pushes is `origin` (settings can override it) and it is the one the push dialog preselects.
 - **Fetch** — single repo or batch:
   - options: **prune** (delete stale remote-tracking branches) and **follow tags**;
   - batch entry points: right-click in Repos view → "Fetch selected"; command palette → **"Fetch all repositories"**. Progress and failures are reported per repository (15 failures never hide 15 successes).
@@ -31,7 +31,7 @@ Managed per repository (repo context menu → Remotes):
   - `merge`,
   - `rebase`;
   - per-repo override via workspace settings (page 12). A dirty tree is auto-stashed first when necessary, and the stash is restored after.
-- **Push** — branch picker, "publish & set upstream" for new branches. When remote history has diverged, plain force is **not** offered; **force-with-lease** appears behind a double confirmation that names the branch and remote. Pushing tags has its own action.
+- **Push** — the push dialog lists every remote of the repository with the default preselected; select several and one action pushes the branch to all of them, each reporting its own success or failure (one rejection never hides the others). "Publish & set upstream" appears for branches without an upstream and sets tracking on the first selected remote. When remote history has diverged, plain force is **not** offered; **force-with-lease** appears behind a double confirmation that names the branch and remotes. Pushing tags has its own action.
 
 ## Tags
 

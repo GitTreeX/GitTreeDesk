@@ -6,13 +6,13 @@ The **Source Control view** (activity bar) is the multi-repo changes list: one s
 
 ## Which repositories appear
 
-- A repository appears when it has any changes, **and** it is checked in the Repos view's per-repo selection (page 01). With 50+ repositories this keeps the view focused on what you are working on right now.
-- Toolbar actions: "Show only selected repos" toggle, "Select all / none".
+- Repositories start **all checked**: unchecking one in the Repos view hides it from this list. The default is therefore "everything with changes is visible"; the selection is how you cut the view down on a 50+ repo workspace.
+- Toolbar actions: "Show only selected repos" toggle (on by default), "Select all / none".
 - Repositories with an in-progress operation (merge, rebase, …) always appear, with an operation banner at the top of their section: **Continue / Skip / Abort** plus the list of conflicted files (details: page 06).
 
 ## Groups and toggles
 
-Each repository section groups its changes as **Staged**, **Unstaged**, **Untracked**, and **Conflicts**. Each group can be hidden via view options — e.g. hide *Untracked* if you rarely commit new files.
+Each repository section groups its changes as **Staged**, **Unstaged**, **Untracked**, and **Conflicts**. Each group can be hidden via view options — e.g. hide *Untracked* if you rarely commit new files. Group visibility and the badge toggles start **on**: nothing is hidden until you hide it.
 
 Each section ends with the **commit box** (message field, ✨ generate button, Commit / Amend / Stage-all — details: page 04).
 

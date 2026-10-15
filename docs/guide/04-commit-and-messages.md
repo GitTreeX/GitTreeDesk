@@ -10,7 +10,7 @@ Every repository section in the Source Control view ends with a commit box:
 - Primary action **Commit** (`Ctrl/Cmd+Enter`). The dropdown offers:
   - **Commit** staged changes only;
   - **Stage all & commit**;
-  - **Commit & push** (push strategy from settings, page 05);
+  - **Commit & push** (the push dialog chooses the remotes — page 05);
   - **Amend** — see below.
 - **Sign-off** toggle (adds `Signed-off-by:`); GPG signing is [Later].
 - While a commit runs, hook output (e.g. `pre-commit`, `commit-msg`) streams into the panel. On failure the message **stays in the box** — nothing is lost; fix and retry.

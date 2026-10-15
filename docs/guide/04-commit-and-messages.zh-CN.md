@@ -10,7 +10,7 @@ Source Control 视图中每个仓库分节的底部是提交框：
 - 主操作 **Commit**（`Ctrl/Cmd+Enter`）。下拉菜单提供：
   - **Commit**——仅提交已暂存内容；
   - **Stage all & commit**——全部暂存并提交；
-  - **Commit & push**——提交并推送（推送策略取设置，第 05 页）；
+  - **Commit & push**——提交并推送（在推送对话框中选择远端，第 05 页）；
   - **Amend**——见下。
 - **Sign-off** 开关（追加 `Signed-off-by:`）；GPG 签名为 [Later]。
 - 提交过程中，hook 输出（如 `pre-commit`、`commit-msg`）流式显示在面板中。**失败时消息保留在输入框里**——什么都不丢，修完重试即可。

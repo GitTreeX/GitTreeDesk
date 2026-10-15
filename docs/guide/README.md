@@ -25,7 +25,7 @@ Status legend: 🚧 Planned · 🔨 In progress · ✅ Implemented
 
 ## What is GitTreeDesk
 
-A workspace-first multi-repo Git workbench. Open **any folder** — it does not need to be a Git repository — and manage every Git repository, worktree, and submodule inside it from one tree: full Git operations, a commit graph, file browsing with diffs and light editing, and integrated terminals. It is deliberately *not* a general-purpose IDE; where deeper code intelligence is needed, a one-click "Open in VSCode" escape hatch is provided.
+A workspace-first multi-repo Git workbench. Open **any folder** — it does not need to be a Git repository — and manage every Git repository, worktree, and submodule inside it from one tree: full Git operations, a per-repository commit graph, file browsing with diffs and light editing, and integrated terminals. It is deliberately *not* a general-purpose IDE; where deeper code intelligence is needed, a one-click "Open in VSCode" escape hatch is provided.
 
 ## Prerequisites
 

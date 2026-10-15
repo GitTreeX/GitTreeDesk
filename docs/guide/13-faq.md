@@ -84,7 +84,7 @@ With `safeStorage` in the **OS keychain** (Keychain / Credential Manager / libse
 
 ### The app feels slow with a huge repository
 
-- **Untracked files** are usually the cause. For repositories with enormous untracked trees (build output, downloaded models), set the per-repo override `untrackedStrategy: "normal"` (Settings → Git) — "all" lists every untracked file individually and is only worth it for small repos.
+- **Untracked files** are usually the cause. Repositories with enormous untracked trees (build output, downloaded models) should stay on the default `untrackedStrategy: "normal"` (Settings → Git): the per-repo `"all"` option lists every untracked file individually and only pays off in small repositories.
 - **Graph**: very large histories load in pages (1 000 rows, then 2 000-row chunks); the graph tab shows a loading indicator while the next page is on the way. Filters reduce what needs to load (page 09).
 - Performance budgets (first tree, status refresh, graph scroll) are **release gates** measured on the reference scenario — a sluggish feel on a workspace like this is treated as a bug. When reporting, raise **Settings → Advanced → log verbosity** and include the Output panel content.
 
