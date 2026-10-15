@@ -17,6 +17,7 @@ const en = {
   activity: {
     tree: 'Explorer',
     scm: 'Source Control',
+    graph: 'Commit Graph',
     settings: 'Settings'
   },
   viewOptions: {

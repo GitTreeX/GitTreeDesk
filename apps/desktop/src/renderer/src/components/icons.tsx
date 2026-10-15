@@ -322,6 +322,19 @@ export function ChevronDownIcon({ className }: IconProps): JSX.Element {
   )
 }
 
+export function GraphIcon({ className }: IconProps): JSX.Element {
+  return (
+    <svg {...iconProps(className)} aria-hidden="true">
+      <circle cx="6" cy="6" r="2.5" />
+      <circle cx="6" cy="18" r="2.5" />
+      <circle cx="18" cy="12" r="2.5" />
+      <path d="M6 8.5v7" />
+      <path d="M8.5 6.2c4.2 0 4.2 5.1 7 5.6" />
+      <path d="M8.5 17.8c4.2 0 4.2-5.1 7-5.6" />
+    </svg>
+  )
+}
+
 export function SettingsIcon({ className }: IconProps): JSX.Element {
   return (
     <svg {...iconProps(className)} aria-hidden="true">

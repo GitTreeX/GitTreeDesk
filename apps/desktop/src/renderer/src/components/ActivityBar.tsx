@@ -1,8 +1,10 @@
 import type { JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useEditor } from '../contexts/editor'
+import { useGraph } from '../contexts/graph'
+import { useReposUi } from '../contexts/repos'
 import { useTreeUi, type SidebarPanel } from '../contexts/tree'
-import { BranchIcon, ChangesIcon, SettingsIcon } from './icons'
+import { BranchIcon, ChangesIcon, GraphIcon, SettingsIcon } from './icons'
 
 export function ActivityBar({
   collapsed,
@@ -14,6 +16,10 @@ export function ActivityBar({
   const { t } = useTranslation()
   const tree = useTreeUi()
   const editor = useEditor()
+  const graph = useGraph()
+  const repoUi = useReposUi()
+  const activeRecord = repoUi.activeRecord
+  const graphTarget = activeRecord !== null && activeRecord.gitDir.length > 0 ? activeRecord : null
 
   const panelButton = (panel: SidebarPanel, label: string, icon: JSX.Element): JSX.Element => {
     const active = !collapsed && tree.panel === panel
@@ -34,11 +40,27 @@ export function ActivityBar({
   }
 
   const settingsActive = editor.activeTab?.kind === 'settings'
+  const graphActive = editor.activeTab?.kind === 'graph'
 
   return (
     <nav className="flex w-12 shrink-0 flex-col items-center gap-1 border-r border-line bg-panel py-2">
       {panelButton('tree', t('activity.tree'), <BranchIcon className="size-5" />)}
       {panelButton('scm', t('activity.scm'), <ChangesIcon className="size-5" />)}
+      <button
+        type="button"
+        aria-pressed={graphActive}
+        title={t('activity.graph')}
+        aria-label={t('activity.graph')}
+        disabled={graphTarget === null}
+        onClick={() => {
+          if (graphTarget !== null) graph.openGraph(graphTarget)
+        }}
+        className={`flex size-9 items-center justify-center rounded-md disabled:opacity-40 ${
+          graphActive ? 'bg-ink/5 text-ink' : 'text-muted hover:bg-ink/5 hover:text-ink'
+        }`}
+      >
+        <GraphIcon className="size-5" />
+      </button>
       <div className="mt-auto" />
       <button
         type="button"

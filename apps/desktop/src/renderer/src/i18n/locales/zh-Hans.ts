@@ -19,6 +19,7 @@ export const zhHansResource: TranslationResource = {
   activity: {
     tree: '资源管理器',
     scm: '源代码管理',
+    graph: '提交图',
     settings: '设置'
   },
   viewOptions: {

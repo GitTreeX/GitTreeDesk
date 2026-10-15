@@ -4,7 +4,7 @@
 
 ## Opening
 
-- One graph **tab per repository**: open from the repo row's context menu, the command palette ("Open commit graph"), or the repo details panel. Up to ~5 graph tabs stay alive (LRU); reopening is instant.
+- One graph **tab per repository** (titled `<repository> (Graph)`): open it from the **Graph button in the activity bar** (it acts on the active repository), the command palette ("Open commit graph"), or the repo row's context menu ("Open Commit Graph"). Up to ~5 graph tabs stay alive (LRU); reopening is instant.
 - The graph covers all refs by default: local branches, remote branches, tags, and HEAD.
 
 ## What you see
