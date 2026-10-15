@@ -5,6 +5,7 @@
 ## Opening
 
 - One graph **tab per repository** (titled `<repository> (Graph)`): open it from the **Graph button in the activity bar** (it acts on the active repository), the command palette ("Open commit graph"), or the repo row's context menu ("Open Commit Graph"). Up to ~5 graph tabs stay alive (LRU); reopening is instant.
+- The toolbar's **repository picker** switches to another repository's graph with one click (type to filter, Enter picks the first match) and makes that repository the active one, so the status bar and Source Control follow along.
 - The graph covers all refs by default: local branches, remote branches, tags, and HEAD.
 
 ## What you see
@@ -18,6 +19,9 @@
 
 - The first page loads 1 000 commits; scrolling down streams older history in chunks of 2 000 — the graph never blocks on full history.
 - For very large repositories a "huge repo mode" caps the loaded window (windowed queries + total count) and says so in the toolbar; [Later] a setting to raise the window.
+- The **lane column sizes itself**: a handful of lanes gets the natural width, and a branching-heavy repository compresses the lane spacing instead of pushing the commit text off-screen (the commit text keeps its column).
+- **Resizable**: drag the right edge of the lane column to set your own width; the width is remembered across sessions. Filters that reduce the lane count (e.g. "current branch only") free the space again.
+- **Row height**: `compact` / `normal` / `comfortable`, switchable from the graph toolbar or Settings → Appearance ("Commit graph density"); `normal` is the default.
 - Performance target: smooth scrolling (60 fps) with 5 000+ loaded rows; first paint within ~1.5 s on a 10 k-commit repository.
 
 ## Filters

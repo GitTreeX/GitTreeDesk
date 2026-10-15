@@ -367,12 +367,14 @@ Both views render with virtualization (TanStack Virtual) and keyboard navigation
 
 *Scope: v1, per repository.*
 
-- Opened as a tab per repository (LRU-cached, ~5 alive). Data from `git log --all` (configurable default refs) streamed with a custom NUL-delimited format; lanes computed client-side; rendering = virtualized DOM rows + a canvas lane layer (targets 60 fps at 5 000+ loaded rows).
+- Opened as a tab per repository (LRU-cached, ~5 alive); the toolbar switches the tab to another workspace repository through a repository picker (which also makes it the active checkout). Data from `git log --all` (configurable default refs) streamed with a custom NUL-delimited format; lanes computed client-side; rendering = virtualized DOM rows + a canvas lane layer (targets 60 fps at 5 000+ loaded rows).
+- Row density: `compact` / `normal` / `comfortable` row heights, switchable from the toolbar and from the Appearance settings group (`appearance.graphDensity`, default `normal`).
+- Lane column: natural width while the lanes fit, compressed lane spacing rather than a gutter that swallows the commit text, user-resizable by dragging its edge, with the chosen width persisted in the UI state.
 - Paging: first page 1 000 commits; older history loads in 2 000-row chunks on scroll; "huge repo" mode caps the window (uses `--skip/--max-count` and `rev-list --count` for totals).
 - Row content: lane graph, refs (local/remote/tags/HEAD with distinct chips), subject, author, relative date, "incoming/outgoing" markers relative to upstream and current branch.
 - Filters: refs multi-select, author, path (with rename detection off in v1), date range, message text, and "only reachable from current branch".
 - Commit details side panel: full message, author + committer (name/email/date), file list with stats; clicking a file opens the commit diff in the editor area.
-- Commit actions (context menu, reusing the operation models): checkout, create branch/tag here, cherry-pick, revert, reset here *(soft/mixed/hard)*, copy SHA / ref name, rebase current onto this commit, interactive rebase from this commit, **edit message / author / date** (F4 history editing), select for compare (diff two arbitrary commits).
+- Commit actions (context menu, reusing the operation models): checkout, create branch/tag here, cherry-pick, revert, reset here *(soft/mixed/hard)*, copy SHA / ref name, rebase current onto this commit, interactive rebase from this commit, **edit message / author / date** (history editing), select for compare (diff two arbitrary commits).
 - A cross-repo "activity" aggregate is *Later*.
 
 ### Editor

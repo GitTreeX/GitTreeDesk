@@ -367,12 +367,14 @@ CREATE TABLE oplog        (id INTEGER PRIMARY KEY, repo_id INT, op TEXT, backup_
 
 *范围：v1，逐仓库。*
 
-- 按仓库开为 tab（LRU 缓存约 5 个存活）。数据来自 `git log --all`（默认 refs 可配置），以自定义 NUL 分隔格式流式读取；泳道在客户端计算；渲染 = 虚拟化 DOM 行 + canvas 泳道层（目标：已加载 5000+ 行时 60 fps）。
+- 按仓库开为 tab（LRU 缓存约 5 个存活）；工具栏通过仓库选择器把该标签切换到工作区内的其他仓库（同时把该仓库设为当前检出）。数据来自 `git log --all`（默认 refs 可配置），以自定义 NUL 分隔格式流式读取；泳道在客户端计算；渲染 = 虚拟化 DOM 行 + canvas 泳道层（目标：已加载 5000+ 行时 60 fps）。
+- 行高：`紧凑` / `正常` / `宽松` 三档，可在图工具栏与「外观」设置组切换（`appearance.graphDensity`，默认 `正常`）。
+- 泳道列：泳道放得下时按自然宽度，放不下时压缩泳道间距而不是让 gutter 吞掉提交文字；用户可拖动右缘调整宽度，宽度持久化在 UI state 中。
 - 分页：首页 1000 个提交；向下滚动按 2000 行分块加载更早历史；"超大仓库"模式限制窗口（`--skip/--max-count`，总数用 `rev-list --count`）。
 - 行内容：泳道图、refs（本地/远端/tag/HEAD 用不同 chip）、subject、作者、相对时间、"incoming/outgoing" 标记（相对 upstream 与当前分支）。
 - 过滤：refs 多选、作者、路径（v1 不做 rename 跟随）、日期区间、消息文本，以及"仅当前分支可达"。
 - 提交详情侧栏：完整消息、作者 + 提交者（姓名/邮箱/日期）、带统计的文件列表；点击文件在编辑区打开该提交的 diff。
-- 提交操作（右键菜单，复用操作模型）：checkout、在此创建分支/tag、cherry-pick、revert、reset 到此处*（soft/mixed/hard）*、复制 SHA / ref 名、把当前分支 rebase 到该提交、自此交互式 rebase、**修改提交信息 / 作者 / 时间**（F4 历史改写）、选择以对比（任意两个提交间 diff）。
+- 提交操作（右键菜单，复用操作模型）：checkout、在此创建分支/tag、cherry-pick、revert、reset 到此处*（soft/mixed/hard）*、复制 SHA / ref 名、把当前分支 rebase 到该提交、自此交互式 rebase、**修改提交信息 / 作者 / 时间**（历史改写）、选择以对比（任意两个提交间 diff）。
 - 跨仓库"活动"聚合属*后续*。
 
 ### 编辑器
