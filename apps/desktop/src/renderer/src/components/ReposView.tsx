@@ -493,7 +493,7 @@ export function ReposView(): JSX.Element {
                     if (!selected.has(node.key)) setSelected(new Set([node.key]))
                     if (record.gitDir.length > 0) repoUi.setActiveKey(record.gitDir)
                     const rect = event.currentTarget.getBoundingClientRect()
-                    setMenu({ x: rect.left, y: rect.bottom, node, includeGraph: false })
+                    setMenu({ x: rect.left, y: rect.bottom, node })
                   }}
                 >
                   …
