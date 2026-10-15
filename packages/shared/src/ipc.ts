@@ -394,17 +394,26 @@ export interface GitPushRequest {
   gitDir: string
   /** Local branch to push. */
   branch: string
-  /** Remote to push to; omitted uses the default remote. */
-  remote?: string
-  /** Publishes the branch and sets its upstream (`-u`). */
-  setUpstream?: boolean
+  /** Remotes to push to, in order; omitted uses the repository's default remote. */
+  remotes?: string[]
+  /** Sets this remote as the branch's upstream (`-u`); omitted leaves tracking untouched. */
+  upstreamRemote?: string
   /** Never a plain force; the caller confirms behind a warning. */
   forceWithLease?: boolean
 }
 
-export interface GitPushResponse {
+export interface GitPushResult {
   remote: string
+  ok: boolean
+  /** Raw git output for the expandable details. */
   output: string
+  /** Cleaned failure message when `ok` is false. */
+  error: string | null
+}
+
+export interface GitPushResponse {
+  /** Per-remote outcome, in the order the remotes were requested. */
+  results: GitPushResult[]
 }
 
 export interface GitTagCreateRequest {

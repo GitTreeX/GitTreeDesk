@@ -136,8 +136,8 @@ export const invokeSchemas = {
   'git:push': z.object({
     gitDir: pathString,
     branch: branchName,
-    remote: remoteName.optional(),
-    setUpstream: z.boolean().optional(),
+    remotes: z.array(remoteName).max(32).optional(),
+    upstreamRemote: remoteName.optional(),
     forceWithLease: z.boolean().optional()
   }),
   'git:tagCreate': z.object({

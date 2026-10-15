@@ -60,6 +60,7 @@ import type {
   GitPullRequest,
   GitPullResponse,
   GitPushRequest,
+  GitPushResult,
   GitPushResponse,
   GitRebaseInteractiveRequest,
   GitRebasePlanRequest,
@@ -1794,21 +1795,51 @@ export class WorkspaceService {
     return { updated: before !== after, stash }
   }
 
+  /** Pushes the branch to each requested remote; every remote reports its own result. */
   async gitPush(request: GitPushRequest): Promise<GitPushResponse> {
     const record = this.#requireCheckout(this.#requireSession(), request.gitDir)
-    const remote = await this.#resolveRemote(record, request.remote)
-    const result = await this.#gitOperation(
-      record,
-      (repoPath) =>
-        pushBranch(repoPath, {
+    const remotes = await this.#pushRemotes(record, request.remotes)
+    const results: GitPushResult[] = []
+    for (const remote of remotes) {
+      try {
+        const result = await this.#gitOperation(
+          record,
+          (repoPath) =>
+            pushBranch(repoPath, {
+              remote,
+              branch: request.branch,
+              setUpstream: request.upstreamRemote === remote,
+              forceWithLease: request.forceWithLease === true
+            }),
+          (error) => toNetworkServiceError(error, remote)
+        )
+        results.push({
           remote,
-          branch: request.branch,
-          setUpstream: request.setUpstream === true,
-          forceWithLease: request.forceWithLease === true
-        }),
-      (error) => toNetworkServiceError(error, remote)
-    )
-    return { remote, output: `${result.stdout}${result.stderr}`.trimEnd() }
+          ok: true,
+          output: `${result.stdout}${result.stderr}`.trimEnd(),
+          error: null
+        })
+      } catch (failure) {
+        const mapped = failure instanceof ServiceError ? failure : toNetworkServiceError(failure, remote)
+        results.push({ remote, ok: false, output: mapped.details ?? '', error: mapped.message })
+      }
+    }
+    return { results }
+  }
+
+  /** Validated, de-duplicated push targets; an empty request falls back to the default remote. */
+  async #pushRemotes(record: RepoRecord, requested?: readonly string[]): Promise<readonly string[]> {
+    const wanted = (requested ?? []).filter((name) => name.length > 0)
+    if (wanted.length === 0) return [await this.#resolveRemote(record)]
+    const remotes = await listRemotes(record.path)
+    const targets: string[] = []
+    for (const name of wanted) {
+      if (!remotes.some((remote) => remote.name === name)) {
+        throw new ServiceError('git-failed', `Unknown remote "${name}"`)
+      }
+      if (!targets.includes(name)) targets.push(name)
+    }
+    return targets
   }
 
   /** Fetches several repositories; every repository reports its own result. */

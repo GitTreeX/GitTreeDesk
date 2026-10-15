@@ -402,19 +402,23 @@ const en = {
     pulled: '{{name}}: pulled the latest changes',
     alreadyUpToDate: '{{name}}: already up to date',
     noRemote: 'No remote is configured for this repository.',
-    publishTitle: 'Publish branch “{{branch}}”?',
-    publishBody: 'The branch is pushed to {{remote}} and set to track it.',
-    publishAction: 'Publish',
+    pushTitle: 'Push',
+    pushRemotes: 'Remotes',
+    pushAction: 'Push',
+    publishToggle: 'Publish the branch and set upstream',
+    publishHint: '“{{branch}}” will track {{remote}}.',
     published: 'Published {{branch}} to {{remote}}',
     pushed: 'Pushed {{branch}} to {{remote}}',
+    pushedMany: 'Pushed {{branch}} to {{count}} remotes',
+    pushFailed: 'Push to {{remote}} failed',
     forcePushed: 'Force-pushed {{branch}} to {{remote}}',
     forceTitle: 'Push rejected — force push “{{branch}}”?',
     forceBody:
-      '{{remote}} has commits that are not in {{branch}}, so the push was rejected. Force pushing replaces the remote branch and can discard others’ commits.',
+      'The push to {{remote}} was rejected because the remote branch has commits that are not in {{branch}}. Force pushing replaces the remote branch and can discard others’ commits.',
     forceContinue: 'Continue',
     forceFinalTitle: 'Force push and replace the remote history?',
     forceFinalBody:
-      'This replaces “{{branch}}” on {{remote}} with your local branch. Commits that exist only on the remote will be lost from it.',
+      'This replaces “{{branch}}” on {{remote}} with your local branch. Commits that exist only on the remote will be lost.',
     forceAction: 'Force Push'
   },
   undo: {

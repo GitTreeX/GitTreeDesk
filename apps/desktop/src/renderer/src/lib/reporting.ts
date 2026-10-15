@@ -81,8 +81,7 @@ export function notifyServiceError(error: unknown, t: Translate): void {
 }
 
 /** A push rejected because the remote branch has commits the local one lacks. */
-export function isRejectedPush(error: unknown): boolean {
-  const text = `${error instanceof Error ? error.message : ''}\n${errorDetails(error) ?? ''}`
+export function isRejectedPushText(text: string): boolean {
   return /non-fast-forward|\[rejected\]|fetch first|Updates were rejected/i.test(text)
 }
 

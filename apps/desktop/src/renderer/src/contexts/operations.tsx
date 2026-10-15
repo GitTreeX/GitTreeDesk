@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type React
 import { useTranslation } from 'react-i18next'
 import type {
   GitBatchResult,
+  GitPushResult,
   GitSubmoduleUpdateResult,
   RepoOperationKind,
   RepoRecord,
@@ -18,6 +19,7 @@ import { CreateWorktreeDialog } from '../components/CreateWorktreeDialog'
 import { EditCommitsDialog } from '../components/EditCommitsDialog'
 import { InteractiveRebaseDialog } from '../components/InteractiveRebaseDialog'
 import { MergeDialog } from '../components/MergeDialog'
+import { PushDialog } from '../components/PushDialog'
 import { RemotesDialog } from '../components/RemotesDialog'
 import { ResetDialog } from '../components/ResetDialog'
 import { StashCreateDialog } from '../components/StashCreateDialog'
@@ -27,7 +29,7 @@ import { api } from '../api'
 import {
   errorText,
   isOperationBlocked,
-  isRejectedPush,
+  isRejectedPushText,
   isWorktreeDirtyRefusal,
   notifyServiceError,
   notifyUndoable,
@@ -78,17 +80,25 @@ interface RebaseAsk {
 }
 
 interface PushAsk {
-  /** `publish` sets the upstream; `force1`/`force2` are the two force confirmations. */
-  phase: 'publish' | 'force1' | 'force2'
+  /** `select` shows the remote list; `force1`/`force2` are the two force confirmations. */
+  phase: 'select' | 'force1' | 'force2'
   record: RepoRecord
   branch: string
-  remote: string
+  remotes: readonly string[]
+  /** The branch had no upstream when the dialog opened, so publishing is offered. */
+  publish: boolean
+  /** The remote that receives the upstream (`-u`); `null` when tracking is left alone. */
+  upstreamRemote: string | null
+  /** Preselected remote of the select dialog; `null` when none is configured. */
+  defaultRemote: string | null
 }
 
 interface PushRunOptions {
-  remote: string
-  setUpstream: boolean
+  remotes: readonly string[]
+  upstreamRemote: string | null
   forceWithLease: boolean
+  /** Carried through so a rejected push can offer the force confirmations again. */
+  publish: boolean
 }
 
 interface WorktreeAsk {
@@ -779,25 +789,53 @@ export function OperationsProvider({ children }: { children: ReactNode }): JSX.E
       if (pushRef.current) return
       pushRef.current = true
       try {
-        await api.invoke('git:push', {
+        const { results } = await api.invoke('git:push', {
           gitDir: record.gitDir,
           branch,
-          remote: options.remote,
-          ...(options.setUpstream ? { setUpstream: true } : {}),
+          remotes: [...options.remotes],
+          ...(options.upstreamRemote !== null ? { upstreamRemote: options.upstreamRemote } : {}),
           ...(options.forceWithLease ? { forceWithLease: true } : {})
         })
-        notify({
-          message: options.forceWithLease
-            ? t('sync.forcePushed', { branch, remote: options.remote })
-            : options.setUpstream
-              ? t('sync.published', { branch, remote: options.remote })
-              : t('sync.pushed', { branch, remote: options.remote })
-        })
-      } catch (failure) {
-        if (!options.forceWithLease && isRejectedPush(failure)) {
-          setPushAsk({ phase: 'force1', record, branch, remote: options.remote })
+        const describe = (list: readonly GitPushResult[]): string => {
+          const first = list[0]
+          if (list.length === 1 && first !== undefined) {
+            return options.forceWithLease
+              ? t('sync.forcePushed', { branch, remote: first.remote })
+              : options.upstreamRemote === first.remote
+                ? t('sync.published', { branch, remote: first.remote })
+                : t('sync.pushed', { branch, remote: first.remote })
+          }
+          return t('sync.pushedMany', { branch, count: list.length })
+        }
+        const pushed = results.filter((result) => result.ok)
+        const failed = results.filter((result) => !result.ok)
+        if (failed.length === 0) {
+          notify({ message: describe(pushed) })
           return
         }
+        for (const result of failed) {
+          notifyError(
+            result.error ?? t('sync.pushFailed', { remote: result.remote }),
+            result.output
+          )
+        }
+        if (pushed.length > 0) notify({ message: describe(pushed) })
+        if (
+          options.forceWithLease !== true &&
+          pushed.length === 0 &&
+          failed.every((result) => isRejectedPushText(`${result.error ?? ''}\n${result.output}`))
+        ) {
+          setPushAsk({
+            phase: 'force1',
+            record,
+            branch,
+            remotes: options.remotes,
+            publish: options.publish,
+            upstreamRemote: options.upstreamRemote,
+            defaultRemote: null
+          })
+        }
+      } catch (failure) {
         notifyServiceError(failure, t)
       } finally {
         pushRef.current = false
@@ -810,26 +848,28 @@ export function OperationsProvider({ children }: { children: ReactNode }): JSX.E
     (record: RepoRecord, branch: string, options?: { hasUpstream?: boolean }) => {
       void (async () => {
         try {
-          const { defaultRemote } = await api.invoke('git:remotes', { gitDir: record.gitDir })
-          if (defaultRemote === null) {
+          const { remotes, defaultRemote } = await api.invoke('git:remotes', {
+            gitDir: record.gitDir
+          })
+          if (remotes.length === 0) {
             notify({ message: t('sync.noRemote'), tone: 'error' })
             return
           }
-          if (options?.hasUpstream === false) {
-            setPushAsk({ phase: 'publish', record, branch, remote: defaultRemote })
-            return
-          }
-          await runPush(record, branch, {
-            remote: defaultRemote,
-            setUpstream: false,
-            forceWithLease: false
+          setPushAsk({
+            phase: 'select',
+            record,
+            branch,
+            remotes: remotes.map((remote) => remote.name),
+            publish: options?.hasUpstream === false,
+            upstreamRemote: null,
+            defaultRemote
           })
         } catch (failure) {
           notifyServiceError(failure, t)
         }
       })()
     },
-    [runPush, t]
+    [t]
   )
 
   const value = useMemo<OperationsValue>(
@@ -1109,18 +1149,20 @@ export function OperationsProvider({ children }: { children: ReactNode }): JSX.E
         </div>
       )}
 
-      {pushAsk?.phase === 'publish' && (
-        <ConfirmDialog
-          title={t('sync.publishTitle', { branch: pushAsk.branch })}
-          body={t('sync.publishBody', { branch: pushAsk.branch, remote: pushAsk.remote })}
-          confirmLabel={t('sync.publishAction')}
-          onConfirm={() => {
+      {pushAsk?.phase === 'select' && (
+        <PushDialog
+          branch={pushAsk.branch}
+          remotes={pushAsk.remotes}
+          defaultRemote={pushAsk.defaultRemote}
+          publish={pushAsk.publish}
+          onConfirm={({ remotes, publish }) => {
             const ask = pushAsk
             setPushAsk(null)
             void runPush(ask.record, ask.branch, {
-              remote: ask.remote,
-              setUpstream: true,
-              forceWithLease: false
+              remotes,
+              upstreamRemote: publish ? (remotes[0] ?? null) : null,
+              forceWithLease: false,
+              publish: ask.publish
             })
           }}
           onClose={() => setPushAsk(null)}
@@ -1129,7 +1171,10 @@ export function OperationsProvider({ children }: { children: ReactNode }): JSX.E
       {pushAsk?.phase === 'force1' && (
         <ConfirmDialog
           title={t('sync.forceTitle', { branch: pushAsk.branch })}
-          body={t('sync.forceBody', { branch: pushAsk.branch, remote: pushAsk.remote })}
+          body={t('sync.forceBody', {
+            branch: pushAsk.branch,
+            remote: pushAsk.remotes.join(', ')
+          })}
           confirmLabel={t('sync.forceContinue')}
           danger
           onConfirm={() => setPushAsk({ ...pushAsk, phase: 'force2' })}
@@ -1139,16 +1184,20 @@ export function OperationsProvider({ children }: { children: ReactNode }): JSX.E
       {pushAsk?.phase === 'force2' && (
         <ConfirmDialog
           title={t('sync.forceFinalTitle')}
-          body={t('sync.forceFinalBody', { branch: pushAsk.branch, remote: pushAsk.remote })}
+          body={t('sync.forceFinalBody', {
+            branch: pushAsk.branch,
+            remote: pushAsk.remotes.join(', ')
+          })}
           confirmLabel={t('sync.forceAction')}
           danger
           onConfirm={() => {
             const ask = pushAsk
             setPushAsk(null)
             void runPush(ask.record, ask.branch, {
-              remote: ask.remote,
-              setUpstream: false,
-              forceWithLease: true
+              remotes: ask.remotes,
+              upstreamRemote: ask.upstreamRemote,
+              forceWithLease: true,
+              publish: ask.publish
             })
           }}
           onClose={() => setPushAsk(null)}

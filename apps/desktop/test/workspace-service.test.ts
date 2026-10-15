@@ -816,11 +816,50 @@ describe('sync operations', () => {
       await git(repo, ['switch', '-q', '-c', 'feat'])
       await writeFile(join(repo, 'feat.txt'), 'feat\n')
       await commitAll(repo, 'feat work')
-      const pushed = await instance.gitPush({ gitDir, branch: 'feat', setUpstream: true })
-      expect(pushed.remote).toBe('origin')
+      const pushed = await instance.gitPush({
+        gitDir,
+        branch: 'feat',
+        remotes: ['origin'],
+        upstreamRemote: 'origin'
+      })
+      expect(pushed.results).toEqual([
+        { remote: 'origin', ok: true, output: expect.any(String), error: null }
+      ])
       const featSha = (await git(repo, ['rev-parse', 'feat'])).trim()
       expect((await git(origin, ['rev-parse', '--verify', 'refs/heads/feat'])).trim()).toBe(featSha)
       expect((await git(repo, ['config', '--get', 'branch.feat.merge'])).trim()).toBe('refs/heads/feat')
+
+      // One push can target several remotes; each reports its own result.
+      const mirrorOrigin = await bareOrigin()
+      await instance.gitRemoteAdd({ gitDir, name: 'mirror', url: mirrorOrigin })
+      const both = await instance.gitPush({ gitDir, branch: 'feat', remotes: ['origin', 'mirror'] })
+      expect(both.results.map((result) => [result.remote, result.ok])).toEqual([
+        ['origin', true],
+        ['mirror', true]
+      ])
+      expect((await git(mirrorOrigin, ['rev-parse', '--verify', 'refs/heads/feat'])).trim()).toBe(
+        featSha
+      )
+
+      // A remote that rejects the push does not hide the one that accepted it.
+      const scratch = await tempDir('gtd-svc-scratch-')
+      await initRepo(scratch)
+      await git(scratch, ['switch', '-q', '-c', 'multi'])
+      await writeFile(join(scratch, 'drift.txt'), 'drift\n')
+      await commitAll(scratch, 'mirror-only work')
+      await git(scratch, ['push', '-q', mirrorOrigin, 'multi'])
+      await git(repo, ['switch', '-q', '-c', 'multi'])
+      await writeFile(join(repo, 'multi.txt'), 'multi\n')
+      await commitAll(repo, 'multi work')
+      const mixed = await instance.gitPush({ gitDir, branch: 'multi', remotes: ['origin', 'mirror'] })
+      expect(mixed.results.map((result) => [result.remote, result.ok])).toEqual([
+        ['origin', true],
+        ['mirror', false]
+      ])
+      expect(mixed.results[1]?.error).toBeTypeOf('string')
+      expect(mixed.results[1]?.output).toContain('[rejected]')
+      await instance.gitRemoteRemove({ gitDir, name: 'mirror' })
+      await git(repo, ['switch', '-q', 'main'])
 
       // Tags: annotated with push-on-create, lightweight pushed separately.
       const headSha = (await git(repo, ['rev-parse', 'HEAD'])).trim()
