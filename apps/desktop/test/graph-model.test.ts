@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { CommitInfo, GitRef, RefKind } from '@gitreedesk/shared'
 import {
+  GUTTER_MIN_WIDTH,
+  LANE_MAX_SPACING,
+  LANE_MIN_SPACING,
   compareRefs,
+  gutterLayout,
   layoutCommits,
   prioritizedRefName,
   refsBySha
@@ -204,5 +208,29 @@ describe('prioritizedRefName', () => {
 
   it('returns null without refs', () => {
     expect(prioritizedRefName([])).toBeNull()
+  })
+})
+
+describe('gutterLayout', () => {
+  it('keeps the natural spacing when the lanes fit', () => {
+    expect(gutterLayout(3, 1000, null)).toEqual({ width: GUTTER_MIN_WIDTH, spacing: LANE_MAX_SPACING })
+  })
+
+  it('caps the gutter and compresses the spacing for many lanes', () => {
+    const { width, spacing } = gutterLayout(80, 1000, null)
+    expect(width).toBe(350)
+    expect(spacing).toBeCloseTo(4.375, 3)
+  })
+
+  it('honours a user width without letting lanes overflow the floor', () => {
+    expect(gutterLayout(80, 1000, 120)).toEqual({ width: 120, spacing: LANE_MIN_SPACING })
+  })
+
+  it('clamps the width to the pane', () => {
+    expect(gutterLayout(40, 400, 900)).toEqual({ width: 240, spacing: 6 })
+  })
+
+  it('falls back to a sane width before the pane is measured', () => {
+    expect(gutterLayout(5, 0, null)).toEqual({ width: 70, spacing: LANE_MAX_SPACING })
   })
 })

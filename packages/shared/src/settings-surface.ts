@@ -50,6 +50,7 @@ export type SettingDescriptor =
 
 export const THEME_VALUES = ['system', 'light', 'dark'] as const
 export const DENSITY_VALUES = ['comfortable', 'compact'] as const
+export const GRAPH_DENSITY_VALUES = ['compact', 'normal', 'comfortable'] as const
 export const ACCENT_VALUES = ['blue', 'green', 'violet', 'amber', 'rose'] as const
 export const LOCALE_VALUES = ['en', 'zh-Hans'] as const
 export const PULL_STRATEGY_VALUES = ['ff-only', 'merge', 'rebase'] as const
@@ -59,6 +60,7 @@ export const LOG_LEVEL_VALUES = ['error', 'warn', 'info', 'debug'] as const
 
 export type AccentValue = (typeof ACCENT_VALUES)[number]
 export type DensityValue = (typeof DENSITY_VALUES)[number]
+export type GraphDensityValue = (typeof GRAPH_DENSITY_VALUES)[number]
 export type LogLevelValue = (typeof LOG_LEVEL_VALUES)[number]
 
 export const TERMINAL_SCROLLBACK_DEFAULT = 5_000
@@ -78,6 +80,13 @@ export const SETTINGS_SURFACE: readonly SettingDescriptor[] = [
     group: 'appearance',
     default: 'comfortable',
     options: DENSITY_VALUES
+  },
+  {
+    type: 'enum',
+    keyPath: ['appearance', 'graphDensity'],
+    group: 'appearance',
+    default: 'normal',
+    options: GRAPH_DENSITY_VALUES
   },
   {
     type: 'enum',

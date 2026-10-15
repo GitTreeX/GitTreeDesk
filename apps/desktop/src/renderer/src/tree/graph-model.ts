@@ -134,3 +134,40 @@ export function prioritizedRefName(refs: readonly GitRef[]): string | null {
   if (best === null) return null
   return best.isHead ? 'HEAD' : best.name
 }
+
+/** Widest lane spacing the gutter uses when lanes are few. */
+export const LANE_MAX_SPACING = 14
+/** Tightest spacing lanes are squeezed to before the gutter stops shrinking. */
+export const LANE_MIN_SPACING = 3
+/** The gutter never gets narrower or wider than these bounds. */
+export const GUTTER_MIN_WIDTH = 56
+export const GUTTER_MAX_WIDTH = 420
+/** Share of the pane the gutter may claim before lanes start compressing. */
+export const GUTTER_DEFAULT_SHARE = 0.35
+
+export interface GutterLayout {
+  width: number
+  /** Horizontal distance between lane centers. */
+  spacing: number
+}
+
+/**
+ * Lane gutter geometry for a graph pane. Few lanes get their natural width;
+ * many lanes compress the spacing so the widest repo stays readable and the
+ * commit text keeps its column. A user-set width wins, and is still clamped to
+ * the pane.
+ */
+export function gutterLayout(
+  laneCount: number,
+  paneWidth: number,
+  userWidth: number | null
+): GutterLayout {
+  const lanes = Math.max(laneCount, 1)
+  const pane = paneWidth > 0 ? paneWidth : GUTTER_MAX_WIDTH
+  const natural = lanes * LANE_MAX_SPACING
+  const ceiling = Math.max(GUTTER_MIN_WIDTH, Math.min(GUTTER_MAX_WIDTH, pane * GUTTER_DEFAULT_SHARE))
+  const requested = userWidth ?? Math.min(natural, ceiling)
+  const width = Math.min(Math.max(requested, GUTTER_MIN_WIDTH), Math.max(GUTTER_MIN_WIDTH, pane * 0.6))
+  const spacing = Math.min(LANE_MAX_SPACING, Math.max(LANE_MIN_SPACING, width / lanes))
+  return { width, spacing }
+}

@@ -10,24 +10,43 @@ import {
 } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useTranslation } from 'react-i18next'
-import type { ChangeKind, CommitDetails, CommitFileStat, FileChange, GitRef } from '@gitreedesk/shared'
+import {
+  GRAPH_DENSITY_VALUES,
+  type ChangeKind,
+  type CommitDetails,
+  type CommitFileStat,
+  type FileChange,
+  type GitRef,
+  type GraphDensityValue,
+  type RepoRecord
+} from '@gitreedesk/shared'
 import { api } from '../api'
 import { repoInfoOf, useEditor, type GraphTab } from '../contexts/editor'
 import { EMPTY_GRAPH_FILTERS, useGraph, type GraphFilters } from '../contexts/graph'
 import { useOperations, type CommitTarget } from '../contexts/operations-context'
+import { useReposUi } from '../contexts/repos'
 import { useSettings } from '../contexts/settings'
 import { useWorkspace } from '../contexts/workspace'
 import { notify } from '../notify'
 import { errorText, notifyServiceError, stashNotice } from '../lib/reporting'
 import { relativeTime } from '../lib/relative-time'
-import { layoutCommits, prioritizedRefName, refsBySha, type GraphRow } from '../tree/graph-model'
+import { normalizeGraphDensity, rowHeightForGraph } from '../theme'
+import { useSettingValue } from '../use-setting-value'
+import { useUiState } from '../use-ui-state'
+import {
+  GUTTER_MIN_WIDTH,
+  gutterLayout,
+  layoutCommits,
+  prioritizedRefName,
+  refsBySha,
+  type GraphRow
+} from '../tree/graph-model'
 import { ContextMenu, type ContextMenuItem } from './ContextMenu'
 import { OperationBanner } from './OperationBanner'
-import { XIcon } from './icons'
+import { ChevronDownIcon, SearchIcon, XIcon } from './icons'
 
-const ROW_HEIGHT = 36
-const LANE_WIDTH = 14
 const CHIP_LIMIT = 3
+const PICKER_LIMIT = 60
 const CHANGE_LETTER: Record<ChangeKind, string> = {
   added: 'A',
   modified: 'M',
@@ -97,6 +116,7 @@ export function GraphView({ tab }: { tab: GraphTab }): JSX.Element | null {
   const editor = useEditor()
   const operations = useOperations()
   const workspace = useWorkspace()
+  const repoUi = useReposUi()
   const gitDir = tab.repo.gitDir
   const record = useMemo(
     () => workspace.descriptor?.records.find((candidate) => candidate.gitDir === gitDir) ?? null,
@@ -106,10 +126,110 @@ export function GraphView({ tab }: { tab: GraphTab }): JSX.Element | null {
   const commits = slice?.commits ?? []
   const filters = slice?.filters ?? EMPTY_GRAPH_FILTERS
 
+  const [rowDensity, setRowDensity] = useSettingValue<GraphDensityValue>(
+    ['appearance', 'graphDensity'],
+    'normal',
+    normalizeGraphDensity
+  )
+  const rowHeight = rowHeightForGraph(rowDensity)
+
   const rootRef = useRef<HTMLDivElement | null>(null)
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const searchRef = useRef<HTMLInputElement | null>(null)
   const refsBoxRef = useRef<HTMLDivElement | null>(null)
+  const repoBoxRef = useRef<HTMLDivElement | null>(null)
+
+  // The lane gutter measures its pane, keeps a user-set width, and compresses
+  // lane spacing when a repository has more lanes than the pane can hold.
+  const [paneWidth, setPaneWidth] = useState(0)
+  const [storedGutter, setStoredGutter] = useUiState<number | null>(
+    'graph-gutter-width',
+    null,
+    (stored) => (typeof stored === 'number' && Number.isFinite(stored) ? stored : null)
+  )
+  const [dragGutter, setDragGutter] = useState<number | null>(null)
+  const dragWidthRef = useRef<number | null>(null)
+  const gutterWidthRef = useRef(0)
+
+  useEffect(() => {
+    const element = scrollRef.current
+    if (element === null) return
+    const measure = (): void => setPaneWidth(element.clientWidth)
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [])
+
+  const startGutterDrag = useCallback(
+    (event: ReactMouseEvent<HTMLDivElement>): void => {
+      event.preventDefault()
+      const startX = event.clientX
+      const startWidth = gutterWidthRef.current
+      const maxWidth = Math.max(GUTTER_MIN_WIDTH, (scrollRef.current?.clientWidth ?? 0) * 0.6)
+      dragWidthRef.current = startWidth
+      setDragGutter(startWidth)
+      const onMove = (moveEvent: MouseEvent): void => {
+        const next = Math.min(
+          Math.max(startWidth + (moveEvent.clientX - startX), GUTTER_MIN_WIDTH),
+          maxWidth
+        )
+        dragWidthRef.current = next
+        setDragGutter(next)
+      }
+      const onUp = (): void => {
+        window.removeEventListener('mousemove', onMove)
+        window.removeEventListener('mouseup', onUp)
+        const final = dragWidthRef.current
+        dragWidthRef.current = null
+        setDragGutter(null)
+        if (final !== null) setStoredGutter(Math.round(final))
+      }
+      window.addEventListener('mousemove', onMove)
+      window.addEventListener('mouseup', onUp)
+    },
+    [setStoredGutter]
+  )
+
+  const [repoPickerOpen, setRepoPickerOpen] = useState(false)
+  const [repoQuery, setRepoQuery] = useState('')
+  useEffect(() => {
+    if (!repoPickerOpen) return
+    const onDown = (event: MouseEvent): void => {
+      if (repoBoxRef.current !== null && !repoBoxRef.current.contains(event.target as Node)) {
+        setRepoPickerOpen(false)
+      }
+    }
+    window.addEventListener('mousedown', onDown)
+    return () => window.removeEventListener('mousedown', onDown)
+  }, [repoPickerOpen])
+
+  const repoMatches = useMemo(() => {
+    const needle = repoQuery.trim().toLowerCase()
+    const records = (workspace.descriptor?.records ?? []).filter(
+      (candidate) => candidate.gitDir.length > 0
+    )
+    const matches =
+      needle === ''
+        ? records
+        : records.filter(
+            (candidate) =>
+              candidate.name.toLowerCase().includes(needle) ||
+              candidate.relPath.toLowerCase().includes(needle)
+          )
+    return matches.slice(0, PICKER_LIMIT)
+  }, [workspace.descriptor, repoQuery])
+
+  const chooseRepo = useCallback(
+    (target: RepoRecord): void => {
+      setRepoPickerOpen(false)
+      setRepoQuery('')
+      if (target.gitDir === gitDir) return
+      repoUi.setActiveKey(target.gitDir)
+      graph.openGraph(target)
+    },
+    [graph, gitDir, repoUi]
+  )
 
   // The draft mirrors the stored filters while the user types; text fields
   // commit on a short debounce, everything else commits immediately.
@@ -171,6 +291,9 @@ export function GraphView({ tab }: { tab: GraphTab }): JSX.Element | null {
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
 
   const layout = useMemo(() => layoutCommits(commits), [commits])
+  const laneCount = Math.max(layout.laneCount, 1)
+  const gutter = gutterLayout(laneCount, paneWidth, dragGutter ?? storedGutter)
+  gutterWidthRef.current = gutter.width
   const bySha = useMemo(() => new Map(commits.map((commit) => [commit.sha, commit])), [commits])
   const refs = useMemo(() => refsBySha(slice?.refs ?? []), [slice?.refs])
 
@@ -182,17 +305,21 @@ export function GraphView({ tab }: { tab: GraphTab }): JSX.Element | null {
   const virtualizer = useVirtualizer({
     count: commits.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => ROW_HEIGHT,
+    estimateSize: () => rowHeight,
     overscan: 12
   })
+
+  useEffect(() => {
+    virtualizer.measure()
+  }, [rowHeight, virtualizer])
 
   const onScroll = useCallback((): void => {
     const element = scrollRef.current
     if (element === null) return
-    if (element.scrollHeight - element.scrollTop - element.clientHeight < ROW_HEIGHT * 20) {
+    if (element.scrollHeight - element.scrollTop - element.clientHeight < rowHeight * 20) {
       graph.loadMore(gitDir)
     }
-  }, [graph, gitDir])
+  }, [graph, gitDir, rowHeight])
 
   // Commit details load on demand for the open row.
   const [details, setDetails] = useState<CommitDetails | null>(null)
@@ -507,8 +634,6 @@ export function GraphView({ tab }: { tab: GraphTab }): JSX.Element | null {
 
   if (slice === undefined) return null
 
-  const laneCount = Math.max(layout.laneCount, 1)
-  const gutterWidth = laneCount * LANE_WIDTH
   const shownFilters =
     !filtersEqual(draft, EMPTY_GRAPH_FILTERS) || !filtersEqual(filters, EMPTY_GRAPH_FILTERS)
   const selectedRevs = new Set(draft.revs ?? [])
@@ -524,6 +649,60 @@ export function GraphView({ tab }: { tab: GraphTab }): JSX.Element | null {
     >
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-b border-line bg-panel px-2 py-1.5 text-xs">
+          <div ref={repoBoxRef} className="relative">
+            <button
+              type="button"
+              aria-label={t('graph.repoPicker.label')}
+              title={t('graph.repoPicker.label')}
+              aria-expanded={repoPickerOpen}
+              className="flex h-6 max-w-48 items-center gap-1 rounded border border-line bg-canvas px-2 text-xs text-ink hover:bg-ink/5"
+              onClick={() => setRepoPickerOpen((current) => !current)}
+            >
+              <span className="min-w-0 truncate">{record?.name ?? tab.repo.name}</span>
+              <ChevronDownIcon className="size-3.5 shrink-0 text-muted" />
+            </button>
+            {repoPickerOpen && (
+              <div className="absolute top-7 left-0 z-30 w-72 overflow-hidden rounded-md border border-line bg-panel shadow-lg">
+                <div className="flex items-center gap-2 border-b border-line px-2 py-1.5">
+                  <SearchIcon className="size-3.5 shrink-0 text-muted" />
+                  <input
+                    autoFocus
+                    value={repoQuery}
+                    onChange={(event) => setRepoQuery(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Escape') setRepoPickerOpen(false)
+                      if (event.key === 'Enter' && repoMatches[0] !== undefined) {
+                        chooseRepo(repoMatches[0])
+                      }
+                    }}
+                    placeholder={t('graph.repoPicker.search')}
+                    aria-label={t('graph.repoPicker.search')}
+                    className="w-full bg-transparent text-xs text-ink outline-none"
+                  />
+                </div>
+                <div className="max-h-72 overflow-y-auto py-1">
+                  {repoMatches.length === 0 && (
+                    <p className="px-3 py-1 text-xs text-muted">{t('graph.repoPicker.empty')}</p>
+                  )}
+                  {repoMatches.map((candidate) => (
+                    <button
+                      key={candidate.gitDir}
+                      type="button"
+                      onClick={() => chooseRepo(candidate)}
+                      className={`flex w-full items-center gap-2 px-3 py-1 text-left hover:bg-ink/5 ${
+                        candidate.gitDir === gitDir ? 'text-accent' : 'text-ink'
+                      }`}
+                    >
+                      <span className="min-w-0 flex-1 truncate text-xs">{candidate.name}</span>
+                      <span className="shrink-0 font-mono text-[10px] text-muted">
+                        {candidate.relPath}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
           <input
             ref={searchRef}
             value={draft.grep}
@@ -633,6 +812,21 @@ export function GraphView({ tab }: { tab: GraphTab }): JSX.Element | null {
               {t('graph.capped', { count: slice.total ?? commits.length })}
             </span>
           )}
+          <label className={`${slice.capped ? '' : 'ml-auto'} flex items-center gap-1 text-muted`}>
+            <span>{t('graph.density.label')}</span>
+            <select
+              value={rowDensity}
+              aria-label={t('graph.density.label')}
+              onChange={(event) => setRowDensity(event.target.value as GraphDensityValue)}
+              className={inputClass}
+            >
+              {GRAPH_DENSITY_VALUES.map((value) => (
+                <option key={value} value={value}>
+                  {t(`settings.options.graphDensity.${value}`)}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
 
         {detached && record !== null && (
@@ -694,6 +888,15 @@ export function GraphView({ tab }: { tab: GraphTab }): JSX.Element | null {
             </div>
           ) : (
             <div style={{ height: virtualizer.getTotalSize() }} className="relative">
+              <div
+                role="separator"
+                aria-orientation="vertical"
+                aria-label={t('graph.gutter.resize')}
+                title={t('graph.gutter.resize')}
+                onMouseDown={startGutterDrag}
+                style={{ left: gutter.width - 3 }}
+                className="absolute inset-y-0 z-20 w-1.5 cursor-col-resize hover:bg-accent/40"
+              />
               {virtualizer.getVirtualItems().map((item) => {
                 const commit = commits[item.index]
                 const row = layout.rows[item.index]
@@ -723,7 +926,14 @@ export function GraphView({ tab }: { tab: GraphTab }): JSX.Element | null {
                             : 'hover:bg-ink/5'
                     }`}
                   >
-                    <LaneSvg row={row} laneCount={laneCount} tip={isTip} width={gutterWidth} />
+                    <LaneSvg
+                      row={row}
+                      laneCount={laneCount}
+                      tip={isTip}
+                      width={gutter.width}
+                      spacing={gutter.spacing}
+                      height={rowHeight}
+                    />
                     <span className="flex w-4 shrink-0 items-center justify-center">
                       {outgoing && (
                         <span className="text-accent" title={t('graph.marks.outgoing')}>
@@ -955,24 +1165,28 @@ function LaneSvg({
   row,
   laneCount,
   tip,
-  width
+  width,
+  spacing,
+  height
 }: {
   row: GraphRow
   laneCount: number
   tip: boolean
   width: number
+  spacing: number
+  height: number
 }): JSX.Element {
-  const half = ROW_HEIGHT / 2
-  const x = (lane: number): number => lane * LANE_WIDTH + LANE_WIDTH / 2
+  const half = height / 2
+  const x = (lane: number): number => lane * spacing + spacing / 2
   return (
-    <svg width={width} height={ROW_HEIGHT} className="shrink-0" aria-hidden="true">
+    <svg width={width} height={height} className="shrink-0" aria-hidden="true">
       {row.edges.map((edge, index) => (
         <line
           key={index}
           x1={edge.fromLane >= 0 ? x(edge.fromLane) : x(row.lane)}
           y1={edge.fromLane >= 0 ? 0 : half}
           x2={edge.toLane >= 0 ? x(edge.toLane) : x(row.lane)}
-          y2={edge.toLane >= 0 ? ROW_HEIGHT : half}
+          y2={edge.toLane >= 0 ? height : half}
           stroke={laneColor(edge.colorLane)}
           strokeWidth={1.5}
         />

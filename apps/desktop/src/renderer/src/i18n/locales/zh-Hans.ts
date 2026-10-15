@@ -612,6 +612,13 @@ export const zhHansResource: TranslationResource = {
     retry: '重试',
     loaded: '{{count}} 个提交',
     capped: '超大仓库 — 仅显示最新的 {{count}} 个提交；可用筛选缩小范围。',
+    repoPicker: {
+      label: '切换仓库',
+      search: '筛选仓库…',
+      empty: '没有匹配的仓库'
+    },
+    density: { label: '行高' },
+    gutter: { resize: '调整泳道列宽' },
     toolbar: {
       search: '筛选提交消息…',
       author: '作者',
@@ -838,6 +845,7 @@ export const zhHansResource: TranslationResource = {
     items: {
       theme: '主题',
       density: '密度',
+      graphDensity: '提交图密度',
       accent: '强调色',
       locale: '语言',
       editorFontSize: '字号',
@@ -873,6 +881,7 @@ export const zhHansResource: TranslationResource = {
     options: {
       theme: { system: '跟随系统', light: '浅色', dark: '深色' },
       density: { comfortable: '宽松', compact: '紧凑' },
+      graphDensity: { compact: '紧凑', normal: '正常', comfortable: '宽松' },
       accent: { blue: '蓝色', green: '绿色', violet: '紫色', amber: '琥珀色', rose: '玫红' },
       locale: { en: 'English', 'zh-Hans': '中文' },
       pullStrategy: { 'ff-only': '仅快进', merge: '合并', rebase: '变基' },

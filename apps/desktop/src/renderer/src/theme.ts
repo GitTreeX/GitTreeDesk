@@ -1,4 +1,11 @@
-import { ACCENT_VALUES, DENSITY_VALUES, type AccentValue, type DensityValue } from '@gitreedesk/shared'
+import {
+  ACCENT_VALUES,
+  DENSITY_VALUES,
+  GRAPH_DENSITY_VALUES,
+  type AccentValue,
+  type DensityValue,
+  type GraphDensityValue
+} from '@gitreedesk/shared'
 
 export type ThemePreference = 'system' | 'light' | 'dark'
 export type ResolvedTheme = 'light' | 'dark'
@@ -26,6 +33,17 @@ export function normalizeAccent(value: unknown): AccentValue {
 /** List row height in pixels per density (spec: 22 compact / 28 comfortable). */
 export function rowHeightFor(density: DensityValue): number {
   return density === 'compact' ? 22 : 28
+}
+
+export function normalizeGraphDensity(value: unknown): GraphDensityValue | null {
+  return typeof value === 'string' && (GRAPH_DENSITY_VALUES as readonly string[]).includes(value)
+    ? (value as GraphDensityValue)
+    : null
+}
+
+/** Commit graph row height in pixels; `normal` is the shipped default. */
+export function rowHeightForGraph(density: GraphDensityValue): number {
+  return density === 'compact' ? 22 : density === 'comfortable' ? 36 : 28
 }
 
 export function resolveTheme(preference: ThemePreference, prefersDark: boolean): ResolvedTheme {

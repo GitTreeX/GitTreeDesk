@@ -622,6 +622,13 @@ const en = {
     retry: 'Retry',
     loaded: '{{count}} commits',
     capped: 'Huge repository — showing the newest {{count}} commits; filters narrow the window.',
+    repoPicker: {
+      label: 'Switch repository',
+      search: 'Filter repositories…',
+      empty: 'No repositories match'
+    },
+    density: { label: 'Row height' },
+    gutter: { resize: 'Resize the lane column' },
     toolbar: {
       search: 'Filter messages…',
       author: 'Author',
@@ -852,6 +859,7 @@ const en = {
     items: {
       theme: 'Theme',
       density: 'Density',
+      graphDensity: 'Commit graph density',
       accent: 'Accent color',
       locale: 'Language',
       editorFontSize: 'Font size',
@@ -887,6 +895,7 @@ const en = {
     options: {
       theme: { system: 'System', light: 'Light', dark: 'Dark' },
       density: { comfortable: 'Comfortable', compact: 'Compact' },
+      graphDensity: { compact: 'Compact', normal: 'Normal', comfortable: 'Comfortable' },
       accent: { blue: 'Blue', green: 'Green', violet: 'Violet', amber: 'Amber', rose: 'Rose' },
       locale: { en: 'English', 'zh-Hans': '中文' },
       pullStrategy: { 'ff-only': 'Fast-forward only', merge: 'Merge', rebase: 'Rebase' },
