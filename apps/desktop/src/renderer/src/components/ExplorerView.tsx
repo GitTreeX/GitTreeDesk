@@ -5,6 +5,8 @@ import type { FsEntry, RepoRecord } from '@gitreedesk/shared'
 import { api } from '../api'
 import { isEditableTarget } from '../commands/keybinding'
 import { useEditor } from '../contexts/editor'
+import { useGraph } from '../contexts/graph'
+import { useReposUi } from '../contexts/repos'
 import { useSettings } from '../contexts/settings'
 import { useTerminal } from '../contexts/terminal'
 import { useTreeUi } from '../contexts/tree'
@@ -50,6 +52,8 @@ export function ExplorerView(): JSX.Element {
   const editor = useEditor()
   const terminal = useTerminal()
   const settings = useSettings()
+  const graph = useGraph()
+  const repoUi = useReposUi()
   const rowHeight = rowHeightFor(settings.density)
   const root = descriptor?.root ?? ''
 
@@ -82,6 +86,20 @@ export function ExplorerView(): JSX.Element {
     for (const record of descriptor?.records ?? []) map.set(record.path, record)
     return map
   }, [descriptor])
+
+  // The repository a tree path belongs to: the deepest checkout containing it.
+  const repoForPath = useCallback(
+    (path: string): RepoRecord | null => {
+      let best: RepoRecord | null = null
+      for (const record of descriptor?.records ?? []) {
+        if (record.gitDir.length === 0) continue
+        if (path !== record.path && !path.startsWith(`${record.path}/`)) continue
+        if (best === null || record.path.length > best.path.length) best = record
+      }
+      return best
+    },
+    [descriptor]
+  )
 
   const cursorIndex = cursorPath === null ? -1 : rows.findIndex((row) => row.path === cursorPath)
 
@@ -435,6 +453,7 @@ export function ExplorerView(): JSX.Element {
 
   const menuItems = (row: ExplorerRow): ContextMenuItem[] => {
     const target = row.kind === 'dir' ? row.path : (parentOf(row.path) ?? root)
+    const repo = repoForPath(row.path)
     return [
       {
         label: t('menu.newFile'),
@@ -448,6 +467,17 @@ export function ExplorerView(): JSX.Element {
       },
       { label: t('menu.openInEditor'), onSelect: () => openInEditor(row.path) },
       { label: t('menu.openTerminal'), onSelect: () => terminal.open(target) },
+      ...(repo === null
+        ? []
+        : [
+            {
+              label: t('menu.openGraph'),
+              onSelect: () => {
+                repoUi.setActiveKey(repo.gitDir)
+                graph.openGraph(repo)
+              }
+            }
+          ]),
       { label: t('menu.reveal'), onSelect: () => reveal(row.path) },
       { label: t('menu.copyPath'), onSelect: () => copyPath(row.path) },
       { label: t('menu.rename'), onSelect: () => setRenaming(row) },

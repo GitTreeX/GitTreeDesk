@@ -367,7 +367,7 @@ Both views render with virtualization (TanStack Virtual) and keyboard navigation
 
 *Scope: v1, per repository.*
 
-- Opened as a tab per repository (LRU-cached, ~5 alive); the toolbar switches the tab to another workspace repository through a repository picker (which also makes it the active checkout). Data from `git log --all` (configurable default refs) streamed with a custom NUL-delimited format; lanes computed client-side; rendering = virtualized DOM rows + a canvas lane layer (targets 60 fps at 5 000+ loaded rows).
+- Opened as a tab per repository (LRU-cached, ~5 alive) from the activity bar, the graph toolbar picker, the Source Control section header, the command palette, the repo row menu, or any Explorer row inside a repository. The toolbar switches the tab to another workspace repository through a repository picker (which also makes it the active checkout). Data from `git log --all` (configurable default refs) streamed with a custom NUL-delimited format; lanes computed client-side; rendering = virtualized DOM rows + a canvas lane layer (targets 60 fps at 5 000+ loaded rows).
 - Row density: `compact` / `normal` / `comfortable` row heights, switchable from the toolbar and from the Appearance settings group (`appearance.graphDensity`, default `normal`).
 - Lane column: natural width while the lanes fit, compressed lane spacing rather than a gutter that swallows the commit text, user-resizable by dragging its edge, with the chosen width persisted in the UI state.
 - Paging: first page 1 000 commits; older history loads in 2 000-row chunks on scroll; "huge repo" mode caps the window (uses `--skip/--max-count` and `rev-list --count` for totals).

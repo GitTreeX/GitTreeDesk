@@ -13,6 +13,7 @@ import type { ConflictSide, RepoRecord, RepoStatus } from '@gitreedesk/shared'
 import { api } from '../api'
 import { isEditableTarget } from '../commands/keybinding'
 import { repoInfoOf, scmDiffSpec, useEditor } from '../contexts/editor'
+import { useGraph } from '../contexts/graph'
 import { useOperations } from '../contexts/operations-context'
 import { useReposUi } from '../contexts/repos'
 import { useSettings } from '../contexts/settings'
@@ -42,6 +43,7 @@ import {
   ArchiveIcon,
   CheckSquareIcon,
   ChevronRightIcon,
+  GraphIcon,
   IgnoreIcon,
   MinusIcon,
   PlusIcon,
@@ -131,6 +133,7 @@ export function ScmView(): JSX.Element {
   const editor = useEditor()
   const repoUi = useReposUi()
   const operations = useOperations()
+  const graph = useGraph()
   const terminal = useTerminal()
   const settings = useSettings()
   const rowHeight = rowHeightFor(settings.density)
@@ -680,6 +683,21 @@ export function ScmView(): JSX.Element {
                     <ArchiveIcon className="size-3.5" />
                   </button>
                 )}
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  title={t('menu.openGraph')}
+                  aria-label={t('menu.openGraph')}
+                  className="shrink-0 rounded p-0.5 text-muted hover:bg-ink/10 hover:text-ink"
+                  onClick={() => {
+                    if (section.record.gitDir.length > 0) {
+                      repoUi.setActiveKey(section.record.gitDir)
+                    }
+                    graph.openGraph(section.record)
+                  }}
+                >
+                  <GraphIcon className="size-3.5" />
+                </button>
               </div>
 
               {status !== null && status.head.detached && (
