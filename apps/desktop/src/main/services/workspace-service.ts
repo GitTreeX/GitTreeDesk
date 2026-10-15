@@ -1,6 +1,6 @@
 import { mkdir, open, readdir, readFile, realpath, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
-import { basename, join, posix, resolve } from 'node:path'
+import { basename, dirname, join, posix, resolve } from 'node:path'
 import type {
   AutoStashReport,
   BackupRef,
@@ -252,6 +252,27 @@ function isInsidePath(path: string, base: string): boolean {
   const target = process.platform === 'win32' ? path.toLowerCase() : path
   const root = process.platform === 'win32' ? base.toLowerCase() : base
   return target === root || target.startsWith(`${root}/`)
+}
+
+/**
+ * Real path of `path`, or of its nearest existing ancestor plus the remaining
+ * segments when the leaf is missing. Without the fallback a path spelled through a
+ * symlink or a Windows 8.3 short name would look like it sits outside the workspace.
+ */
+async function realPathPosix(path: string): Promise<string> {
+  const direct = await realpath(path).then(toPosix).catch(() => null)
+  if (direct !== null) return direct
+
+  const tail: string[] = []
+  let current = path
+  for (;;) {
+    const parent = dirname(current)
+    if (parent === current) return toPosix(path)
+    tail.unshift(basename(current))
+    const base = await realpath(parent).then(toPosix).catch(() => null)
+    if (base !== null) return tail.reduce((acc, segment) => posix.join(acc, segment), base)
+    current = parent
+  }
 }
 
 const RECENT_LIMIT = 10
@@ -2165,10 +2186,7 @@ export class WorkspaceService {
    */
   async resolveInside(input: string): Promise<string> {
     const session = this.#requireSession()
-    const resolved = resolve(input)
-    const absolute = await realpath(resolved)
-      .then(toPosix)
-      .catch(() => toPosix(resolved))
+    const absolute = await realPathPosix(resolve(input))
     return this.#assertInsideWorkspace(session, absolute, input)
   }
 
@@ -2179,9 +2197,7 @@ export class WorkspaceService {
   async resolveEntry(input: string): Promise<string> {
     const session = this.#requireSession()
     const resolved = resolve(input)
-    const parent = await realpath(resolve(resolved, '..'))
-      .then(toPosix)
-      .catch(() => toPosix(resolve(resolved, '..')))
+    const parent = await realPathPosix(resolve(resolved, '..'))
     const entry = posix.join(parent, basename(resolved))
     return this.#assertInsideWorkspace(session, entry, input)
   }

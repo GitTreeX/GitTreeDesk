@@ -15,7 +15,9 @@ type StatusEvent = Extract<WorkspaceServiceEvent, { type: 'status' }>
 
 const isStatus = (event: WorkspaceServiceEvent): event is StatusEvent => event.type === 'status'
 
-const real = (path: string): string => realpathSync(path).replace(/\\/g, '/')
+// Mirrors the service, which canonicalizes with `fs.promises.realpath`: the native
+// implementation, so a Windows 8.3 short temp directory comes back in its long form.
+const real = (path: string): string => realpathSync.native(path).replace(/\\/g, '/')
 
 let dirs: string[] = []
 let pools: GitPool[] = []

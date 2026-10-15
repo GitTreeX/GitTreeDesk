@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -19,8 +19,13 @@ const toPosix = (value: string): string => value.replace(/\\/g, '/')
 
 let dirs: string[] = []
 
+/**
+ * The temp directory is canonicalized first: macOS hands out `/var/...` while git
+ * reports `/private/var/...`, so worktree paths would otherwise never compare equal.
+ */
 async function tempDir(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), 'gtd-worktrees-'))
+  const base = await realpath(tmpdir()).catch(() => tmpdir())
+  const dir = await mkdtemp(join(base, 'gtd-worktrees-'))
   dirs.push(dir)
   return dir
 }

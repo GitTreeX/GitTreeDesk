@@ -20,7 +20,8 @@ export function applyCwdTemplate(template: string | null, context: CwdContext): 
   return isAbsolute(replaced) ? replaced : join(context.dir, replaced)
 }
 
-const CMD_SAFE = /^[A-Za-z0-9._:/\\@=+,;-]+$/
+/** `~` belongs here: Windows 8.3 short names (`RUNNER~1`) put it in almost every temp path. */
+const CMD_SAFE = /^[A-Za-z0-9._:/\\@=+,;~-]+$/
 
 /** Quotes one argv token for a `cmd.exe` command line (C-runtime rules). */
 export function quoteCmdArgument(argument: string): string {

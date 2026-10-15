@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -18,8 +18,13 @@ const IDENTITY = ['-c', 'user.name=GitTreeDesk Test', '-c', 'user.email=test@git
 
 let dirs: string[] = []
 
+/**
+ * The temp directory is canonicalized first: macOS hands out `/var/...` while git
+ * reports `/private/var/...`, so `--show-toplevel` would otherwise never compare equal.
+ */
 async function tempDir(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), 'gtd-int-'))
+  const base = await realpath(tmpdir()).catch(() => tmpdir())
+  const dir = await mkdtemp(join(base, 'gtd-int-'))
   dirs.push(dir)
   return dir
 }

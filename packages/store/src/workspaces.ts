@@ -25,10 +25,15 @@ const toRow = (row: WorkspaceDbRow): WorkspaceRow => ({
   trusted: row.trusted !== 0
 })
 
-/** Two spellings of the same directory must land on the same row. */
+/**
+ * Two spellings of the same directory must land on the same row. The native
+ * implementation is required: a session resolves its root with `fs.promises.realpath`,
+ * which is native as well and turns a Windows 8.3 short path into its long form,
+ * while the plain `realpathSync` keeps the short spelling.
+ */
 export function normalizeWorkspaceRoot(root: string): string {
   try {
-    return realpathSync(root).replace(/\\/g, '/')
+    return realpathSync.native(root).replace(/\\/g, '/')
   } catch {
     return root.replace(/\\/g, '/')
   }

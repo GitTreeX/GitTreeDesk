@@ -158,6 +158,10 @@ function runGitProcess(args: readonly string[], options: GitRunOptions): Promise
       resolve({ code, stdout: Buffer.concat(stdoutChunks), stderr: Buffer.concat(stderrChunks).toString('utf8'), aborted, timedOut })
     })
 
+    // Most commands never read stdin and may already have exited by the time the
+    // pipe is closed; the resulting EPIPE is expected and must not surface as an
+    // unhandled error.
+    child.stdin.on('error', () => undefined)
     child.stdin.end(options.input ?? '')
 
     options.signal?.addEventListener('abort', onAbort, { once: true })
