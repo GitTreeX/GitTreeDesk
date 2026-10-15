@@ -32,6 +32,7 @@ import { errorText, notifyServiceError, stashNotice } from '../lib/reporting'
 import { relativeTime } from '../lib/relative-time'
 import { normalizeGraphDensity, rowHeightForGraph } from '../theme'
 import { useSettingValue } from '../use-setting-value'
+import { useRepoMenu } from '../use-repo-menu'
 import { useUiState } from '../use-ui-state'
 import {
   GUTTER_MIN_WIDTH,
@@ -72,13 +73,13 @@ function laneColor(lane: number): string {
   return LANE_COLORS[lane % LANE_COLORS.length] as string
 }
 
-/** First non-empty line of a commit body, for the two-line comfortable layout. */
-function firstBodyLine(body: string): string {
-  for (const line of body.split('\n')) {
-    const trimmed = line.trim()
-    if (trimmed.length > 0) return trimmed
-  }
-  return ''
+/** Commit body collapsed to a single line: line breaks become spaces. */
+function bodyLine(body: string): string {
+  return body
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .join(' ')
 }
 
 function isEditableTarget(target: EventTarget | null): boolean {  if (!(target instanceof HTMLElement)) return false
@@ -201,6 +202,8 @@ export function GraphView({ tab }: { tab: GraphTab }): JSX.Element | null {
 
   const [repoPickerOpen, setRepoPickerOpen] = useState(false)
   const [repoQuery, setRepoQuery] = useState('')
+  const repoMenu = useRepoMenu()
+  const [repoMenuAt, setRepoMenuAt] = useState<{ x: number; y: number } | null>(null)
   useEffect(() => {
     if (!repoPickerOpen) return
     const onDown = (event: MouseEvent): void => {
@@ -711,6 +714,21 @@ export function GraphView({ tab }: { tab: GraphTab }): JSX.Element | null {
               </div>
             )}
           </div>
+          {record !== null && (
+            <button
+              type="button"
+              aria-label={t('menu.moreActions')}
+              title={t('menu.moreActions')}
+              aria-expanded={repoMenuAt !== null}
+              className="flex size-6 shrink-0 items-center justify-center rounded border border-line bg-canvas text-xs leading-none text-muted hover:bg-ink/5 hover:text-ink"
+              onClick={(event) => {
+                const rect = event.currentTarget.getBoundingClientRect()
+                setRepoMenuAt(repoMenuAt === null ? { x: rect.left, y: rect.bottom } : null)
+              }}
+            >
+              …
+            </button>
+          )}
           <input
             ref={searchRef}
             value={draft.grep}
@@ -993,12 +1011,12 @@ export function GraphView({ tab }: { tab: GraphTab }): JSX.Element | null {
                       <span className="truncate text-ink" title={commit.subject}>
                         {commit.subject}
                       </span>
-                      {rowDensity === 'comfortable' && firstBodyLine(commit.body) !== '' && (
+                      {rowDensity === 'comfortable' && bodyLine(commit.body) !== '' && (
                         <span
                           className="truncate text-[10px] leading-3 text-muted"
                           title={commit.body}
                         >
-                          {firstBodyLine(commit.body)}
+                          {bodyLine(commit.body)}
                         </span>
                       )}
                     </span>
@@ -1118,6 +1136,15 @@ export function GraphView({ tab }: { tab: GraphTab }): JSX.Element | null {
 
       {menu !== null && menuItems.length > 0 && (
         <ContextMenu x={menu.x} y={menu.y} items={menuItems} onClose={() => setMenu(null)} />
+      )}
+
+      {repoMenuAt !== null && record !== null && (
+        <ContextMenu
+          x={repoMenuAt.x}
+          y={repoMenuAt.y}
+          items={repoMenu({ key: record.path, record })}
+          onClose={() => setRepoMenuAt(null)}
+        />
       )}
 
       {compare !== null && (

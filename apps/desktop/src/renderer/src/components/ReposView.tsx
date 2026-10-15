@@ -2,31 +2,26 @@ import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type Keybo
 import { useTranslation } from 'react-i18next'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { RepoRecord, RepoStatus } from '@gitreedesk/shared'
-import { api } from '../api'
 import { isEditableTarget } from '../commands/keybinding'
-import { useGraph } from '../contexts/graph'
 import { useOperations } from '../contexts/operations-context'
 import { useReposUi } from '../contexts/repos'
 import { useSettings } from '../contexts/settings'
 import { useSubmodules } from '../contexts/submodules'
-import { useTerminal } from '../contexts/terminal'
 import { useTreeUi } from '../contexts/tree'
 import { useWorkspace } from '../contexts/workspace'
-import { notifyError } from '../notify'
 import { rowHeightFor } from '../theme'
 import { nextSelectable } from '../tree/nav'
+import { useRepoMenu } from '../use-repo-menu'
 import {
   buildReposTree,
   checkoutKey,
   hasActiveFilters,
-  isSubmoduleRecord,
-  submoduleParentOf,
   type PendingSubmodule,
   type RepoFilters,
   type RepoNode,
   type ReposRow
 } from '../tree/repos-model'
-import { ContextMenu, type ContextMenuItem } from './ContextMenu'
+import { ContextMenu } from './ContextMenu'
 import { branchLabel, RepoBadges } from './RepoBadges'
 import { CheckSquareIcon, ChevronRightIcon, SquareIcon } from './icons'
 
@@ -42,8 +37,6 @@ export function ReposView(): JSX.Element {
   const tree = useTreeUi()
   const repoUi = useReposUi()
   const operations = useOperations()
-  const graph = useGraph()
-  const terminal = useTerminal()
   const settings = useSettings()
   const rowHeight = rowHeightFor(settings.density)
   const { submodulesFor } = useSubmodules()
@@ -297,212 +290,15 @@ export function ReposView(): JSX.Element {
     setSelected(new Set([key]))
   }
 
-  const copyPath = useCallback((text: string): void => {
-    void api.invoke('app:copyText', { text }).catch((error: unknown) => {
-      notifyError(error instanceof Error ? error.message : String(error))
-    })
-  }, [])
-
-  const reveal = useCallback((path: string): void => {
-    void api.invoke('fs:reveal', { path }).catch((error: unknown) => {
-      notifyError(error instanceof Error ? error.message : String(error))
-    })
-  }, [])
-
-  const openInEditor = useCallback((path: string): void => {
-    void api.invoke('editor:openInCode', { path }).catch((error: unknown) => {
-      notifyError(error instanceof Error ? error.message : String(error))
-    })
-  }, [])
-
-  const menuItems = (node: RepoNode, includeGraph: boolean): ContextMenuItem[] => {
-    const record = node.record
-    // Row keys are checkout paths, so the selection is directly copyable.
-    const inSelection = selected.has(node.key) && selected.size > 0
-    const paths = inSelection ? [...selected] : [node.key]
-    const picked = inSelection
-      ? rows.filter(isRepoRow).filter((row) => selected.has(row.node.key)).map((row) => row.node.record)
-      : [record]
-    const syncTargets = picked.filter((candidate) => candidate.gitDir.length > 0)
-    const pullable = syncTargets.filter((candidate) => candidate.kind !== 'bare')
-    const status = statusFor(record)
-    const branch = status?.head.ref ?? null
-    const pushable = record.kind !== 'bare' && branch !== null
-    const canTarget = record.gitDir.length > 0
-    const isWorktree = record.kind === 'worktree'
-    const isSubmodule = isSubmoduleRecord(record)
-    const submoduleParent = isSubmodule ? submoduleParentOf(record, records) : null
-    const submodulePath =
-      submoduleParent === null ? null : record.path.slice(submoduleParent.path.length + 1)
-    const listed = submodulesFor(record)
-    const hasSubmodules = listed !== null && listed.length > 0
-    const drifted =
-      submoduleParent !== null &&
-      submodulePath !== null &&
-      (submodulesFor(submoduleParent) ?? []).some(
-        (submodule) => submodule.path === submodulePath && submodule.checkout === 'different'
-      )
-    const locked = isWorktree && record.worktreeLocked !== undefined && record.worktreeLocked !== null
-    const prunable =
-      isWorktree && record.worktreePrunable !== undefined && record.worktreePrunable !== null
-    // A prunable row has no git dir of its own; prune runs from any live checkout of the repo.
-    const pruneAnchor =
-      canTarget && record.kind !== 'bare'
-        ? record
-        : (records.find(
-            (candidate) =>
-              candidate.id === record.id && candidate.gitDir.length > 0 && candidate.kind !== 'bare'
-          ) ?? null)
-    return [
-      {
-        label: t('menu.checkoutBranch'),
-        disabled: !canTarget || record.kind === 'bare',
-        onSelect: () => {
-          repoUi.setActiveKey(record.gitDir)
-          operations.openBranches(record)
-        }
-      },
-      {
-        label: t('menu.createBranch'),
-        disabled: !canTarget || record.kind === 'bare',
-        onSelect: () => {
-          repoUi.setActiveKey(record.gitDir)
-          operations.openCreateBranch(record)
-        }
-      },
-      ...(includeGraph
-        ? [
-            {
-              label: t('menu.openGraph'),
-              disabled: !canTarget,
-              onSelect: () => {
-                repoUi.setActiveKey(record.gitDir)
-                graph.openGraph(record)
-              }
-            }
-          ]
-        : []),
-      {
-        label: syncTargets.length > 1 ? t('menu.fetchSelected') : t('menu.fetch'),
-        disabled: syncTargets.length === 0,
-        onSelect: () => operations.fetchRepos(syncTargets)
-      },
-      {
-        label: syncTargets.length > 1 ? t('menu.pullSelected') : t('menu.pull'),
-        disabled: pullable.length === 0,
-        onSelect: () => operations.pullRepos(pullable)
-      },
-      {
-        label: t('menu.push'),
-        disabled: !pushable,
-        onSelect: () => {
-          if (branch === null) return
-          operations.pushBranch(record, branch, { hasUpstream: status !== null && status.upstream !== null })
-        }
-      },
-      ...(isSubmodule && submoduleParent !== null && submodulePath !== null
-        ? [
-            {
-              label: drifted ? t('menu.checkoutRecordedCommit') : t('menu.updateSubmodule'),
-              onSelect: () => operations.updateSubmodule(submoduleParent, submodulePath)
-            },
-            {
-              label: t('menu.openAsRepository'),
-              onSelect: () => {
-                if (record.gitDir.length > 0) repoUi.setActiveKey(record.gitDir)
-                tree.requestRepoFocus(record.path)
-              }
-            }
-          ]
-        : []),
-      {
-        label: t('menu.updateSubmodules'),
-        disabled: !canTarget || record.kind === 'bare' || !hasSubmodules,
-        onSelect: () => operations.updateSubmodules(record)
-      },
-      {
-        label: t('menu.syncSubmoduleUrls'),
-        disabled: !canTarget || record.kind === 'bare' || !hasSubmodules,
-        onSelect: () => operations.syncSubmoduleUrls(record)
-      },
-      {
-        label: t('menu.remotes'),
-        disabled: !canTarget,
-        onSelect: () => {
-          repoUi.setActiveKey(record.gitDir)
-          operations.openRemotes(record)
-        }
-      },
-      {
-        label: t('menu.tags'),
-        disabled: !canTarget,
-        onSelect: () => {
-          repoUi.setActiveKey(record.gitDir)
-          operations.openTags(record)
-        }
-      },
-      {
-        label: t('menu.stashCreate'),
-        disabled: !canTarget || record.kind === 'bare',
-        onSelect: () => {
-          repoUi.setActiveKey(record.gitDir)
-          operations.openStashCreate(record)
-        }
-      },
-      {
-        label: t('menu.stashes'),
-        disabled: !canTarget || record.kind === 'bare',
-        onSelect: () => {
-          repoUi.setActiveKey(record.gitDir)
-          operations.openStashes(record)
-        }
-      },
-      {
-        label: t('menu.restoreBackup'),
-        disabled: !canTarget,
-        onSelect: () => {
-          repoUi.setActiveKey(record.gitDir)
-          operations.openBackupRestore(record)
-        }
-      },
-      {
-        label: t('menu.newWorktree'),
-        disabled: !canTarget || record.kind === 'bare',
-        onSelect: () => {
-          repoUi.setActiveKey(record.gitDir)
-          operations.openCreateWorktree(record)
-        }
-      },
-      {
-        label: t('menu.removeWorktree'),
-        disabled: !isWorktree || !canTarget || prunable,
-        onSelect: () => operations.removeWorktree(record)
-      },
-      {
-        label: locked ? t('menu.unlockWorktree') : t('menu.lockWorktree'),
-        disabled: !isWorktree || !canTarget || prunable,
-        onSelect: () => (locked ? operations.unlockWorktree(record) : operations.lockWorktree(record))
-      },
-      {
-        label: t('menu.pruneWorktrees'),
-        disabled: pruneAnchor === null,
-        onSelect: () => {
-          if (pruneAnchor !== null) operations.pruneWorktrees(pruneAnchor)
-        }
-      },
-      {
-        label: paths.length > 1 ? t('menu.copyPaths') : t('menu.copyPath'),
-        onSelect: () => copyPath(paths.join('\n'))
-      },
-      { label: t('menu.reveal'), onSelect: () => reveal(node.record.path) },
-      { label: t('menu.openInEditor'), onSelect: () => openInEditor(node.record.path) },
-      {
-        label: t('menu.openTerminal'),
-        disabled: prunable,
-        onSelect: () => terminal.open(record.path)
-      }
-    ]
-  }
+  const repoMenu = useRepoMenu()
+  const selectedEntries = useCallback(
+    () =>
+      rows
+        .filter(isRepoRow)
+        .filter((row) => selected.has(row.node.key))
+        .map((row) => ({ key: row.node.key, record: row.node.record })),
+    [rows, selected]
+  )
 
   const toggleScm = (record: RepoRecord): void => {
     const key = checkoutKey(record)
@@ -633,7 +429,7 @@ export function ReposView(): JSX.Element {
                 aria-selected={isSelected}
                 aria-expanded={node.hasChildren ? node.expanded : undefined}
                 title={record.path}
-                className={`flex cursor-default items-center gap-1.5 pr-2 text-sm ${
+                className={`group/repo flex cursor-default items-center gap-1.5 pr-2 text-sm ${
                   isCursor ? 'bg-accent/10' : isSelected ? 'bg-ink/5' : 'hover:bg-ink/5'
                 } ${record.external || prunable ? 'opacity-60' : ''}`}
                 style={{
@@ -725,7 +521,10 @@ export function ReposView(): JSX.Element {
         <ContextMenu
           x={menu.x}
           y={menu.y}
-          items={menuItems(menu.node, menu.includeGraph)}
+          items={repoMenu(
+            { key: menu.node.key, record: menu.node.record, selection: selectedEntries() },
+            { includeGraph: menu.includeGraph }
+          )}
           onClose={() => setMenu(null)}
         />
       )}
