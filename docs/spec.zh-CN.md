@@ -306,7 +306,7 @@ CREATE TABLE oplog        (id INTEGER PRIMARY KEY, repo_id INT, op TEXT, backup_
 - **Explorer 视图** —— 真实文件系统树：文件夹按原样展示，仓库带徽标（分支名或短 sha），worktree 文件夹带 worktree 图标。目录惰性读取；已展开目录监听。文件操作：新建文件/文件夹、重命名、删除（经 `shell.trashItem` 移入系统回收站——可逆）、在系统文件管理器中显示、复制路径、复制相对路径、"在 VSCode 中打开"、"在此打开终端"、"对比选中的两个文件"；属于某仓库的行还提供"打开提交图"。
 - **Repos 视图** —— 逻辑视图：分组（配置的或按首层路径段派生），仓库为一级行，显示名称、当前分支/ref、徽标，并嵌套子节点：**链接 worktree**（带各自分支）与 **submodule**（含未初始化）显示在其主仓库下；工作区外的 worktree 在开启时以灰色 + 绝对路径显示。
 
-徽标与视图选项：每种徽标可独立开关——`dirty 圆点`、`ahead/behind 计数`、`stash 数`、`进行中操作`、`detached HEAD`、`submodule 待处理`。快捷过滤："仅 dirty"、"仅 ahead/behind"、"仅 worktree"，外加逐仓库勾选集合，决定哪些仓库进入 SCM 视图及未来的聚合界面。仓库行支持多选做批量操作（批量 fetch、批量 pull、批量开终端），并提供行内操作按钮，打开与行右键相同的菜单（不含提交图那一项）。
+徽标与视图选项：每种徽标可独立开关——`dirty 圆点`、`ahead/behind 计数`、`stash 数`、`进行中操作`、`detached HEAD`、`submodule 待处理`。快捷过滤："仅 dirty"、"仅 ahead/behind"、"仅 worktree"，外加逐仓库勾选集合，决定哪些仓库进入 SCM 视图及未来的聚合界面。仓库行支持多选做批量操作（批量 fetch、批量 pull、批量开终端），并提供行内操作按钮，打开与行右键完全相同的菜单。
 
 两个视图都用虚拟滚动（TanStack Virtual）与键盘导航（↑/↓、←/→ 折叠展开、Enter 打开、仅在 SCM 中 Space 切换 stage）。
 

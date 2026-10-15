@@ -23,6 +23,7 @@ export interface RepoMenuTarget {
 /**
  * The repository action menu, shared by the tree row context menu, the row
  * action button and the commit graph toolbar so the lists cannot drift apart.
+ * The graph toolbar passes `includeGraph: false` because it already is the graph.
  */
 export function useRepoMenu(): (
   target: RepoMenuTarget,
@@ -57,7 +58,7 @@ export function useRepoMenu(): (
   }
 
   return (target, options) => {
-    const includeGraph = options?.includeGraph === true
+    const includeGraph = options?.includeGraph !== false
     const record = target.record
     const selection = target.selection ?? []
     const inSelection = selection.some((entry) => entry.key === target.key)

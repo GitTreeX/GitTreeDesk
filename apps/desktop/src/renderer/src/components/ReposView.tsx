@@ -45,13 +45,7 @@ export function ReposView(): JSX.Element {
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set())
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
   const [cursorKey, setCursorKey] = useState<string | null>(null)
-  const [menu, setMenu] = useState<{
-    x: number
-    y: number
-    node: RepoNode
-    /** The row button's menu leaves the graph entry to the row context menu. */
-    includeGraph: boolean
-  } | null>(null)
+  const [menu, setMenu] = useState<{ x: number; y: number; node: RepoNode } | null>(null)
 
   const statusFor = useCallback(
     (record: RepoRecord): RepoStatus | null => statuses.get(record.gitDir)?.status ?? null,
@@ -447,7 +441,7 @@ export function ReposView(): JSX.Element {
                   setCursorKey(node.key)
                   if (!selected.has(node.key)) setSelected(new Set([node.key]))
                   if (record.gitDir.length > 0) repoUi.setActiveKey(record.gitDir)
-                  setMenu({ x: event.clientX, y: event.clientY, node, includeGraph: true })
+                  setMenu({ x: event.clientX, y: event.clientY, node })
                 }}
               >
                 <button
@@ -521,10 +515,7 @@ export function ReposView(): JSX.Element {
         <ContextMenu
           x={menu.x}
           y={menu.y}
-          items={repoMenu(
-            { key: menu.node.key, record: menu.node.record, selection: selectedEntries() },
-            { includeGraph: menu.includeGraph }
-          )}
+          items={repoMenu({ key: menu.node.key, record: menu.node.record, selection: selectedEntries() })}
           onClose={() => setMenu(null)}
         />
       )}

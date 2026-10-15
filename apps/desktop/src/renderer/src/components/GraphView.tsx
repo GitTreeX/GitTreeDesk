@@ -1142,7 +1142,7 @@ export function GraphView({ tab }: { tab: GraphTab }): JSX.Element | null {
         <ContextMenu
           x={repoMenuAt.x}
           y={repoMenuAt.y}
-          items={repoMenu({ key: record.path, record })}
+          items={repoMenu({ key: record.path, record }, { includeGraph: false })}
           onClose={() => setRepoMenuAt(null)}
         />
       )}

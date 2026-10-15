@@ -71,7 +71,7 @@ The sidebar's Tree activity hosts two coordinated views over the same repositori
 - Worktrees located outside the workspace are hidden by default; enable "Show external worktrees" in view options to see them (greyed, with their absolute path).
 - Groups: derived from the first path segment by default, or configured via `workspace.json` (`groups`).
 - **Multi-select** repositories for batch actions: "Fetch selected", "Pull selected", "Open terminal for each".
-- Context menu on a repo: copy path, reveal in OS, open terminal, open graph tab, plus the batch actions above. The same menu (without the graph entry) opens from the **… button** on the repo row's right edge, so the common actions do not need a right-click.
+- Context menu on a repo: copy path, reveal in OS, open terminal, open graph tab, plus the batch actions above. The same menu opens from the **… button** on the repo row's right edge, so the common actions do not need a right-click.
 
 ## Badges & what is shown (display options)
 
