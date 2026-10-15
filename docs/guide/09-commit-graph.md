@@ -11,7 +11,7 @@
 ## What you see
 
 - Commit rows with lanes, colored per line of development; ref chips (`HEAD`, branch names, `origin/…`, tags) on the commits they point to.
-- Subject, author, relative date per row.
+- Subject, author, relative date per row; at `comfortable` row height a second, smaller line shows the first line of the commit body, so commits that carry an explanation stay readable in the list.
 - **Incoming / outgoing markers** relative to the current branch's upstream — which commits are not yet pushed, which are not yet pulled.
 - The current branch's tip is highlighted; clicking any row opens the **details panel** (right side): full message, author and committer with timestamps, and the changed files with per-file stats. Clicking a file opens that commit's diff for the file in the editor area.
 

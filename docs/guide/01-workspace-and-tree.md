@@ -60,7 +60,7 @@ The sidebar's Tree activity hosts two coordinated views over the same repositori
 
 - Folders exactly as on disk. Repository folders carry a badge (branch name or short SHA); worktree folders carry the worktree glyph.
 - Directories load lazily; only expanded folders are watched.
-- File and folder operations (context menu): new file, new folder, rename (F2), delete, reveal in OS file manager, copy path, **Open in VSCode**, **Open terminal here**. Delete moves items to the **OS trash** (reversible).
+- File and folder operations (context menu): new file, new folder, reveal in OS file manager, **Open in VSCode**, **Open terminal here**, copy path (absolute), copy relative path, rename (F2), delete — grouped with dividers, and any row inside a repository also offers **Open Commit Graph**. Delete moves items to the **OS trash** (reversible).
 - **Compare two files**: select two files, then "Compare selected" opens them side by side in the diff viewer.
 - JS/TS/JSON etc. open in the built-in editor (page 10).
 
@@ -71,7 +71,7 @@ The sidebar's Tree activity hosts two coordinated views over the same repositori
 - Worktrees located outside the workspace are hidden by default; enable "Show external worktrees" in view options to see them (greyed, with their absolute path).
 - Groups: derived from the first path segment by default, or configured via `workspace.json` (`groups`).
 - **Multi-select** repositories for batch actions: "Fetch selected", "Pull selected", "Open terminal for each".
-- Context menu on a repo: copy path, reveal in OS, open terminal, open graph tab, plus the batch actions above.
+- Context menu on a repo: copy path, reveal in OS, open terminal, open graph tab, plus the batch actions above. The same menu (without the graph entry) opens from the **… button** on the repo row's right edge, so the common actions do not need a right-click.
 
 ## Badges & what is shown (display options)
 

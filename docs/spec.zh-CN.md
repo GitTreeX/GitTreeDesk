@@ -303,10 +303,10 @@ CREATE TABLE oplog        (id INTEGER PRIMARY KEY, repo_id INT, op TEXT, backup_
 
 同一注册表的两个协同视图：
 
-- **Explorer 视图** —— 真实文件系统树：文件夹按原样展示，仓库带徽标（分支名或短 sha），worktree 文件夹带 worktree 图标。目录惰性读取；已展开目录监听。文件操作：新建文件/文件夹、重命名、删除（经 `shell.trashItem` 移入系统回收站——可逆）、在系统文件管理器中显示、复制路径、"在 VSCode 中打开"、"在此打开终端"、"对比选中的两个文件"。
+- **Explorer 视图** —— 真实文件系统树：文件夹按原样展示，仓库带徽标（分支名或短 sha），worktree 文件夹带 worktree 图标。目录惰性读取；已展开目录监听。文件操作：新建文件/文件夹、重命名、删除（经 `shell.trashItem` 移入系统回收站——可逆）、在系统文件管理器中显示、复制路径、复制相对路径、"在 VSCode 中打开"、"在此打开终端"、"对比选中的两个文件"；属于某仓库的行还提供"打开提交图"。
 - **Repos 视图** —— 逻辑视图：分组（配置的或按首层路径段派生），仓库为一级行，显示名称、当前分支/ref、徽标，并嵌套子节点：**链接 worktree**（带各自分支）与 **submodule**（含未初始化）显示在其主仓库下；工作区外的 worktree 在开启时以灰色 + 绝对路径显示。
 
-徽标与视图选项：每种徽标可独立开关——`dirty 圆点`、`ahead/behind 计数`、`stash 数`、`进行中操作`、`detached HEAD`、`submodule 待处理`。快捷过滤："仅 dirty"、"仅 ahead/behind"、"仅 worktree"，外加逐仓库勾选集合，决定哪些仓库进入 SCM 视图及未来的聚合界面。仓库行支持多选做批量操作（批量 fetch、批量 pull、批量开终端）。
+徽标与视图选项：每种徽标可独立开关——`dirty 圆点`、`ahead/behind 计数`、`stash 数`、`进行中操作`、`detached HEAD`、`submodule 待处理`。快捷过滤："仅 dirty"、"仅 ahead/behind"、"仅 worktree"，外加逐仓库勾选集合，决定哪些仓库进入 SCM 视图及未来的聚合界面。仓库行支持多选做批量操作（批量 fetch、批量 pull、批量开终端），并提供行内操作按钮，打开与行右键相同的菜单（不含提交图那一项）。
 
 两个视图都用虚拟滚动（TanStack Virtual）与键盘导航（↑/↓、←/→ 折叠展开、Enter 打开、仅在 SCM 中 Space 切换 stage）。
 
@@ -371,7 +371,7 @@ CREATE TABLE oplog        (id INTEGER PRIMARY KEY, repo_id INT, op TEXT, backup_
 - 行高：`紧凑` / `正常` / `宽松` 三档，可在图工具栏与「外观」设置组切换（`appearance.graphDensity`，默认 `正常`）。
 - 泳道列：泳道放得下时按自然宽度，放不下时压缩泳道间距而不是让 gutter 吞掉提交文字；用户可拖动右缘调整宽度，宽度持久化在 UI state 中。
 - 分页：首页 1000 个提交；向下滚动按 2000 行分块加载更早历史；"超大仓库"模式限制窗口（`--skip/--max-count`，总数用 `rev-list --count`）。
-- 行内容：泳道图、refs（本地/远端/tag/HEAD 用不同 chip）、subject、作者、相对时间、"incoming/outgoing" 标记（相对 upstream 与当前分支）。
+- 行内容：泳道图、refs（本地/远端/tag/HEAD 用不同 chip）、subject、作者、相对时间、"incoming/outgoing" 标记（相对 upstream 与当前分支）；行高为"宽松"时额外以更小一行显示提交正文首行。
 - 过滤：refs 多选、作者、路径（v1 不做 rename 跟随）、日期区间、消息文本，以及"仅当前分支可达"。
 - 提交详情侧栏：完整消息、作者 + 提交者（姓名/邮箱/日期）、带统计的文件列表；点击文件在编辑区打开该提交的 diff。
 - 提交操作（右键菜单，复用操作模型）：checkout、在此创建分支/tag、cherry-pick、revert、reset 到此处*（soft/mixed/hard）*、复制 SHA / ref 名、把当前分支 rebase 到该提交、自此交互式 rebase、**修改提交信息 / 作者 / 时间**（历史改写）、选择以对比（任意两个提交间 diff）。
