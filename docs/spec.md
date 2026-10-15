@@ -3,24 +3,9 @@
 > Status: **Draft v0.1** · 2026-10-13
 > English is the canonical language of this document. `spec.zh-CN.md` is a courtesy translation kept in sync; when they disagree, this file wins.
 
-## Table of contents
+## Overview
 
-1. [Overview](#1-overview)
-2. [Key decisions (ADRs)](#2-key-decisions-adrs)
-3. [Architecture](#3-architecture)
-4. [Features](#4-features)
-5. [UX blueprint](#5-ux-blueprint)
-6. [Milestones](#6-milestones)
-7. [Performance budgets](#7-performance-budgets)
-8. [Risks & mitigations](#8-risks--mitigations)
-9. [Open questions](#9-open-questions)
-10. [Appendices](#10-appendices)
-
----
-
-## 1. Overview
-
-### 1.1 Problem statement
+### Problem statement
 
 Git work in a large multi-repo workspace (dozens to hundreds of repositories under one folder) is split across tools that each cover only part of the job:
 
@@ -29,7 +14,7 @@ Git work in a large multi-repo workspace (dozens to hundreds of repositories und
 
 GitTreeDesk combines the useful parts into one tool, and makes the *workspace* — not the repository — the unit of work.
 
-### 1.2 Positioning
+### Positioning
 
 **GitTreeDesk is a workspace-first multi-repo Git workbench, not a general-purpose IDE.**
 
@@ -39,24 +24,22 @@ Three principles drive design trade-offs:
 2. **Lazy and incremental by default.** Nothing is scanned, watched, parsed, or rendered until it is needed; everything already known is refreshed incrementally, never re-computed from scratch.
 3. **Keyboard-first, honest UI.** Every operation is reachable from the command palette and a shortcut. Animations must never delay input, focus, or keyboard flow.
 
-### 1.3 Scope
+### Scope
 
 **Goals (v1):**
 
-| # | Goal |
-|---|------|
-| G1 | Open any folder as a workspace; discover all repositories, worktrees, and submodules inside it; present them in a tree with live status |
-| G2 | Multi-repo overview of changes; the user chooses which repositories and which change types are shown |
-| G3 | Worktrees are first-class: detected, grouped under their main repository, created and removed from the UI |
-| G4 | Complete Git workflow comparable to SourceTree: stage, commit, stash, branch, merge, rebase (incl. interactive), cherry-pick, revert, reset, tags, remotes, fetch/pull/push, submodule update, worktree CRUD, commit metadata editing, all with safety nets |
-| G5 | Native commit graph (Git Graph equivalent) per repository, with actions on commits |
-| G6 | Code viewing and light editing: syntax highlighting, best-effort TypeScript hints, and a one-click "Open in VSCode" escape hatch |
-| G7 | Changes list and diff view: staged/unstaged/untracked/conflicted, text and image diffs, hunk-level staging |
-| G8 | Integrated terminal: multiple shell profiles, per-directory cascading configuration, quick commands |
-| G9 | One-click commit message generation from the staged diff (offline heuristics, optional LLM) |
-| G10 | Modern, themeable UI; dark mode is first-class (follow system or manual); keyboard-friendly |
-| G11 | Cross-platform: Windows, macOS, Linux |
-| G12 | English-first with i18n architecture from day one |
+- Open any folder as a workspace; discover all repositories, worktrees, and submodules inside it; present them in a tree with live status
+- Multi-repo overview of changes; the user chooses which repositories and which change types are shown
+- Worktrees are first-class: detected, grouped under their main repository, created and removed from the UI
+- Complete Git workflow comparable to SourceTree: stage, commit, stash, branch, merge, rebase (incl. interactive), cherry-pick, revert, reset, tags, remotes, fetch/pull/push, submodule update, worktree CRUD, commit metadata editing, all with safety nets
+- Native commit graph (Git Graph equivalent) per repository, with actions on commits
+- Code viewing and light editing: syntax highlighting, best-effort TypeScript hints, and a one-click "Open in VSCode" escape hatch
+- Changes list and diff view: staged/unstaged/untracked/conflicted, text and image diffs, hunk-level staging
+- Integrated terminal: multiple shell profiles, per-directory cascading configuration, quick commands
+- One-click commit message generation from the staged diff (offline heuristics, optional LLM)
+- Modern, themeable UI; dark mode is first-class (follow system or manual); keyboard-friendly
+- Cross-platform: Windows, macOS, Linux
+- English-first with i18n architecture from day one
 
 **Non-goals (v1):**
 
@@ -67,18 +50,18 @@ Three principles drive design trade-offs:
 - A VSCode-grade 3-way merge editor. v1 resolves conflicts via ours/theirs + editor with markers + external merge tool.
 - Running builds/tests/tasks, debuggers, problem panels.
 
-### 1.4 Reference scenario (acceptance scenario)
+### Reference scenario (acceptance scenario)
 
 A representative workspace used as the acceptance target: `acme/` — ~55 Git repositories nested 2–3 levels under groups (`app/`, `backend/`, `website/`, …), linked worktrees kept in a sibling `__worktree__/` folder (`mobile-app_worktree-feat-dark-mode`, …), non-Git folders mixed in, a noisy `node_modules/` at the root, and at least one CJK-named directory (`content/中文文档`).
 
 Acceptance for v1:
 
-- Opening this workspace shows the first full tree within the performance budget (§7) and streams in repository status without blocking the UI.
-- Every repository in the tree is fully operable (all G4 operations).
+- Opening this workspace shows the first full tree within the performance budget and streams in repository status without blocking the UI.
+- Every repository in the tree is fully operable (all the Git operations).
 - `__worktree__` entries appear grouped under their main repository, not as unrelated folders.
 - The CJK-named directory and CJK paths inside repositories are correctly displayed and operable.
 
-### 1.5 Glossary
+### Glossary
 
 | Term | Meaning |
 |---|---|
@@ -94,31 +77,31 @@ Acceptance for v1:
 
 ---
 
-## 2. Key decisions (ADRs)
+## Key decisions (ADRs)
 
-Numbered decisions with the alternatives that were considered and rejected. These are binding for v1; changing one requires updating this table and the affected sections.
+Decisions with the alternatives that were considered and rejected. They are binding for v1; changing one requires updating the affected sections.
 
-| ID | Decision | Rationale | Rejected alternatives |
-|----|----------|-----------|----------------------|
-| AD-01 | **Greenfield Electron application** (current stable Electron; the major version is pinned in `package.json` and upgraded deliberately). | The performance pain is architectural in VSCode (whole-workspace watchers, SCM provider per repo, TS project graph). A greenfield shell lets discovery, watching, and status refresh be designed for the multi-repo case from the start. | **Fork code-oss**: million-LOC fork, heavy upstream-merge burden, the perf problems are architectural and cannot be fixed inside a fork, ~80% of the codebase is irrelevant. **VSCode extension**: cannot fix the watcher/scan root cause; at most an interim UX probe. |
-| AD-02 | **Git engine = system `git` CLI**, spawned with argument arrays; porcelain output parsed. | Correctness: worktree, submodule, LFS (filters), credential helpers, hooks, and edge-case behavior are 100% identical to the command line — the same strategy as VSCode, SourceTree, Fork. Performance comes from a concurrency pool, index-fingerprint skips, and caching. | **isomorphic-git**: as of 2026-10 its command index lacks rebase, cherry-pick, worktree, submodule, hooks, LFS — disqualifying for G3/G4; also slow on large repositories. **libgit2 bindings** (nodegit/koffi): worktree/submodule/filter gaps, hooks don't run, per-platform native packaging. **Hybrid** (native reads + CLI writes): two engines, doubled consistency cost; revisit only if profiling proves it necessary. |
-| AD-03 | **Git binary strategy**: prefer system Git (`git` on PATH, overridable in settings). Require ≥ 2.23; warn below 2.36. Detect via `git --version` at startup. On Windows, also probe `%ProgramFiles%\Git\cmd\git.exe`. Bundling a portable Git is an open question (§9). | Users of Git GUIs already have Git; bundling adds tens of MB and update burden. The version floor covers `git switch/restore` (2.23) and stable porcelain behavior. | Bundling Git for Windows / shipping our own builds — later, only if real users hit missing-Git walls. |
-| AD-04 | **Renderer stack**: React 19 + TypeScript, Vite, Tailwind CSS v4, Radix UI primitives (shadcn-style vendored components), Zustand for state, TanStack Virtual for trees/lists, Lucide icons. | Hot-update-friendly; Zustand fits high-frequency status patches; Radix gives accessible primitives without a heavyweight component kit. | Ant Design / MUI: heavy theming cost, dated visual language, conflicts with G10. |
-| AD-05 | **Editor = Monaco**, bundled locally (no CDN loader — must work fully offline). TypeScript hints via Monaco's built-in TS worker in v1; a tsserver/LSP bridge is *Later*. `monaco-languageclient` is explicitly not a v1 dependency. | Monaco is the VSCode editor core: highlighting for 100+ languages, diff editor, TS language service in a worker. Project-wide LSP is a large sub-project by itself; the "Open in VSCode" button covers the power-user case in v1 (G6). | CodeMirror 6: lighter but weaker TS story and weaker diff. |
-| AD-06 | **Terminal = node-pty + @xterm/xterm**, pty host running in an Electron `utilityProcess` (crash of the pty host must not take down the app), data streamed to the renderer over a `MessagePort`. | Standard, proven pairing (used by VSCode's terminal stack). utilityProcess isolation is the same idea as VSCode's pty host. | Running pty in the main process: a native crash kills the window. |
-| AD-07 | **Persistence split**: user-authored configuration lives in **JSON files** (portable, diffable, optionally committed); **SQLite (better-sqlite3) holds only disposable caches/indexes** — deleting it must never lose user data. | Users can inspect/version their config; caches are free to be rebuilt. Avoids the classic mistake of hiding user settings in a binary DB. | All-in-SQLite: opaque config, sync/hand-edit hostile. |
-| AD-08 | **Watcher strategy**: no recursive watch over the whole workspace. Watch (a) each repository's git dir, depth-limited, (b) directories expanded in the file tree (LRU-capped), (c) the workspace root shallowly (depth 2) for discovery of new repositories. Interval polling is only a fallback (default 60 s, configurable; disabled per-repo when watchers are healthy). | The workspace tree can have hundreds of thousands of directories; per-repo git-dir watching is bounded by repository count, not workspace size. This is the core performance decision that makes AD-01 pay off. | Whole-workspace recursive watching (chokidar/@parcel/watcher over the root): the exact VSCode failure mode this product exists to avoid. |
-| AD-09 | **Commit message generation**: offline heuristic pipeline first (repo convention detection + staged-diff analysis → editable draft); optional LLM provider (OpenAI-compatible endpoint) explicitly opt-in, key stored via OS keychain (`safeStorage`). Draft is always user-editable; auto-commit never happens. | Works with zero setup and zero network; LLM quality is an enhancement, not a dependency. Privacy: diffs leave the machine only when the user opts in. | LLM-only: hard dependency on network + key, poor offline story. Template-only: too little value. |
-| AD-10 | **i18n**: `react-i18next`, English source strings as keys-as-text, namespaced locale JSON, `Intl` for dates/numbers. v1 ships `en` + `zh-Hans`; adding a locale is config-only. No hardcoded user-visible strings anywhere (enforced by lint rule). | English-first per README; the architecture must make translation mechanical, not a refactor. | Deferring i18n: guaranteed rewrite later. |
-| AD-11 | **Repository identity = realpath of the git common dir.** All views (Explorer, Repos, SCM, Graph) key off this id, so a main worktree and all its linked worktrees are one entity with multiple working trees. | Worktree grouping (G3) falls out of identity for free; no name-based heuristics. | Path-based identity: worktrees would masquerade as unrelated repos. |
-| AD-12 | **Safety nets for destructive operations.** Before reset --hard, rebase, interactive rebase, history rewrite, stash drop, branch delete, worktree remove: create `refs/gitreedesk/backup/<op>/<yyyymmdd-hhmmss>` pointing at the current HEAD (or the target ref), and append to an operation log (`.gitreedesk/oplog.json` in the git dir is *not* used; the log lives in SQLite + backup refs in the repo). Each affected UI action offers **Undo/restore from backup** for the session and later. | History rewriting is the single most dangerous feature class; a Git workbench without an undo path is a footgun. Backup refs are invisible to normal workflows (`refs/gitreedesk/*` is not listed by default) and cheap. | No backups: unacceptable. Full reflog UI: later refinement. |
-| AD-13 | **Untrusted-workspace gating**: on first open, a workspace is *untrusted*. Untrusted workspaces run no workspace-configured commands (quick commands disabled) and Git hooks are suppressed via `-c core.hooksPath=<empty>`; the user can trust, and trust is remembered per workspace root in SQLite. | Opening a stranger's folder must not execute their `post-checkout` hook or terminal commands. | Trusting everything: a well-known class of vulnerability. |
+| Decision | Rationale | Rejected alternatives |
+|----------|-----------|----------------------|
+| **Greenfield Electron application** (current stable Electron; the major version is pinned in `package.json` and upgraded deliberately). | The performance pain is architectural in VSCode (whole-workspace watchers, SCM provider per repo, TS project graph). A greenfield shell lets discovery, watching, and status refresh be designed for the multi-repo case from the start. | **Fork code-oss**: million-LOC fork, heavy upstream-merge burden, the perf problems are architectural and cannot be fixed inside a fork, ~80% of the codebase is irrelevant. **VSCode extension**: cannot fix the watcher/scan root cause; at most an interim UX probe. |
+| **Git engine = system `git` CLI**, spawned with argument arrays; porcelain output parsed. | Correctness: worktree, submodule, LFS (filters), credential helpers, hooks, and edge-case behavior are 100% identical to the command line — the same strategy as VSCode, SourceTree, Fork. Performance comes from a concurrency pool, index-fingerprint skips, and caching. | **isomorphic-git**: as of 2026-10 its command index lacks rebase, cherry-pick, worktree, submodule, hooks, LFS — disqualifying for the worktree and Git-operation goals; also slow on large repositories. **libgit2 bindings** (nodegit/koffi): worktree/submodule/filter gaps, hooks don't run, per-platform native packaging. **Hybrid** (native reads + CLI writes): two engines, doubled consistency cost; revisit only if profiling proves it necessary. |
+| **Git binary strategy**: prefer system Git (`git` on PATH, overridable in settings). Require ≥ 2.23; warn below 2.36. Detect via `git --version` at startup. On Windows, also probe `%ProgramFiles%\Git\cmd\git.exe`. Bundling a portable Git is an open question. | Users of Git GUIs already have Git; bundling adds tens of MB and update burden. The version floor covers `git switch/restore` (2.23) and stable porcelain behavior. | Bundling Git for Windows / shipping our own builds — later, only if real users hit missing-Git walls. |
+| **Renderer stack**: React 19 + TypeScript, Vite, Tailwind CSS v4, Radix UI primitives (shadcn-style vendored components), Zustand for state, TanStack Virtual for trees/lists, Lucide icons. | Hot-update-friendly; Zustand fits high-frequency status patches; Radix gives accessible primitives without a heavyweight component kit. | Ant Design / MUI: heavy theming cost, dated visual language, conflicts with the UI goals. |
+| **Editor = Monaco**, bundled locally (no CDN loader — must work fully offline). TypeScript hints via Monaco's built-in TS worker in v1; a tsserver/LSP bridge is *Later*. `monaco-languageclient` is explicitly not a v1 dependency. | Monaco is the VSCode editor core: highlighting for 100+ languages, diff editor, TS language service in a worker. Project-wide LSP is a large sub-project by itself; the "Open in VSCode" button covers the power-user case in v1. | CodeMirror 6: lighter but weaker TS story and weaker diff. |
+| **Terminal = node-pty + @xterm/xterm**, pty host running in an Electron `utilityProcess` (crash of the pty host must not take down the app), data streamed to the renderer over a `MessagePort`. | Standard, proven pairing (used by VSCode's terminal stack). utilityProcess isolation is the same idea as VSCode's pty host. | Running pty in the main process: a native crash kills the window. |
+| **Persistence split**: user-authored configuration lives in **JSON files** (portable, diffable, optionally committed); **SQLite (better-sqlite3) holds only disposable caches/indexes** — deleting it must never lose user data. | Users can inspect/version their config; caches are free to be rebuilt. Avoids the classic mistake of hiding user settings in a binary DB. | All-in-SQLite: opaque config, sync/hand-edit hostile. |
+| **Watcher strategy**: no recursive watch over the whole workspace. Watch (a) each repository's git dir, depth-limited, (b) directories expanded in the file tree (LRU-capped), (c) the workspace root shallowly (depth 2) for discovery of new repositories. Interval polling is only a fallback (default 60 s, configurable; disabled per-repo when watchers are healthy). | The workspace tree can have hundreds of thousands of directories; per-repo git-dir watching is bounded by repository count, not workspace size. This is the core performance decision that makes the greenfield shell pay off. | Whole-workspace recursive watching (chokidar/@parcel/watcher over the root): the exact VSCode failure mode this product exists to avoid. |
+| **Commit message generation**: offline heuristic pipeline first (repo convention detection + staged-diff analysis → editable draft); optional LLM provider (OpenAI-compatible endpoint) explicitly opt-in, key stored via OS keychain (`safeStorage`). Draft is always user-editable; auto-commit never happens. | Works with zero setup and zero network; LLM quality is an enhancement, not a dependency. Privacy: diffs leave the machine only when the user opts in. | LLM-only: hard dependency on network + key, poor offline story. Template-only: too little value. |
+| **i18n**: `react-i18next`, English source strings as keys-as-text, namespaced locale JSON, `Intl` for dates/numbers. v1 ships `en` + `zh-Hans`; adding a locale is config-only. No hardcoded user-visible strings anywhere (enforced by lint rule). | English-first per README; the architecture must make translation mechanical, not a refactor. | Deferring i18n: guaranteed rewrite later. |
+| **Repository identity = realpath of the git common dir.** All views (Explorer, Repos, SCM, Graph) key off this id, so a main worktree and all its linked worktrees are one entity with multiple working trees. | Worktree grouping falls out of identity for free; no name-based heuristics. | Path-based identity: worktrees would masquerade as unrelated repos. |
+| **Safety nets for destructive operations.** Before reset --hard, rebase, interactive rebase, history rewrite, stash drop, branch delete, worktree remove: create `refs/gitreedesk/backup/<op>/<yyyymmdd-hhmmss>` pointing at the current HEAD (or the target ref), and append to an operation log (`.gitreedesk/oplog.json` in the git dir is *not* used; the log lives in SQLite + backup refs in the repo). Each affected UI action offers **Undo/restore from backup** for the session and later. | History rewriting is the single most dangerous feature class; a Git workbench without an undo path is a footgun. Backup refs are invisible to normal workflows (`refs/gitreedesk/*` is not listed by default) and cheap. | No backups: unacceptable. Full reflog UI: later refinement. |
+| **Untrusted-workspace gating**: on first open, a workspace is *untrusted*. Untrusted workspaces run no workspace-configured commands (quick commands disabled) and Git hooks are suppressed via `-c core.hooksPath=<empty>`; the user can trust, and trust is remembered per workspace root in SQLite. | Opening a stranger's folder must not execute their `post-checkout` hook or terminal commands. | Trusting everything: a well-known class of vulnerability. |
 
 ---
 
-## 3. Architecture
+## Architecture
 
-### 3.1 Process model & package layout
+### Process model & package layout
 
 ```
 ┌─────────────────────────── Electron app ───────────────────────────┐
@@ -165,7 +148,7 @@ GitTreeDesk/
 
 Rules: `git-core`, `workspace-core`, `terminal-core`, `commit-msg` never import Electron; the main process may import all of them; the renderer imports only `shared` and `ui`.
 
-### 3.2 Repository discovery & identity
+### Repository discovery & identity
 
 *Scope: v1.*
 
@@ -179,11 +162,11 @@ Algorithm (runs in main, chunked so the UI can stream results):
 6. Submodule detection: a repository containing `.gitmodules` is flagged; submodule status is read lazily on expand (`git submodule status`), never during initial scan.
 7. Incremental discovery: the workspace root and first-level directories are watched shallowly; create/rename events re-run a scoped mini-scan of the affected subtree only.
 
-Identity (AD-11): `repoId` = realpath(git common dir), stable across moves of worktree folders; the registry stores `relPath`, `gitDir`, `commonDir`, `kind` (`repository | worktree | bare`), `parentRepoId`.
+Identity: `repoId` = realpath(git common dir), stable across moves of worktree folders; the registry stores `relPath`, `gitDir`, `commonDir`, `kind` (`repository | worktree | bare`), `parentRepoId`.
 
 Nested repositories inside another repository's working tree are allowed and shown as parent/child; the parent's own `git status` behavior (embedded-repo warnings) is surfaced, not guessed at.
 
-### 3.3 Git execution layer (`git-core`)
+### Git execution layer (`git-core`)
 
 *Scope: v1.*
 
@@ -193,9 +176,9 @@ Nested repositories inside another repository's working tree are allowed and sho
 - Parsers live next to the calls: `status --porcelain=v2 -z --branch`, `for-each-ref`, `log` (streamed, NUL-delimited custom format), `worktree list --porcelain`, `submodule status`, `stash list`, `rev-list --count`. All parsers tested against fixture repositories including CJK paths, spaces, newlines in file names.
 - Operation models: each mutating operation is defined once as `{ preconditions, command plan, backupRef?, conflictBehavior, postValidate }` so the UI (context menus, graph, palette) triggers the same code path. Conflict detection (exit codes + git-dir state files) is uniform.
 - Credential flows: rely on the system credential helper / SSH agent first; optionally an in-app askpass helper (`GIT_ASKPASS`) with a secure prompt (credentials are never logged). Push/pull failures map to typed errors (auth / non-fast-forward / network / hook-rejected).
-- Hooks: executed by Git itself, output streamed into the operation dialog; in untrusted workspaces suppressed via `core.hooksPath` override (AD-13).
+- Hooks: executed by Git itself, output streamed into the operation dialog; in untrusted workspaces suppressed via `core.hooksPath` override.
 
-### 3.4 Status model & refresh lifecycle
+### Status model & refresh lifecycle
 
 *Scope: v1.*
 
@@ -210,13 +193,13 @@ stashCount · worktrees[] (branch, path, locked/ prunable) · submodulesPresent:
 
 Refresh rules:
 
-1. Event-driven first (AD-08); a 250–300 ms debounce coalesces bursts (a big checkout fires thousands of events).
+1. Event-driven first; a 250–300 ms debounce coalesces bursts (a big checkout fires thousands of events).
 2. Cheap-skip: before re-running `git status`, stat `index` (mtime + size), `HEAD`, and the operation-state marker files; unchanged ⇒ reuse cached status.
 3. Untracked files: `--untracked-files=normal` by default; `all` is a per-repo opt-in. Repositories with pathological untracked counts get a capped list plus "show more" instead of a frozen refresh.
 4. Background warm-up: on workspace open, repositories are refreshed in priority order (visible rows first, expanded nodes, then the rest) at pool concurrency; results stream to the renderer in batches through a throttled channel (≤ 30 UI updates/s).
 5. Safety-net polling (default 60 s, configurable, default off when watchers are healthy) covers network drives and platforms with watcher limits.
 
-### 3.5 File watching
+### File watching
 
 *Scope: v1.*
 
@@ -228,7 +211,7 @@ Refresh rules:
 - Degradation: on watcher error / network filesystem detection, that scope falls back to interval polling with backoff; the status bar shows a subtle "polling" indicator for affected repositories.
 - Budgets: total watcher count is bounded (repositories × 1 + expanded dirs); on Linux, exceeding the inotify budget degrades the newest subscriptions to polling and notifies once.
 
-### 3.6 IPC contract
+### IPC contract
 
 *Scope: v1.* All channels are typed in `packages/shared` and validated with zod on the main side. Naming: `domain:action`. Requests are `invoke` (promise); streams are events over a throttled channel; terminal data uses a dedicated `MessagePort`.
 
@@ -249,7 +232,7 @@ Refresh rules:
 | `settings:get/set/onDidChange` | invoke + event | scoped (user/workspace) |
 | `trust:query/grant` | invoke | workspace trust state |
 
-### 3.7 Persistence
+### Persistence
 
 *Scope: v1.*
 
@@ -267,7 +250,7 @@ Refresh rules:
 }
 ```
 
-`.gitreedesk/terminal.json` (any directory — cascades, nearest wins per key; see F8).
+`.gitreedesk/terminal.json` (any directory — cascades, nearest wins per key; see the terminal section).
 
 `.gitreedesk/settings.json` (workspace-scope settings overrides; user-scope lives in `userData/settings.json`).
 
@@ -286,59 +269,59 @@ CREATE TABLE ui_state     (key TEXT PRIMARY KEY, value TEXT);   -- recent worksp
 CREATE TABLE oplog        (id INTEGER PRIMARY KEY, repo_id INT, op TEXT, backup_ref TEXT NULL, at INTEGER, undo_state TEXT);
 ```
 
-### 3.8 Security & trust model
+### Security & trust model
 
 *Scope: v1.*
 
 - Renderer: `contextIsolation: true`, `sandbox: true`, `nodeIntegration: false`, strict CSP, `will-navigate`/`setWindowOpenHandler` deny-by-default; all external links open in the OS browser.
 - All file and Git access goes through main-process services; renderer-supplied paths are resolved and validated against the workspace root (plus explicitly registered external worktree paths) before use.
 - No shell string interpolation anywhere in the Git layer or terminal quick commands (argument arrays only). Quick commands are **never auto-run**.
-- Untrusted workspace gating (AD-13) governs hooks, quick commands, and (future) tasks.
+- Untrusted workspace gating governs hooks, quick commands, and (future) tasks.
 - LLM commit generation is off by default; enabling it requires explicit configuration, and each request shows a "sends staged diff to \<host\>" disclosure in the UI and in settings. API keys are stored with `safeStorage` (OS keychain); on Linux without a keyring, the app degrades to session-only keys with a clear notice rather than plaintext.
 - Secrets never appear in logs, crash reports, or the operation log.
 
-### 3.9 i18n, theming, keyboard-first, motion
+### i18n, theming, keyboard-first, motion
 
 *Scope: v1.*
 
-- **i18n** (AD-10): react-i18next; English strings are the source (`t('workspace.emptyState')` with co-located `locales/en/…json`); locale namespaces per feature area; `Intl.DateTimeFormat`/`NumberFormat` for presentation; locale switch applies live without reload; a dev-only pseudo-locale (`en-XA`) inflates strings to catch truncation. Lint rule fails CI on string literals in JSX.
+- **i18n**: react-i18next; English strings are the source (`t('workspace.emptyState')` with co-located `locales/en/…json`); locale namespaces per feature area; `Intl.DateTimeFormat`/`NumberFormat` for presentation; locale switch applies live without reload; a dev-only pseudo-locale (`en-XA`) inflates strings to catch truncation. Lint rule fails CI on string literals in JSX.
 - **Theming**: three modes — `system | light | dark` (system is the default and follows OS live). Design tokens are CSS variables consumed by Tailwind v4; a Monaco theme pair (light/dark) is generated from the same tokens so editor and chrome never drift. Dark mode is designed first, not derived.
-- **Keyboard-first** (§5) — invariants: every feature reachable via command palette; no operation is mouse-only; focus is never stolen (terminal/editor/dialog rules in §5); animations ≤ 150 ms, interruptible, never gate focus or input; `prefers-reduced-motion` respected; visible focus rings everywhere.
+- **Keyboard-first** — invariants: every feature reachable via command palette; no operation is mouse-only; focus is never stolen (terminal/editor/dialog focus rules in the UX blueprint); animations ≤ 150 ms, interruptible, never gate focus or input; `prefers-reduced-motion` respected; visible focus rings everywhere.
 - **a11y baseline**: Radix primitives, full tab order through all panels, all tree/list views navigable with arrows/Enter/Space, status conveyed by icon + color + tooltip (never color alone).
 
 ---
 
-## 4. Features
+## Features
 
-### F1 — Workspace open & recent list
+### Workspace open & recent list
 
-*Scope: v1.* Welcome view with recent workspaces (from `ui_state`), "Open folder…" dialog, and drag-a-folder-onto-window. Single window per app instance in v1 (multi-window is an open question, §9). Opening a workspace: register in SQLite → show cached tree immediately if present → start incremental scan + background status warm-up. First open shows the trust prompt (AD-13). Workspace switching is in-place (no restart). Closing keeps watch state only for the active workspace; other workspaces are dropped.
+*Scope: v1.* Welcome view with recent workspaces (from `ui_state`), "Open folder…" dialog, and drag-a-folder-onto-window. Single window per app instance in v1. Opening a workspace: register in SQLite → show cached tree immediately if present → start incremental scan + background status warm-up. First open shows the trust prompt. Workspace switching is in-place (no restart). Closing keeps watch state only for the active workspace; other workspaces are dropped.
 
-### F2 — Trees: Explorer view & Repos view
+### Trees: Explorer view & Repos view
 
 *Scope: v1.*
 
 Two coordinated views over the same registry:
 
-- **Explorer view** — the real filesystem tree: folders as-is, repositories marked with a badge (branch name or short-sha), worktree folders marked with a worktree glyph. Lazy directory reads; expanded-directory watching per AD-08. File operations: new file/folder, rename, delete (moves to OS trash via `shell.trashItem` — reversible), reveal in OS file manager, copy path, "Open in VSCode", "Open terminal here", "Compare two selected files".
+- **Explorer view** — the real filesystem tree: folders as-is, repositories marked with a badge (branch name or short-sha), worktree folders marked with a worktree glyph. Lazy directory reads; expanded-directory watching. File operations: new file/folder, rename, delete (moves to OS trash via `shell.trashItem` — reversible), reveal in OS file manager, copy path, "Open in VSCode", "Open terminal here", "Compare two selected files".
 - **Repos view** — the logical view: groups (configured or derived from the first path segment), repositories as first-class rows showing name, current branch/ref, badges, and children nested: **linked worktrees** (with their own branch) and **submodules** (initialized or not) appear under their main repository; external worktrees appear greyed with their absolute path when enabled.
 
-Badges & view options: each badge type is individually toggleable — `dirty dot`, `ahead/behind counts`, `stash count`, `in-progress operation`, `detached HEAD`, `submodules pending`. Quick filters: "only dirty", "only ahead/behind", "only worktrees", plus a per-repo checkbox set deciding which repositories contribute to the SCM view (F7) and to any future aggregate surfaces. Repo rows support multi-select for batch operations (fetch all selected, pull all, open terminals).
+Badges & view options: each badge type is individually toggleable — `dirty dot`, `ahead/behind counts`, `stash count`, `in-progress operation`, `detached HEAD`, `submodules pending`. Quick filters: "only dirty", "only ahead/behind", "only worktrees", plus a per-repo checkbox set deciding which repositories contribute to the SCM view and to any future aggregate surfaces. Repo rows support multi-select for batch operations (fetch all selected, pull all, open terminals).
 
 Both views render with virtualization (TanStack Virtual) and keyboard navigation (↑/↓, ←/→ collapse/expand, Enter open, Space stage-toggles in SCM only).
 
-### F3 — Worktrees first-class
+### Worktrees first-class
 
 *Scope: v1.*
 
-- **Display**: linked worktrees are nested under their main repository in the Repos view (AD-11 identity), labelled `<branch> @ <path>`; the main worktree shows a "main" marker.
+- **Display**: linked worktrees are nested under their main repository in the Repos view, labelled `<branch> @ <path>`; the main worktree shows a "main" marker.
 - **Create**: dialog with source repository, new-or-existing branch picker (existing branch gets a "already checked out elsewhere" guard — Git forbids the same branch in two worktrees), base ref for new branches, target path with a configurable template. Default template: `{worktreeRoot}/{repo}_{branch-slug}` where `branch-slug` replaces `/` with `-` (e.g. `__worktree__/mobile-app_worktree-feat-dark-mode` — `worktreeRoot` defaults to `<workspace>/__worktree__`, path template itself is configurable). New `__worktree__` roots are auto-excluded from discovery noise and shown under the parent repo instead.
-- **Remove / prune / lock / unlock / move**: all exposed; remove refuses on dirty worktree unless force (with confirm + backup ref), prunes on demand and after fetch.
-- Worktree rows are fully operable: every Git feature in F4/F5 works on the worktree's repository context with that worktree's working tree.
+- **Remove / prune / lock / unlock** are exposed; **move** is *Later*. Remove refuses on a dirty worktree unless forced (with confirm + backup ref); pruning runs on demand and after fetch.
+- Worktree rows are fully operable: every Git feature works on the worktree's repository context with that worktree's working tree.
 
-### F4 — Git operations
+### Git operations
 
-*Scope: v1.* All operations are defined once in `git-core` (AD: §3.3) and surfaced uniformly in context menus, buttons, command palette, and the graph. Every destructive operation gets a backup ref + Undo affordance (AD-12).
+*Scope: v1.* All operations are defined once in `git-core` and surfaced uniformly in context menus, buttons, command palette, and the graph. Every destructive operation gets a backup ref + Undo affordance.
 
 **Files & staging**
 
@@ -352,20 +335,20 @@ Both views render with virtualization (TanStack Virtual) and keyboard navigation
 
 **Commit**
 
-- Commit staged (message box with generation button — F9), commit with sign-off, amend (keep message / edit message / include working tree), commit-and-push.
-- Hook output (pre-commit/prepare-commit-msg) streamed into the commit panel; failures keep the message; untrusted-workspace hooks suppression per AD-13.
+- Commit staged (message box with the generation button), commit with sign-off, amend (keep message / edit message / include working tree), commit-and-push.
+- Hook output (pre-commit/prepare-commit-msg) streamed into the commit panel; failures keep the message; untrusted-workspace hook suppression.
 - GPG signing: *Later.*
 
 **History editing — a given commit's message / author / date**
 
 - HEAD commit: `commit --amend` with `--author`, `--date`, and (for committer date) `GIT_COMMITTER_DATE` env.
 - Any earlier commit (or a batch, in one pass): scripted interactive rebase — rebase `--interactive` up to the target's parent with `GIT_SEQUENCE_EDITOR` marking targets as `edit` (sequence list, not a TTY), then per stop: `git commit --amend --author=… --date=… -m …` (non-interactive `GIT_EDITOR`), then `rebase --continue`. Preconditions: clean worktree (else offer auto-stash), backup ref created, hard warning when the branch is pushed ("rewrites published history" + explicit confirm). After completion: "Undo" restores the backup ref.
-- Also supported from the graph context menu on a commit (F5).
+- Also supported from the graph context menu on a commit.
 
 **Branch / remote / tags**
 
 - Branch: create (from any ref), rename, delete (guards: unmerged → warning + backup; current branch undeletable), checkout (dirty-tree guard with auto-stash option; detached-HEAD warning with "create branch here" shortcut), set upstream, compare with current (opens diff scope).
-- Remote: add/remove/edit URL, fetch (single repo / all repos, prune option, tag-follow option), pull (strategy per repo in workspace settings: `ff-only | merge | rebase`), push (branch picker, set-upstream, `--force-with-lease` behind a double confirm when history diverged), push tags.
+- Remote: add/remove/edit URL, fetch (single repo / all repos, prune option, tag-follow option), pull (strategy per repository in workspace settings — `ff-only` by default, or `merge` / `rebase`), push (branch picker; the push dialog lists every remote of the repository with the default one preselected, and several remotes can be selected so **one action reaches them all**, each reporting its own result; set-upstream when publishing, `--force-with-lease` behind a double confirm when history diverged), push tags.
 - Tags: list (grouped local/remote), create (annotated/lightweight), delete, push, checkout tag (detached).
 
 **Merge / rebase / cherry-pick / revert / reset / stash / submodules**
@@ -380,7 +363,7 @@ Both views render with virtualization (TanStack Virtual) and keyboard navigation
 
 **Operation-in-progress detection** blocks conflicting operations (e.g., cannot rebase during a merge) with an explanatory dialog offering the legal actions.
 
-### F5 — Commit graph
+### Commit graph
 
 *Scope: v1, per repository.*
 
@@ -389,33 +372,33 @@ Both views render with virtualization (TanStack Virtual) and keyboard navigation
 - Row content: lane graph, refs (local/remote/tags/HEAD with distinct chips), subject, author, relative date, "incoming/outgoing" markers relative to upstream and current branch.
 - Filters: refs multi-select, author, path (with rename detection off in v1), date range, message text, and "only reachable from current branch".
 - Commit details side panel: full message, author + committer (name/email/date), file list with stats; clicking a file opens the commit diff in the editor area.
-- Commit actions (context menu, reuse of F4 operation models): checkout, create branch/tag here, cherry-pick, revert, reset here *(soft/mixed/hard)*, copy SHA / ref name, rebase current onto this commit, interactive rebase from this commit, **edit message / author / date** (F4 history editing), select for compare (diff two arbitrary commits).
-- Cross-repo "activity" aggregate is *Later* (§9).
+- Commit actions (context menu, reusing the operation models): checkout, create branch/tag here, cherry-pick, revert, reset here *(soft/mixed/hard)*, copy SHA / ref name, rebase current onto this commit, interactive rebase from this commit, **edit message / author / date** (F4 history editing), select for compare (diff two arbitrary commits).
+- A cross-repo "activity" aggregate is *Later*.
 
-### F6 — Editor
+### Editor
 
 *Scope: v1.*
 
-- Monaco with local bundling (AD-05); tabs (open editors list, dirty indicator, close/close-others), split view *Later*.
+- Monaco with local bundling; tabs (open editors list, dirty indicator, close/close-others), split view *Later*.
 - Language features: highlighting for all bundled languages (lazy-loaded contributions); TypeScript/JavaScript hints via the built-in TS worker with best-effort configuration — nearest `tsconfig.json` `compilerOptions` + stdlib; no `node_modules` type resolution in v1 (documented limitation). The **"Open in VSCode"** button (`code --goto <path>:<line>[:<col>]`, command configurable; falls back to reveal-in-OS) is the explicit escape hatch for project-wide IntelliSense/refactoring.
 - Save (Ctrl/Cmd+S): atomic write; external-change detection (mtime+hash on focus and before save) → conflict dialog (overwrite / reload / diff). Read-only guard for files > 10 MB (open read-only with confirm); binary files open with a preview (images) or offer open-externally.
 - Minimal editing settings only: font size/family, tab size, insert-spaces, word wrap, minimap on/off. This is not an IDE: no format-on-save, no tasks, no multi-root workspaces, no extensions.
 
-### F7 — Changes list & diff
+### Changes list & diff
 
 *Scope: v1.*
 
-- **SCM view** (activity bar): repository sections — which repositories appear is governed by F2's per-repo checkboxes; each section shows staged / unstaged / untracked / conflicted groups (each group's visibility individually toggleable), a commit box (message + generate + commit/amend/stage-all), and its in-progress operation banner.
+- **SCM view** (activity bar): repository sections — which repositories appear is governed by the per-repo checkboxes in the Repos view; each section shows staged / unstaged / untracked / conflicted groups (each group's visibility individually toggleable), a commit box (message + generate + commit/amend/stage-all), and its in-progress operation banner.
 - File rows: status icon (M/A/D/R/U/!/C), staged vs unstaged, hover actions (stage/unstage/discard), multi-select, click → diff.
 - **Diff view**: Monaco diff editor (side-by-side ⇄ inline toggle), whitespace-ignore toggle, word-wrap; rename-aware; binary files show size info; images get a 2-up before/after preview (onion slider *Later*); hunk actions from the diff margin: stage hunk / revert hunk; "Compare with…" picker (INDEX / HEAD / any ref / another branch) for a file or a whole repository scope.
 - **File history**: per-file `git log` list (rename-follow *Later*), clicking a revision opens that revision's diff for the file.
-- Empty states and skeleton loaders per §5.
+- Empty states and skeleton loaders follow the UX blueprint.
 
-### F8 — Terminal
+### Terminal
 
 *Scope: v1.*
 
-- Sessions: node-pty in the pty host (AD-06), @xterm/xterm in the renderer; multiple terminals (tabs), each pinned to a working directory (repository root / any folder / file's directory); sessions survive renderer reloads; "Open terminal here" from Explorer, Repos, SCM, and diff views.
+- Sessions: node-pty in the pty host, @xterm/xterm in the renderer; multiple terminals (tabs), each pinned to a working directory (repository root / any folder / file's directory); sessions survive renderer reloads; "Open terminal here" from Explorer, Repos, SCM, and diff views.
 - Profiles: auto-detected defaults — Windows: PowerShell 7 (`pwsh`) if present, Windows PowerShell, `cmd`, Git Bash (from the detected Git install), installed WSL distros; macOS/Linux: `$SHELL`, plus `bash`/`zsh`/`fish` if present. Each profile: shell path, args, env, cwd template, icon/color. Full env: `{...process.env, ...profile.env, TERM, GITREEDESK_*}` (no inherited `GIT_*` leakage of our own commands).
 - **Cascading configuration**: `<any dir>/.gitreedesk/terminal.json`; resolution walks from the workspace root down to the target directory, deeper files override per key; `profiles` and `quickCommands` merge by name (deeper wins). Precedence for selects: nearest file, then workspace settings, then user settings.
 
@@ -431,17 +414,17 @@ Both views render with virtualization (TanStack Virtual) and keyboard navigation
 }
 ```
 
-- Quick commands: listed in the terminal toolbar, the command palette, and a per-directory picker; `cwd` tokens `{dir}` / `{repoRoot}` / `{workspaceRoot}`; executed as argv (or via `shellCommand: true` for pipes, still never auto-run); disabled entirely in untrusted workspaces (AD-13).
+- Quick commands: listed in the terminal toolbar, the command palette, and a per-directory picker; `cwd` tokens `{dir}` / `{repoRoot}` / `{workspaceRoot}`; executed as argv (or via `shellCommand: true` for pipes, still never auto-run); disabled entirely in untrusted workspaces.
 - Terminal UX: links (URL → browser; `path:line` → editor), multi-line paste warning, scrollback setting, Cmd/Ctrl+C/V semantics per platform. Shell integration (cwd/command tracking in tab titles) is *Later*.
 
-### F9 — Commit message generation
+### Commit message generation
 
-*Scope: v1, dual-mode (AD-09).*
+*Scope: v1, dual-mode.*
 
 - Pipeline: (1) read staged diff (name-status + numstat + unified hunks, size-capped); (2) detect repository convention — commitlint config files, `.gitmessage` template, and style inference from the last 100 non-merge subjects (conventional-commits pattern `^(type)(\(scope\))?!?:`, prefix style, average length, language of subjects); (3) offline draft — infer type from change nature (file patterns + diff heuristics), scope from common path segment, subject from the dominant change; body bullets from grouped numstat; confidence-based: if no convention is detectable, produce a neutral, descriptive draft rather than guessing; (4) optional LLM provider — OpenAI-compatible base URL + model + key (`safeStorage`), streaming into the commit box, cancelable, strict timeout (default 30 s) with automatic offline fallback and a notice; prompt = convention profile + capped diff + explicit "output only the message" instruction.
 - UX: generate button in the commit box (per repository), "regenerate", variant picker when the draft is weak; the draft is always editable and **never auto-commits**; per-request disclosure of what is sent and where (first use per host shows a confirm). Multi-repo batch generation is *Later*.
 
-### F10 — Command palette & keybindings
+### Command palette & keybindings
 
 *Scope: v1.*
 
@@ -464,7 +447,7 @@ Both views render with virtualization (TanStack Virtual) and keyboard navigation
 | Alt+←/→ / ⌥←→ | Editor navigation history |
 | Esc | Close transient UI; never closes the editor tab |
 
-### F11 — Settings
+### Settings
 
 *Scope: v1.*
 
@@ -472,7 +455,7 @@ Both views render with virtualization (TanStack Virtual) and keyboard navigation
 - Scopes: `userData/settings.json` (user) → `.gitreedesk/settings.json` (workspace overrides) → per-repo overrides map (e.g., `repos: { "backend/api-server": { pullStrategy: "rebase" } }`).
 - Key setting groups: appearance (theme mode, density, accent), git (git path override, concurrency, polling interval, default pull strategy, untracked strategy), terminal (default profile), commit message (provider preset, base URL, model, temperature), advanced (log verbosity for support).
 
-### F12 — Platform & packaging
+### Platform & packaging
 
 *Scope: v1.*
 
@@ -480,11 +463,11 @@ Both views render with virtualization (TanStack Virtual) and keyboard navigation
 - CI: GitHub Actions matrix builds all three platforms; `electron-rebuild` for native deps (better-sqlite3, node-pty, @parcel/watcher) with prebuilt-binary caching; a smoke test boots the packaged app and opens a fixture workspace.
 - Platform integration: native menu bar on macOS (app menu + edit menu with standard clipboard roles — required for Cmd+C/V to work at all on macOS), frameless window with custom titlebar on Windows/Linux (native frame fallback setting); keyboard shortcuts use Cmd on macOS everywhere.
 - Data locations: `%APPDATA%/GitTreeDesk`, `~/Library/Application Support/GitTreeDesk`, `~/.config/GitTreeDesk` (`settings.json`, `keybindings.json`, `cache.db`, `logs/`).
-- Auto-update (electron-updater) is *Later* (§9); v1 ships with a manual download page link in the About dialog.
+- Auto-update (electron-updater) is *Later*; v1 ships a manual download link in the About dialog.
 
 ---
 
-## 5. UX blueprint
+## UX blueprint
 
 Layout (VSCode-familiar, denser, keyboard-first):
 
@@ -508,32 +491,32 @@ Interaction rules:
 
 - **States**: every async surface has skeleton → content → empty state (with a primary action) → error state (with retry + "copy details"); never a spinner without text when the wait exceeds ~800 ms.
 - **Focus discipline**: opening dialogs/panels never scrolls or reflows the tree underneath; notifications (toasts) never steal focus; Esc cancels the topmost transient layer only.
-- **Motion policy** (G10/§3.9): tokens `--motion-fast: 120ms`, `--motion-base: 150ms`; fades/slides only (no layout-thrashing animations); list virtualization uses no enter animations; `prefers-reduced-motion: reduce` ⇒ 0 ms.
+- **Motion policy**: tokens `--motion-fast: 120ms`, `--motion-base: 150ms`; fades/slides only (no layout-thrashing animations); list virtualization uses no enter animations; `prefers-reduced-motion: reduce` ⇒ 0 ms.
 - **Badge legend** (also in onboarding): ● dirty · ↓n/↑n behind/ahead · ⚑ stash · ⟳ operation in progress · ⚯ worktree · ◇ submodule pending · detached marker.
 - **Density**: comfortable by default, compact option; row height 22 px compact / 28 px comfortable.
 - **Onboarding**: first-run tour (open a folder, trust prompt, hotkeys card) skippable, shown once.
 
-## 6. Milestones
+## Milestones
 
 Each milestone ends in a demo-able outcome. Sizes are relative (S ≪ L), not calendar promises.
 
-| # | Milestone | Size | Delivers | Demo |
-|---|-----------|------|----------|------|
-| M0 | Skeleton | S | pnpm workspace, Electron shell, IPC contract + zod, settings, theming (system/light/dark), i18n wiring (en/zh-Hans), trust prompt, CI matrix stub | App opens, switches theme/locale live |
-| M1 | Workspace & trees | M | Discovery + registry (SQLite), Explorer + Repos views (virtualized), badges + view options, watcher skeleton (git-dir watching), status model + warm-up scheduler | A 50+ repo workspace opens; full tree ≤ budget; statuses stream in; CJK paths correct |
-| M2 | Changes & diff & commit | M | SCM view (multi-repo, toggles), hunk/file staging, discard (trash for untracked), Monaco diff (side-by-side/inline), commit box, file history | Complete local commit flow inside the app |
-| M3 | Core Git operations | L | Branches, remotes, fetch/pull/push, merge/rebase(interactive), cherry-pick, revert, reset, stash, tags, conflict flow, op-in-progress banner, backup refs + undo | SourceTree-parity for everyday flows; conflict resolution end-to-end |
-| M4 | Worktrees & submodules | M | Worktree CRUD + grouping + templates; submodule status + "Update all" (streamed); external worktree support | Create a worktree from the UI; fix the workspace's submodules in one click |
-| M5 | Commit graph | L | Graph tab (lanes, virtualization, paging), filters, commit details, commit actions, **history editing** (message/author/date) with backup + undo | Edit an old commit's message/author/date and undo it |
-| M6 | Editor & terminal | L | Monaco tabs + save/conflict handling + "Open in VSCode"; pty host + xterm, profiles, cascading terminal.json, quick commands, tabs | Per-directory terminal config; quick command launch |
-| M7 | Commit generation | M | Convention detection, offline drafts, LLM provider (opt-in, streaming, keychain), settings UI | One-click draft from staged diff in both modes |
-| M8 | Polish & release | M | Keyboard cheatsheet, perf pass vs budgets, packaging all platforms, About/update page, onboarding | Signed-ready installers for the three platforms |
+| Milestone | Size | Delivers | Demo |
+|-----------|------|----------|------|
+| Skeleton | S | pnpm workspace, Electron shell, IPC contract + zod, settings, theming (system/light/dark), i18n wiring (en/zh-Hans), trust prompt, CI matrix stub | App opens, switches theme/locale live |
+| Workspace & trees | M | Discovery + registry (SQLite), Explorer + Repos views (virtualized), badges + view options, watcher skeleton (git-dir watching), status model + warm-up scheduler | A 50+ repo workspace opens; full tree ≤ budget; statuses stream in; CJK paths correct |
+| Changes & diff & commit | M | SCM view (multi-repo, toggles), hunk/file staging, discard (trash for untracked), Monaco diff (side-by-side/inline), commit box, file history | Complete local commit flow inside the app |
+| Core Git operations | L | Branches, remotes, fetch/pull/push, merge/rebase(interactive), cherry-pick, revert, reset, stash, tags, conflict flow, op-in-progress banner, backup refs + undo | SourceTree-parity for everyday flows; conflict resolution end-to-end |
+| Worktrees & submodules | M | Worktree CRUD + grouping + templates; submodule status + "Update all" (streamed); external worktree support | Create a worktree from the UI; fix the workspace's submodules in one click |
+| Commit graph | L | Graph tab (lanes, virtualization, paging), filters, commit details, commit actions, **history editing** (message/author/date) with backup + undo | Edit an old commit's message/author/date and undo it |
+| Editor & terminal | L | Monaco tabs + save/conflict handling + "Open in VSCode"; pty host + xterm, profiles, cascading terminal.json, quick commands, tabs | Per-directory terminal config; quick command launch |
+| Commit generation | M | Convention detection, offline drafts, LLM provider (opt-in, streaming, keychain), settings UI | One-click draft from staged diff in both modes |
+| Polish & release | M | Keyboard cheatsheet, perf pass vs budgets, packaging all platforms, About/update page, onboarding | Signed-ready installers for the three platforms |
 
-Ordering rationale: M2 before M3 (a working commit flow makes the tool usable immediately and validates the op-model design); graph after core ops because commit actions reuse them; editor/terminal after the Git core because "Open in VSCode" covers editing meanwhile.
+Ordering rationale: the changes/commit flow comes before core Git operations (a working commit flow makes the tool usable immediately and validates the operation-model design); the commit graph follows the core operations because its actions reuse them; editor and terminal come after the Git core because "Open in VSCode" covers editing meanwhile.
 
-## 7. Performance budgets
+## Performance budgets
 
-Budgets are release gates for v1, measured on the reference scenario (§1.4) on a mid-range 2024 laptop, SSD, Windows first.
+Budgets are release gates for v1, measured on the reference scenario on a mid-range 2024 laptop, SSD, Windows first.
 
 | Metric | Budget | Measurement |
 |---|---|---|
@@ -550,37 +533,33 @@ Budgets are release gates for v1, measured on the reference scenario (§1.4) on 
 
 Budget failures are treated as bugs, not polish; the dev overlay (toggleable, showing scan/status/op latencies and watcher counts) ships in dev builds.
 
-## 8. Risks & mitigations
+## Risks & mitigations
 
 | Risk | Mitigation |
 |---|---|
 | Windows long paths (> 260 chars) | per-command `-c core.longpaths=true`, `\\?\`-prefixed Node fs calls, documented guidance for users who hit nested-limit cases |
 | Unicode/CJK paths (e.g. `content/中文文档`) | all porcelain parsing on `-z` NUL output with `core.quotepath` neutralized; fixtures include CJK/space/newline paths in tests |
-| Credential prompts hanging operations | `GIT_TERMINAL_PROMPT=0` + typed auth errors + in-app askpass (M3); SSH agent passthrough |
-| Git hooks running from untrusted workspaces | trust gating + `core.hooksPath` suppression (AD-13) |
-| inotify watch limits on Linux | bounded watch plan (§3.5), graceful degradation to polling with one-time notice |
+| Credential prompts hanging operations | `GIT_TERMINAL_PROMPT=0` + typed auth errors + in-app askpass; SSH agent passthrough |
+| Git hooks running from untrusted workspaces | trust gating + `core.hooksPath` suppression |
+| inotify watch limits on Linux | bounded watch plan, graceful degradation to polling with one-time notice |
 | One giant repository dominates cost | per-repo untracked strategy, status caps, graph "huge repo" windowing mode |
 | node-pty / better-sqlite3 native builds vs Electron ABI | `electron-rebuild` in CI with prebuilt caching; packaged-app smoke test per platform |
-| Monaco TS hints are file-level, not project-wide | explicit product framing (G6), "Open in VSCode" escape hatch, LSP bridge on the later roadmap |
-| History rewrite corrupts a branch | backup refs + guarded preconditions + undo (AD-12); integration tests on fixture repos |
+| Monaco TS hints are file-level, not project-wide | explicit product framing, the "Open in VSCode" escape hatch, LSP bridge on the later roadmap |
+| History rewrite corrupts a branch | backup refs + guarded preconditions + undo; integration tests on fixture repos |
 | Windows AV / file locks on `.git` during ops | retry with backoff on EBUSY/EPERM; user-facing "another process holds this repo" diagnostics |
 | Git version spread (2.23…latest) | startup version probe + feature gating; warn below 2.36 |
 | Watcher event storms on big checkouts | 250–300 ms debounce + coalescing; refresh budget per repo |
 | CRLF / attributes surprises | never normalize; respect `core.autocrlf`/`.gitattributes` (Git does that for us); display raw diff with whitespace toggle |
 | `safeStorage` weak fallback on Linux without keyring | session-only keys + explicit notice (never plaintext persistence) |
 
-## 9. Open questions
+## Open questions
 
-1. **Bundled portable Git** on Windows/macOS for zero-dependency installs — decide after first user feedback (currently: system Git required).
-2. **Cross-repo activity feed / multi-repo graph** — README mentions "history across repositories"; v1 is per-repo graph only. Confirm whether an aggregate timeline is wanted soon.
-3. **Auto-update channel** and hosting (GitHub Releases vs object storage); unsigned-macOS distribution expectations.
-4. **Multi-window / multi-workspace** in one app instance — v1 is single-window.
-5. **"Selectable change display" exact intent** — "select which repos/changes to display": currently designed as *both* per-repo checkboxes in the SCM view *and* per-group/per-badge visibility toggles. Confirm.
-6. zh-Hans locale quality bar for v1 (currently: shipped, community-reviewable).
+- **Bundled portable Git** on Windows/macOS for zero-dependency installs — decide after first user feedback (v1 requires system Git).
+- **Auto-update channel** and hosting (GitHub Releases vs object storage) — the mechanism itself is post-v1; v1 links to the download page from the About dialog.
 
-## 10. Appendices
+## Appendices
 
-### A. User-scope settings example (`settings.json`)
+### User-scope settings example (`settings.json`)
 
 ```jsonc
 {
@@ -590,7 +569,7 @@ Budget failures are treated as bugs, not polish; the dev overlay (toggleable, sh
     "path": null,                      // null = auto-detect
     "concurrency": 6,
     "pollIntervalSec": 60,
-    "defaultPullStrategy": "rebase",   // ff-only | merge | rebase
+    "defaultPullStrategy": "ff-only",  // ff-only | merge | rebase
     "untrackedStrategy": "normal"      // normal | all (per-repo override)
   },
   "commitMessage": {
@@ -602,15 +581,15 @@ Budget failures are treated as bugs, not polish; the dev overlay (toggleable, sh
 }
 ```
 
-### B. IPC channel draft
+### IPC channel draft
 
-See §3.6 table — canonical list lives in `packages/shared/src/ipc.ts` (generated docs).
+The canonical list lives in `packages/shared/src/ipc.ts`.
 
-### C. Default keybindings
+### Default keybindings
 
-See F10 table — canonical list lives in `apps/desktop/src/renderer/src/keymap/defaults.ts`.
+The canonical list lives in `apps/desktop/src/renderer/src/keymap/defaults.ts`.
 
-### D. Competitor notes (UX inspiration, not copying)
+### Competitor notes (UX inspiration, not copying)
 
 - **GitKraken** — repo tab organization; our difference: tree-of-repos instead of tabs.
 - **Fork** — diff viewer ergonomics (hunk hit areas, image diff); our difference: multi-repo SCM.
