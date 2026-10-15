@@ -61,9 +61,8 @@ function resolveFromAppPaths(base: string, filename: string): string | null {
     try {
       const output = execSync(`reg query "${key}" /ve`, { windowsHide: true }).toString()
       const match = output.match(/REG_SZ\s+(.+)/i)
-      if (match === null) continue
-      const exe = match[1].trim().replace(/^"|"$/g, '')
-      if (exe.length === 0) continue
+      const exe = match?.[1]?.trim().replace(/^"|"$/g, '')
+      if (exe === undefined || exe.length === 0) continue
       const cli = join(dirname(exe), 'bin', `${base}.cmd`)
       if (existsSync(cli)) return cli
       if (existsSync(exe)) return exe
