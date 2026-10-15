@@ -42,6 +42,9 @@ mac:
 linux:
   icon: build/icon.png
   category: Development
+  # electron-builder falls back to the package name for the binary, and a scoped
+  # name (`@gitreedesk/desktop`) cannot appear in a Linux file path.
+  executableName: GitTreeDesk
   target:
     - AppImage
     - deb
