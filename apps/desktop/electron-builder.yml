@@ -45,6 +45,16 @@ linux:
   # electron-builder falls back to the package name for the binary, and a scoped
   # name (`@gitreedesk/desktop`) cannot appear in a Linux file path.
   executableName: GitTreeDesk
+  # Window/desktop-association: without desktopName, DEs may not link running
+  # windows to the .desktop entry.
+  desktopName: com.gitreedesk.app.desktop
+  synDesktopName: true
   target:
     - AppImage
     - deb
+# The default deb artifact name is `${name}_${version}_${arch}.${ext}`, where
+# `${name}` is the scoped package name (`@gitreedesk/desktop`). That expands to
+# `release/@gitreedesk/desktop_0.1.0_amd64.deb`, but fpm will not create the
+# `@gitreedesk/` parent directory and aborts. Pin a flat name under `release/`.
+deb:
+  artifactName: ${productName}_${version}_${arch}.${ext}
