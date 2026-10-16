@@ -354,7 +354,7 @@ CREATE TABLE oplog        (id INTEGER PRIMARY KEY, repo_id INT, op TEXT, backup_
 **Merge / rebase / cherry-pick / revert / reset / stash / submodule**
 
 - 合并进当前分支：可选 `--no-ff`、`--squash`、`--ff-only`；冲突流程见下。
-- Rebase：把当前分支 rebase 到指定 ref（自动 stash 可选）；交互式 rebase 提供列表编辑器（v1 用按钮调整顺序；行操作：pick / reword / edit / squash / fixup / drop；拖拽排序属*后续*）；continue / skip / abort。
+- Rebase：把当前分支 rebase 到指定 ref（自动 stash 可选）；交互式 rebase 提供列表编辑器（拖动行手柄或用上移 / 下移按钮调整顺序；行操作：pick / reword / edit / squash / fixup / drop）；continue / skip / abort。
 - Cherry-pick：单提交或区间（`A..B`），可选 `--no-commit`；revert 同理。
 - Reset：`--soft | --mixed | --hard` 到任意 ref（`--hard` 需 backup ref + 确认；对话框明确说明将丢失什么）。
 - Stash：创建（消息、含未跟踪、keep-index、按路径子集）、列表可展开文件与 diff、apply / pop / drop（drop 前建 backup ref）、show。

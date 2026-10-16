@@ -354,7 +354,7 @@ Both views render with virtualization (TanStack Virtual) and keyboard navigation
 **Merge / rebase / cherry-pick / revert / reset / stash / submodules**
 
 - Merge into current: options `--no-ff`, `--squash`, `--ff-only`; conflict flow below.
-- Rebase: current onto ref (auto-stash option); interactive rebase with a list editor (rows reorderable with buttons in v1; per-row actions: pick / reword / edit / squash / fixup / drop; drag-ordering is *Later*); continue / skip / abort.
+- Rebase: current onto ref (auto-stash option); interactive rebase with a list editor (rows reorder by dragging a handle or with up/down buttons; per-row actions: pick / reword / edit / squash / fixup / drop); continue / skip / abort.
 - Cherry-pick: single or range (`A..B`), `--no-commit` option; revert same.
 - Reset: `--soft | --mixed | --hard` to any ref (backup ref + confirm for `--hard`; dialog states exactly what will be lost).
 - Stash: create (message, include-untracked, keep-index, path subset), list with expandable file lists and diffs, apply / pop / drop (drop creates a backup ref), show.

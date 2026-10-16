@@ -13,7 +13,7 @@
 - **Rebase current onto…** — pick any ref; a dirty working tree is auto-stashed first (restored after).
 - **Interactive rebase** — from the graph (right-click a commit → "Interactive rebase from here") or the branch picker:
   - A list editor shows the commits to be replayed with one row per commit. Row actions: **pick / reword / edit / squash / fixup / drop** (row buttons).
-  - Reordering is done with move up/down in v1; drag-and-drop reordering is [Later].
+  - Reorder by dragging a row's handle, or with its move up/down buttons — the buttons stay so the plan is keyboard-operable. A line marks where the dragged row lands.
   - During the rebase, the operation banner offers **Continue / Skip / Abort**; stopping on an `edit` row behaves like a pause — amend or run commands, then Continue.
 - Both rebases run in the background without blocking the window; Git's output for the whole run lands in the Output panel and the graph refreshes when the rebase finishes or stops.
 
