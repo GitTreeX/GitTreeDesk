@@ -102,6 +102,7 @@ export const SETTINGS_SURFACE: readonly SettingDescriptor[] = [
   { type: 'boolean', keyPath: ['editor', 'insertSpaces'], group: 'editor', default: true },
   { type: 'boolean', keyPath: ['editor', 'wordWrap'], group: 'editor', default: false },
   { type: 'boolean', keyPath: ['editor', 'minimap'], group: 'editor', default: false },
+  { type: 'string', keyPath: ['editor', 'command'], group: 'editor', default: null, nullable: true },
   { type: 'string', keyPath: ['git', 'path'], group: 'git', default: null, nullable: true },
   { type: 'number', keyPath: ['git', 'concurrency'], group: 'git', default: 6, min: 1, max: 16, integer: true },
   {
@@ -127,6 +128,8 @@ export const SETTINGS_SURFACE: readonly SettingDescriptor[] = [
     default: 'normal',
     options: UNTRACKED_STRATEGY_VALUES
   },
+  { type: 'string', keyPath: ['git', 'worktreeRoot'], group: 'git', default: null, nullable: true },
+  { type: 'string', keyPath: ['merge', 'toolCommand'], group: 'git', default: null, nullable: true },
   { type: 'string', keyPath: ['terminal', 'defaultProfile'], group: 'terminal', default: null, nullable: true },
   {
     type: 'number',

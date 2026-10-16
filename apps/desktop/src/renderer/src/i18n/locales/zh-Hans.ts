@@ -879,11 +879,14 @@ export const zhHansResource: TranslationResource = {
       editorInsertSpaces: '空格缩进',
       editorWordWrap: '自动换行',
       editorMinimap: '代码缩略图',
+      editorCommand: '外部编辑器命令',
       gitPath: 'Git 可执行文件',
       gitConcurrency: 'Git 并发进程数',
       gitPollInterval: '回退轮询间隔',
       gitPullStrategy: '默认拉取策略',
       gitUntrackedStrategy: '未跟踪文件',
+      gitWorktreeRoot: '工作树根目录',
+      mergeToolCommand: '外部合并工具',
       terminalProfile: '默认终端配置',
       terminalScrollback: '回滚缓冲行数',
       commitProvider: '提交信息生成方式',
@@ -896,9 +899,12 @@ export const zhHansResource: TranslationResource = {
       theme: '选择“跟随系统”时随操作系统外观切换。',
       editorFontFamily: '留空使用默认等宽字体。',
       editorInsertSpaces: '缩进时使用空格代替制表符。',
+      editorCommand: '"在 VS Code 中打开" 执行的命令。留空则使用 "code"。',
+      mergeToolCommand: '用外部合并工具打开冲突文件的命令。留空表示不使用合并工具。',
       gitPath: '留空则使用 PATH 中的 Git。',
       gitPollInterval: '文件监听不可用时的回退刷新间隔（秒）。',
       gitUntrackedStrategy: '列出每个未跟踪文件，或保持未跟踪文件夹收起。',
+      gitWorktreeRoot: '新建工作树存放的目录。留空则使用工作区下的 "__worktree__" 目录。',
       terminalProfile: '留空则按目录选择。',
       commitTemperature: '数值越高，生成的草稿越多样。',
       logLevel: '作用于日志文件夹中的日志文件。'
@@ -913,6 +919,17 @@ export const zhHansResource: TranslationResource = {
       untrackedStrategy: { normal: '文件夹收起', all: '列出全部文件' },
       provider: { offline: '离线（内置）', 'openai-compatible': 'OpenAI 兼容接口' },
       logLevel: { error: '错误', warn: '警告', info: '信息', debug: '调试' }
+    },
+    apiKey: {
+      label: 'API 密钥',
+      hint: '保存在操作系统钥匙串中，不会写入设置文件，除上述提供方外也不会发送到任何地方。',
+      placeholder: '粘贴提供方的 API 密钥',
+      save: '保存密钥',
+      remove: '移除',
+      stored: '已保存',
+      sessionOnly: '仅在本次会话内保留——当前系统没有可用的钥匙串',
+      saved: 'API 密钥已保存',
+      removed: 'API 密钥已移除'
     }
   },
   keyboard: {

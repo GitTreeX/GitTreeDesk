@@ -893,11 +893,14 @@ const en = {
       editorInsertSpaces: 'Insert spaces',
       editorWordWrap: 'Word wrap',
       editorMinimap: 'Minimap',
+      editorCommand: 'Open in editor command',
       gitPath: 'Git executable',
       gitConcurrency: 'Concurrent Git processes',
       gitPollInterval: 'Fallback polling interval',
       gitPullStrategy: 'Default pull strategy',
       gitUntrackedStrategy: 'Untracked files',
+      gitWorktreeRoot: 'Worktree folder',
+      mergeToolCommand: 'External merge tool',
       terminalProfile: 'Default terminal profile',
       terminalScrollback: 'Scrollback lines',
       commitProvider: 'Commit-message provider',
@@ -910,9 +913,12 @@ const en = {
       theme: 'System follows the OS appearance.',
       editorFontFamily: 'Leave empty for the default monospace font.',
       editorInsertSpaces: 'Indent with spaces instead of tab characters.',
+      editorCommand: 'Command run by "Open in VS Code". Leave empty to use "code".',
       gitPath: 'Leave empty to use the Git found on PATH.',
       gitPollInterval: 'Seconds between fallback refreshes when file watchers are unhealthy.',
       gitUntrackedStrategy: 'List every untracked file, or keep untracked folders collapsed.',
+      gitWorktreeRoot: 'Folder new worktrees are created under. Empty means a "__worktree__" folder in the workspace.',
+      mergeToolCommand: 'Command that opens a conflicted file in an external merge tool. Empty means no merge tool.',
       terminalProfile: 'Leave empty to choose per folder.',
       commitTemperature: 'Higher values make drafts more varied.',
       logLevel: 'Applies to the log files in the logs folder.'
@@ -927,6 +933,17 @@ const en = {
       untrackedStrategy: { normal: 'Folders collapsed', all: 'List all files' },
       provider: { offline: 'Offline (built-in)', 'openai-compatible': 'OpenAI-compatible API' },
       logLevel: { error: 'Error', warn: 'Warning', info: 'Info', debug: 'Debug' }
+    },
+    apiKey: {
+      label: 'API key',
+      hint: 'Kept in the operating system keychain. It is never written to a settings file or sent anywhere except the provider above.',
+      placeholder: 'Paste the provider API key',
+      save: 'Save key',
+      remove: 'Remove',
+      stored: 'Stored',
+      sessionOnly: 'Kept for this session only — no system keychain is available here',
+      saved: 'API key saved',
+      removed: 'API key removed'
     }
   },
   keyboard: {

@@ -10,7 +10,7 @@ import {
   type StringSettingDescriptor
 } from '@gitreedesk/shared'
 import { api } from '../api'
-import { notifyError } from '../notify'
+import { notify, notifyError } from '../notify'
 
 const GROUPS: readonly SettingGroupId[] = [
   'appearance',
@@ -33,11 +33,14 @@ const LABEL_KEYS: Record<string, string> = {
   'editor.insertSpaces': 'settings.items.editorInsertSpaces',
   'editor.wordWrap': 'settings.items.editorWordWrap',
   'editor.minimap': 'settings.items.editorMinimap',
+  'editor.command': 'settings.items.editorCommand',
   'git.path': 'settings.items.gitPath',
   'git.concurrency': 'settings.items.gitConcurrency',
   'git.pollIntervalSec': 'settings.items.gitPollInterval',
   'git.defaultPullStrategy': 'settings.items.gitPullStrategy',
   'git.untrackedStrategy': 'settings.items.gitUntrackedStrategy',
+  'git.worktreeRoot': 'settings.items.gitWorktreeRoot',
+  'merge.toolCommand': 'settings.items.mergeToolCommand',
   'terminal.defaultProfile': 'settings.items.terminalProfile',
   'terminal.scrollback': 'settings.items.terminalScrollback',
   'commitMessage.provider': 'settings.items.commitProvider',
@@ -51,9 +54,12 @@ const HINT_KEYS: Record<string, string> = {
   'appearance.theme': 'settings.hints.theme',
   'editor.fontFamily': 'settings.hints.editorFontFamily',
   'editor.insertSpaces': 'settings.hints.editorInsertSpaces',
+  'editor.command': 'settings.hints.editorCommand',
+  'merge.toolCommand': 'settings.hints.mergeToolCommand',
   'git.path': 'settings.hints.gitPath',
   'git.pollIntervalSec': 'settings.hints.gitPollInterval',
   'git.untrackedStrategy': 'settings.hints.gitUntrackedStrategy',
+  'git.worktreeRoot': 'settings.hints.gitWorktreeRoot',
   'terminal.defaultProfile': 'settings.hints.terminalProfile',
   'commitMessage.temperature': 'settings.hints.commitTemperature',
   'advanced.logLevel': 'settings.hints.logLevel'
@@ -332,6 +338,102 @@ function SettingRowView({
   )
 }
 
+function ApiKeyRow(): JSX.Element {
+  const { t } = useTranslation()
+  const [status, setStatus] = useState<{ stored: boolean; encrypted: boolean } | null>(null)
+  const [draft, setDraft] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const reload = useCallback(async () => {
+    try {
+      setStatus(await api.invoke('commitmsg:keyStatus'))
+    } catch {
+      setStatus(null)
+    }
+  }, [])
+
+  useEffect(() => {
+    void reload()
+  }, [reload])
+
+  const save = useCallback(async () => {
+    const key = draft.trim()
+    if (key.length === 0 || busy) return
+    setBusy(true)
+    try {
+      setStatus(await api.invoke('commitmsg:setKey', { key }))
+      setDraft('')
+      notify({ message: t('settings.apiKey.saved') })
+    } catch (error) {
+      notifyError(error instanceof Error ? error.message : String(error))
+    } finally {
+      setBusy(false)
+    }
+  }, [busy, draft, t])
+
+  const remove = useCallback(async () => {
+    if (busy) return
+    setBusy(true)
+    try {
+      setStatus(await api.invoke('commitmsg:removeKey'))
+      notify({ message: t('settings.apiKey.removed') })
+    } catch (error) {
+      notifyError(error instanceof Error ? error.message : String(error))
+    } finally {
+      setBusy(false)
+    }
+  }, [busy, t])
+
+  return (
+    <div className="flex items-start gap-3 px-3 py-2.5 hover:bg-ink/[0.03]">
+      <div className="min-w-0 flex-1">
+        <div className="text-sm text-ink">{t('settings.apiKey.label')}</div>
+        <p className="mt-1 max-w-xl text-xs text-muted">{t('settings.apiKey.hint')}</p>
+      </div>
+      <div className="flex shrink-0 flex-col items-end gap-1.5 pt-0.5">
+        <div className="flex items-center gap-1.5">
+          <input
+            type="password"
+            value={draft}
+            placeholder={status?.stored === true ? t('settings.apiKey.stored') : t('settings.apiKey.placeholder')}
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => {
+              if (event.key === 'Enter') {
+                event.preventDefault()
+                void save()
+              }
+            }}
+            className={inputClasses('w-52')}
+          />
+          <button
+            type="button"
+            disabled={busy || draft.trim().length === 0}
+            className="h-7 rounded border border-line px-2 text-xs text-ink hover:bg-ink/5 disabled:opacity-50"
+            onClick={() => void save()}
+          >
+            {t('settings.apiKey.save')}
+          </button>
+          {status?.stored === true && (
+            <button
+              type="button"
+              disabled={busy}
+              className="h-7 rounded border border-line px-2 text-xs text-muted hover:bg-ink/5 hover:text-ink disabled:opacity-50"
+              onClick={() => void remove()}
+            >
+              {t('settings.apiKey.remove')}
+            </button>
+          )}
+        </div>
+        {status?.stored === true && (
+          <span className="text-[11px] text-muted">
+            {status.encrypted ? t('settings.apiKey.stored') : t('settings.apiKey.sessionOnly')}
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export function SettingsView(): JSX.Element {
   const { t } = useTranslation()
   const [docs, setDocs] = useState<{ user: unknown; workspace: unknown } | null>(null)
@@ -372,6 +474,12 @@ export function SettingsView(): JSX.Element {
       return tokens.every((token) => haystack.includes(token))
     })
   }, [rows, tokens, t])
+
+  const apiKeyMatches = useMemo(() => {
+    const haystack =
+      `api key\n${t('settings.apiKey.label')}\n${t('settings.apiKey.hint')}\n${t('settings.groups.commitMessage')}`.toLowerCase()
+    return tokens.every((token) => haystack.includes(token))
+  }, [tokens, t])
 
   const commit = useCallback(
     async (row: SettingRow, raw: unknown): Promise<void> => {
@@ -443,12 +551,13 @@ export function SettingsView(): JSX.Element {
 
         {docs === null ? (
           <p className="mt-6 text-sm text-muted">{t('editor.loading')}</p>
-        ) : visible.length === 0 ? (
+        ) : visible.length === 0 && !apiKeyMatches ? (
           <p className="mt-6 text-sm text-muted">{t('settings.noResults')}</p>
         ) : (
           GROUPS.map((group) => {
             const groupRows = visible.filter((row) => row.descriptor.group === group)
-            if (groupRows.length === 0) return null
+            const showApiKey = group === 'commitMessage' && apiKeyMatches
+            if (groupRows.length === 0 && !showApiKey) return null
             return (
               <section key={group} className="mt-5 first:mt-4">
                 <h2 className="text-xs font-semibold tracking-wide text-muted uppercase">
@@ -464,6 +573,7 @@ export function SettingsView(): JSX.Element {
                       onResetToUser={() => void resetToUser(row)}
                     />
                   ))}
+                  {showApiKey && <ApiKeyRow />}
                 </div>
               </section>
             )
