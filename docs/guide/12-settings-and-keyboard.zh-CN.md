@@ -63,17 +63,17 @@
 | Ctrl+Shift+G | ⇧⌘G | 聚焦 Source Control |
 | Ctrl+` | ⌃` | 切换终端面板 |
 | Ctrl+Enter | ⌘⏎ | 提交已暂存内容 |
-| Space | Space | 暂存/取消暂存选中文件（Source Control 内） |
+| Space | Space | 暂存/取消暂存选中文件（Source Control 内的上下文按键，不可通过 keybindings 改绑） |
 | Ctrl+Shift+F | ⇧⌘F | fetch 当前仓库（Repos 视图内：所选仓库） |
-| F2 | F2 | 重命名文件 / 分支（按焦点） |
-| Delete | Delete | 删除文件（回收站）/ 分支（在分支列表中） |
-| Enter | Enter | 打开 / 确认；提交图中查看提交详情 |
+| F2 | F2 | 重命名 Explorer 中聚焦的文件或文件夹 |
+| Delete | Delete | 将 Explorer 中聚焦的文件或文件夹移入回收站 |
+| Enter | Enter | 打开文件 / 切换树行展开；提交图中查看提交详情（上下文按键，不可改绑） |
 | Alt+← / Alt+→ | ⌥← / ⌥→ | 编辑器导航历史 |
 | Esc | Esc | 关闭最上层临时 UI（绝不关闭编辑器标签） |
 
 ### 自定义
 
-- `keybindings.json` 可覆盖任意默认项。"Keyboard Shortcuts" 标签（命令面板 → "Open keyboard shortcuts"）列出默认值与覆盖项，并在你绑定已占用的组合时**做冲突检测**。
+- `keybindings.json` 可覆盖任意**已注册命令**（上面那些上下文按键不在其中）。"Keyboard Shortcuts" 标签（命令面板 → "Open keyboard shortcuts"）列出默认值与覆盖项，并在你绑定已占用的组合时**做冲突检测**。
 - 快捷键覆盖在 v1 为按用户（非按工作区）。[Later]
 
 ## 主题与语言

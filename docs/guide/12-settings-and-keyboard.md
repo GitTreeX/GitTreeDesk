@@ -63,17 +63,17 @@ Everything is reachable in the **command palette** (`Ctrl/Cmd+Shift+P`) — typi
 | Ctrl+Shift+G | ⇧⌘G | Focus Source Control |
 | Ctrl+` | ⌃` | Toggle terminal panel |
 | Ctrl+Enter | ⌘⏎ | Commit staged |
-| Space | Space | Stage/unstage selected file (in Source Control) |
+| Space | Space | Stage/unstage the selected file (contextual in Source Control; not a remappable binding) |
 | Ctrl+Shift+F | ⇧⌘F | Fetch current repository (in Repos view: selected repositories) |
-| F2 | F2 | Rename file / branch (per focus) |
-| Delete | Delete | Delete file (to trash) / branch (in branch lists) |
-| Enter | Enter | Open / confirm; in the graph: commit details |
+| F2 | F2 | Rename the focused file or folder in Explorer |
+| Delete | Delete | Move the focused file or folder in Explorer to the trash |
+| Enter | Enter | Open a file / toggle a tree row; in the graph: commit details (contextual, not remappable) |
 | Alt+← / Alt+→ | ⌥← / ⌥→ | Editor navigation history |
 | Esc | Esc | Close the topmost transient UI (never closes an editor tab) |
 
 ### Customizing
 
-- `keybindings.json` overrides any default. A "Keyboard Shortcuts" tab (command palette → "Open keyboard shortcuts") lists defaults plus overrides and **detects conflicts** when you bind an already-used combination.
+- `keybindings.json` overrides any **registered command** (the contextual keys above are not part of that set). A "Keyboard Shortcuts" tab (command palette → "Open keyboard shortcuts") lists defaults plus overrides and **detects conflicts** when you bind an already-used combination.
 - Shortcut overrides are per user (not per workspace) in v1. [Later]
 
 ## Theme & language

@@ -44,13 +44,13 @@ Repositories created or deleted while the app is open are picked up automaticall
 
 ### Statuses feel stale, or I see a "polling" indicator
 
-File watching is automatic for repositories and expanded folders. When a folder lives on a network drive, or the OS watcher limit is reached (Linux inotify), affected repositories fall back to **interval polling** — the status bar shows a subtle "polling" marker for them. Refresh interval: **Settings → Git → Poll interval** (default 60 s).
+File watching is automatic for repositories and expanded folders. When a folder lives on a network drive, or the OS watcher limit is reached (Linux inotify), affected repositories fall back to **interval polling** — the status bar shows a warning chip reading **"Live updates are paused in some folders"**, and hovering names the folders. Interval: **Settings → Git → Fallback polling interval** (default 60 s).
 
 ## Operations & recovery
 
 ### I ran a rebase / reset --hard / branch delete by mistake. Can I undo?
 
-Yes. Before every destructive operation — reset `--hard`, rebase (including interactive), history rewrite, stash drop, branch delete, worktree force-remove — GitTreeDesk creates a **backup ref** under `refs/gitreedesk/backup/…` pointing at the state that is about to be replaced (page 06).
+Yes. Before every destructive operation — reset `--hard`, rebase (including interactive), history rewrite, stash drop, worktree force-remove — GitTreeDesk creates a **backup ref** under `refs/gitreedesk/backup/…` pointing at the state that is about to be replaced (page 06). A branch delete backs up the branch tip when the branch is **not merged into HEAD**; a merged branch is recoverable from the recorded tip instead.
 
 - The toast right after the operation offers **Undo**.
 - Later: repository context menu → **"Restore from backup…"** lists recent backups with operation, time, and target ref.
@@ -62,13 +62,13 @@ This is the normal conflict flow, not a crash. An operation banner appears with 
 
 ### Push or pull never asks for my password — it just fails
 
-By design: operations run with credential prompts **disabled**, so Git can never hang a background refresh waiting for hidden input. Authentication uses your existing setup first — system credential helper (e.g. the one bundled with Git for Windows), SSH agent. When credentials are needed, the operation dialog can show a **secure in-app prompt**. Failures are reported as typed errors — authentication, non-fast-forward, network, or rejected-by-hook — each with its own next action.
+By design: operations run with credential prompts **disabled**, so Git can never hang a background refresh waiting for hidden input. Authentication uses your existing setup first — system credential helper (e.g. the one bundled with Git for Windows), SSH agent. GitTreeDesk never shows its own password dialog: when credentials are missing, the operation fails with a typed error (authentication, non-fast-forward, network, or rejected-by-hook), each with its own next action, and the raw Git output is in the Details drawer.
 
 If auth fails persistently for HTTPS remotes, configure a credential helper once in your global Git config (the same one you use from the terminal).
 
-### The commit panel shows "hooks disabled"
+### The commit box says "Git hooks are disabled in this workspace"
 
-The workspace is **not trusted** yet (page 01). In untrusted workspaces, Git hooks are suppressed (`core.hooksPath` override) so opening a stranger's folder cannot execute their `pre-commit` scripts; terminal quick commands are disabled too. If this is your own workspace, run **"Trust this workspace"** from the command palette — hooks then run normally, with their output shown in the commit panel.
+The workspace is **not trusted** yet (page 01). In untrusted workspaces, Git hooks are suppressed (`core.hooksPath` override) so opening a stranger's folder cannot execute their `pre-commit` scripts; terminal quick commands are disabled too. If this is your own workspace, run **"Trust This Workspace"** from the command palette — hooks then run normally, with their output shown in the commit box.
 
 ### The ✨ generate button produced nothing
 
@@ -78,7 +78,7 @@ The workspace is **not trusted** yet (page 01). In untrusted workspaces, Git hoo
 
 ### Where is my LLM API key stored?
 
-With `safeStorage` in the **OS keychain** (Keychain / Credential Manager / libsecret). On Linux without a keyring service, keys are kept **session-only** with a clear notice — never written to disk in plaintext. LLM generation is off by default, and every request displays a "sends staged diff to \<host\>" disclosure. In offline mode nothing ever leaves your machine.
+With `safeStorage` in the **OS keychain** (Keychain / Credential Manager / libsecret). On Linux without a keyring service, keys are kept **session-only** with a clear notice — never written to disk in plaintext. LLM generation is off by default, and the **first request to a host** asks you to confirm that the staged diff will be sent to it (page 04). In offline mode nothing ever leaves your machine.
 
 ## Performance & display
 

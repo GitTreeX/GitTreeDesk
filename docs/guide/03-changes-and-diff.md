@@ -7,21 +7,21 @@ The **Source Control view** (activity bar) is the multi-repo changes list: one s
 ## Which repositories appear
 
 - Repositories start **all checked**: unchecking one in the Repos view hides it from this list. The default is therefore "everything with changes is visible"; the selection is how you cut the view down on a 50+ repo workspace.
-- Toolbar actions: "Show only selected repos" toggle (on by default), "Select all / none".
-- Repositories with an in-progress operation (merge, rebase, …) always appear, with an operation banner at the top of their section: **Continue / Skip / Abort** plus the list of conflicted files (details: page 06).
+- Toolbar actions: **"Only selected"** (on by default — shows changes only from the repositories you checked in the Repos view), "Select all / none".
+- Repositories with an in-progress operation (merge, rebase, cherry-pick, revert, bisect) always appear, with an operation banner at the top of their section: the operation name, a **live count of unresolved files**, and the actions Git allows for that operation — **Continue / Abort** for a merge, **Continue / Skip / Abort** for a rebase, cherry-pick or revert, and **Abort** only while bisecting (details: page 06).
 
 ## Groups and toggles
 
-Each repository section groups its changes as **Staged**, **Unstaged**, **Untracked**, and **Conflicts**. Each group can be hidden via view options — e.g. hide *Untracked* if you rarely commit new files. Group visibility and the badge toggles start **on**: nothing is hidden until you hide it.
+Each repository section groups its changes in this order: **Merge Conflicts**, **Staged Changes**, **Changes** (unstaged), **Untracked Files**. Group visibility is toggled from the Source Control view's own toolbar menu — e.g. hide *Untracked Files* if you rarely commit new files. Everything starts visible: nothing is hidden until you hide it.
 
 Each section ends with the **commit box** (message field, ✨ generate button, Commit / Amend / Stage-all — details: page 04).
 
 ## Working with file rows
 
-Status letters: `M` modified · `A` added · `D` deleted · `R` renamed · `U` untracked · `!` unmerged/conflict · `C` copied.
+Status letters: `M` modified · `A` added · `D` deleted · `R` renamed · `C` copied · `T` type changed · `U` untracked · `!` unmerged/conflict.
 
 - Hover actions: **Stage** / **Unstage** / **Discard**. Multi-select works (Shift/Ctrl-click); actions apply to the selection.
-- **Directory granularity**: staging a folder stages everything inside it.
+- **Directory granularity**: untracked folders appear as a single collapsed row and staging that row stages everything inside it. Tracked changes are listed per file, so there is no folder row for them.
 - **Hunk-level staging** — in the diff view, each hunk has margin actions: stage this hunk (unstaged files) or unstage this hunk (staged files). Line-level staging is [Later].
 - **Add to .gitignore** — available on untracked rows; the pattern is appended to `.gitignore` and staged immediately.
 - `Space` stages/unstages the selected rows; `Enter` opens the diff.
@@ -40,8 +40,8 @@ Clicking a changed file opens a diff tab in the editor area.
 
 - **Layout**: side-by-side ⇄ inline toggle. **Whitespace-ignore** toggle. Word wrap respects editor settings.
 - Renames show old → new path plus the content diff. Binary files show size information; images show a **2-up before/after preview** (onion-slider mode is [Later]).
-- Margin actions: **stage hunk / revert hunk**; copy-patch is available from the context menu.
-- **Compare with…** — change the comparison base for a file: `INDEX`, `HEAD`, any ref / branch. The same picker works on a **whole repository scope** (compare the working tree against a ref) from the repo's context menu. Directory-scoped compare within one repo is [Later].
+- Margin actions: **stage hunk / revert hunk**; copy-patch is available from the context menu. They appear only where they make sense — a diff between two commits, or a rename diff, is read-only and offers no hunk actions.
+- **Compare with…** — change the comparison base for a file: `INDEX`, `HEAD`, any ref / branch. At **repository scope** the same idea is reached from the branch picker: it compares the repository's `HEAD` against the ref you choose (the picker lists up to 40 refs). Directory-scoped compare within one repo is [Later].
 
 ## File history
 
@@ -51,6 +51,6 @@ Clicking a changed file opens a diff tab in the editor area.
 ## Edge cases
 
 - **Pathological untracked counts**: the Untracked group lists a capped set with "Show more…" instead of freezing the view.
-- **Very large diffs**: text diffs beyond a size cap open with a "load full diff anyway" action; binary and >10 MB files follow editor rules (page 10).
+- **Very large diffs**: a text diff over **2 MB** is not rendered automatically — the tab offers "load full diff anyway", and there is a hard cap at **20 MB** beyond which the content is not fetched at all. Files in the editor follow the editor's own rules (page 10).
 - **External changes** while a diff is open: the tab marks itself stale and offers reload.
-- **CRLF / .gitattributes**: diffs are shown raw, exactly as Git produces them — GitTreeDesk never normalizes line endings. The whitespace-ignore toggle helps; hover shows the detected line-ending when mixed.
+- **CRLF / .gitattributes**: diffs are shown raw, exactly as Git produces them — GitTreeDesk never normalizes line endings. The whitespace-ignore toggle helps.

@@ -18,7 +18,7 @@ GitTreeDesk has a built-in editor for **viewing and light editing**. It is delib
 
 ## Language support
 
-- **Syntax highlighting** for all bundled languages (loaded on demand — opening the app does not pay for 100 languages).
+- **Syntax highlighting** for the built-in curated language set (loaded on demand — opening the app does not pay for every language).
 - **TypeScript / JavaScript hints**: the built-in TypeScript worker provides completion, hover and diagnostics at file level, configured best-effort from the nearest `tsconfig.json` (`compilerOptions` + standard library).
 - **Known limitation (v1)**: types from `node_modules` and cross-file project semantics are not resolved. For project-wide IntelliSense use the escape hatch below.
 - **Open in VSCode** — a toolbar button (and Explorer context menu) on every file: opens the file at the current line in VSCode (`code --goto <path>:<line>`). The command is configurable in settings (e.g. `code-insiders`, another fork). If the command is missing, GitTreeDesk falls back to revealing the file in the OS file manager.

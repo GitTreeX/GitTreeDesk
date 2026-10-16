@@ -35,15 +35,15 @@ Managed per repository (repo context menu → Remotes):
 
 ## Tags
 
-- **List** — grouped local / remote; search; shows annotated vs lightweight and the target commit.
-- **Create** — on any commit (graph, details panel, or branch picker): annotated (message) or lightweight; optional "push after creation".
-- **Delete / push** — with the same per-remote safety as branches; deleting a pushed tag warns.
+- **List** — grouped local / remote; shows annotated vs lightweight and the target commit.
+- **Create** — on any commit (graph row or the commit details panel): annotated (message) or lightweight; optional "push after creation".
+- **Delete / push** — deleting a tag that exists on a remote warns you, and the dialog offers to delete it there too. Tags are lightweight pointers, so no backup ref is created for a tag delete (branches are the ones covered by safety nets, page 06).
 - **Checkout** — checks out the tag's commit (detached HEAD, with "Create branch here").
 
 ## Batch operations across repositories
 
 - Multi-select repositories in the Repos view → **Fetch selected / Pull selected**, with a result summary (per repo: updated / up-to-date / failed, expandable to raw output).
-- The command palette exposes "Fetch all repositories in workspace" with the same summary dialog.
+- The command palette exposes "Fetch all repositories in workspace" with the same Output-panel summary.
 - Batch results are non-blocking: you can keep working; the summary stays in the Output panel.
 
 ## Edge cases

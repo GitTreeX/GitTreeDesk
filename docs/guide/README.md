@@ -39,8 +39,8 @@ A workspace-first multi-repo Git workbench. Open **any folder** — it does not 
 1. **Install** GitTreeDesk for your platform (installer, or portable zip on Windows).
 2. **First launch** shows the Welcome screen: recent workspaces, "Open folder…", and a drop zone — you can also drag a folder onto the window.
 3. **Open a workspace root.** Any folder works; it does not need to be a Git repository. Example: `E:\Projects\acme`.
-4. **Trust prompt.** The first time a workspace is opened, a prompt asks whether you trust it. Until trusted, GitTreeDesk suppresses Git hooks (`core.hooksPath` override) and disables workspace-defined terminal quick commands. Trust is remembered per workspace; you can change it later via the command palette ("Trust this workspace" / "Revoke trust").
-5. **Repositories appear progressively.** If the workspace was opened before, the full tree shows instantly from cache and statuses refresh in the background; otherwise the tree streams in as discovery walks the folders (see page 01).
+4. **Trust prompt.** The first time a workspace is opened, a prompt asks whether you trust it — once per workspace root. Until trusted, GitTreeDesk suppresses Git hooks (`core.hooksPath` override) and disables workspace-defined terminal quick commands. Trust is remembered per workspace root; you can change it later via the command palette ("Trust This Workspace" / "Revoke Trust").
+5. **Repositories appear progressively.** The tree fills in once discovery finishes, then statuses and badges land incrementally as the background refresh walks the repositories (see page 01).
 
 ## The window at a glance
 
@@ -51,17 +51,17 @@ A workspace-first multi-repo Git workbench. Open **any folder** — it does not 
 │  Tree    │  ▸ Repos                  │  • settings  • keyboard refs    │
 │  SCM     │  ▸ Source Control         │                                 │
 │  Graph   │  ▸ Graph                  ├─────────────────────────────────┤
-│  Term    │                           │ Secondary sidebar: details      │
-│  ⚙       │                           │ (commit, file, repo) — toggle   │
+│  ⚙       │                           │ Secondary sidebar: details      │
+│          │                           │ (commit, file, repo) — toggle   │
 ├──────────┴───────────────────────────┴─────────────────────────────────┤
 │ Bottom panel: Terminal │ Output (Git operation logs)   — collapsible   │
 ├─────────────────────────────────────────────────────────────────────────┤
-│ Status bar: repo · branch · sync state · operation · terminals · theme  │
+│ Status bar: workspace · branch · ↓↑ · theme · language · git version   │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-- **Activity bar** switches the sidebar between Tree, Source Control, Graph, Terminal, and Settings.
-- The **status bar** always shows the active repository (branch, ahead/behind, operation state) — clicking it opens the repo/branch picker.
+- **Activity bar** switches the sidebar between Tree, Source Control, Graph, and Settings; the terminal lives in the bottom panel.
+- The **status bar** shows the workspace name, the active repository's branch and ahead/behind counts, the theme, the language, and the Git version — clicking the branch opens the repo/branch picker.
 - Everything is reachable from the **command palette** (Ctrl/Cmd+Shift+P) and has a default shortcut (page 12).
 
 ## Five-minute tour

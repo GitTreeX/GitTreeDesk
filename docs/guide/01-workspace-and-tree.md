@@ -31,7 +31,6 @@ Create this file in the workspace root to tune discovery and grouping. It contai
 
 ```jsonc
 {
-  "$schema": "https://gitreedesk.dev/schemas/workspace.json",
   "name": "acme",
   "exclude": ["content/中文文档", "**/fixtures/**"],
   "scan": { "maxDepth": 8, "followSymlinks": false },
@@ -41,16 +40,16 @@ Create this file in the workspace root to tune discovery and grouping. It contai
 
 - `exclude` — extra skip patterns (glob), relative to the workspace root.
 - `groups` — optional; without it, groups are derived from the first path segment.
-- Edits to this file are picked up automatically and the tree updates.
+- The file is read when the workspace opens; edits apply the next time you open it (or after a rescan).
 
 ## Trust
 
-The first time a workspace is opened, a prompt asks whether you trust it. Until trusted:
+The first time a workspace is opened, a prompt asks whether you trust it — once per workspace root. Until trusted:
 
-- Git **hooks are suppressed** for all operations in that workspace (a commit that would normally run a `pre-commit` hook runs without it — the commit panel shows an "hooks disabled" notice);
+- Git **hooks are suppressed** for commits and history rewrites in that workspace (a commit that would normally run a `pre-commit` hook runs without it — the commit box shows **"Git hooks are disabled in this workspace"**);
 - workspace-defined **terminal quick commands are disabled**.
 
-Trust is remembered per workspace root. Change it later from the command palette: **"Trust this workspace"** / **"Revoke trust"**.
+Trust is remembered per workspace root. Change it later from the command palette: **"Trust This Workspace"** / **"Revoke Trust"**.
 
 ## The two tree views
 
@@ -60,8 +59,8 @@ The sidebar's Tree activity hosts two coordinated views over the same repositori
 
 - Folders exactly as on disk. Repository folders carry a badge (branch name or short SHA); worktree folders carry the worktree glyph.
 - Directories load lazily; only expanded folders are watched.
-- File and folder operations (context menu): new file, new folder, reveal in OS file manager, **Open in VSCode**, **Open terminal here**, copy path (absolute), copy relative path, rename (F2), delete — grouped with dividers, and any row inside a repository also offers **Open Commit Graph**. Delete moves items to the **OS trash** (reversible).
-- **Compare two files**: select two files, then "Compare selected" opens them side by side in the diff viewer.
+- File and folder operations (context menu): new file, new folder, reveal in OS file manager, **Open in VS Code**, **Open Terminal Here**, copy path (absolute), copy relative path, rename (F2), **Move to Trash** — grouped with dividers, and any row inside a repository also offers **Open Commit Graph**. Delete moves items to the **OS trash** (reversible).
+- **Compare two files** — `[Later]`: pick two files and open them side by side in the diff viewer.
 - JS/TS/JSON etc. open in the built-in editor (page 10).
 
 ### Repos view — the logical tree
@@ -70,21 +69,21 @@ The sidebar's Tree activity hosts two coordinated views over the same repositori
 - **Linked worktrees** and **submodules** appear nested under their main repository (pages 02 and 08).
 - Worktrees located outside the workspace are hidden by default; enable "Show external worktrees" in view options to see them (greyed, with their absolute path).
 - Groups: derived from the first path segment by default, or configured via `workspace.json` (`groups`).
-- **Multi-select** repositories for batch actions: "Fetch selected", "Pull selected", "Open terminal for each".
+- **Multi-select** repositories for batch actions: "Fetch selected", "Pull selected (fast-forward only)".
 - Context menu on a repo: copy path, reveal in OS, open terminal, open graph tab, plus the batch actions above. The same menu opens from the **… button** on the repo row's right edge, so the common actions do not need a right-click.
 
 ## Badges & what is shown (display options)
 
-Both views share one badge set. The badge types are the display toggles — each can be switched on/off in **View options**:
+Both views share one badge set. Each group of badges has its own **View options** toggle:
 
 | Badge | Meaning | Toggle |
 |---|---|---|
-| `●` | Working tree is dirty (uncommitted changes) | ✔ |
-| `↓n ↑n` | Behind / ahead of upstream | ✔ |
-| `⚑n` | Stash count | ✔ |
-| `⟳` | An operation is in progress (merge, rebase, …) | ✔ |
-| `detached` | HEAD is detached | ✔ |
-| `◇` | Submodules need attention (uninitialized or drifted) | ✔ |
+| `●` | Working tree is dirty (uncommitted changes) | Dirty state |
+| `↓n ↑n` | Behind / ahead of upstream | Sync state |
+| `⚑n` | Stash count | Stashes |
+| `⟳` | An operation is in progress (merge, rebase, …) | Operation |
+| `detached` | HEAD is detached | Detached HEAD |
+| `◇` `⧉` `main` `bare` | Repository kind: submodules need attention, locked or prunable worktree, main worktree, bare repository | Repository badges |
 
 **Quick filters** above the tree: "Only dirty", "Only ahead/behind", "Only worktrees".
 
@@ -92,7 +91,7 @@ Both views share one badge set. The badge types are the display toggles — each
 
 ## Keyboard in the trees
 
-- `↑` / `↓` move, `←` / `→` collapse / expand, `Enter` opens (file, repo, worktree).
+- `↑` / `↓` move, `←` / `→` collapse / expand, `Enter` opens a file in Explorer or toggles the row's children in either tree.
 - `F2` renames, `Delete` deletes (trash), `Ctrl/Cmd+P` quick-opens any file in the workspace (respecting `exclude`).
 - `Ctrl/Cmd+R` jumps to a repository by name.
 

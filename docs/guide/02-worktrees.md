@@ -13,7 +13,7 @@ A **worktree** is an additional working directory attached to the same repositor
 
 ## Creating a worktree
 
-Context menu on a repository → **"New worktree…"**. The dialog:
+Context menu on a repository → **"New Worktree…"**. The dialog:
 
 | Field | Behavior |
 |---|---|
@@ -28,7 +28,7 @@ Context menu on a repository → **"New worktree…"**. The dialog:
 {worktreeRoot}/{repo}_{branch-slug}
 ```
 
-- `{worktreeRoot}` — defaults to `<workspace>/__worktree__`; configurable in settings.
+- `{worktreeRoot}` — defaults to `<workspace>/__worktree__`; change it under **Settings → Git → Worktree folder**.
 - `{branch-slug}` — the branch name with `/` replaced by `-`.
 - Example: branch `worktree/feat-dark-mode` on repo `mobile-app` → `__worktree__/mobile-app_worktree-feat-dark-mode`.
 
@@ -38,7 +38,7 @@ A freshly created `__worktree__` folder is automatically attached to its parent 
 
 | Action | Behavior |
 |---|---|
-| **Remove** | Refuses on a dirty worktree; "Force remove" appears with a confirmation, and a backup ref is created first (safety nets, page 06). The folder is deleted, branch untouched. |
+| **Remove** | Refuses on a dirty worktree; "Force Remove" appears with a confirmation, and a backup ref is created first (safety nets, page 06). The folder is deleted, branch untouched. |
 | **Prune** | Cleans up worktree records whose folders are already gone (`git worktree prune`). Runs manually from the repo context menu, and automatically after fetch. |
 | **Lock / Unlock** | Protects a worktree from prune/remove (for removable drives, long-running experiments). Locked state shows on the row. |
 | **Move** | [Later] |

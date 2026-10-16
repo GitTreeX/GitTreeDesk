@@ -4,7 +4,7 @@
 
 ## Merge
 
-- Entry: right-click a branch (branch picker, graph ref chips) → **"Merge into current branch"**.
+- Entry: right-click a branch in the **branch picker** → **"Merge into current branch"**. From the graph, merge actions come from the branch/ref rows' own menus (page 09).
 - Options: `--no-ff` (merge commit), `--squash` (squashed changes staged, no commit), `--ff-only`.
 - Result: a summary toast (fast-forward / merge commit created / conflicts); on conflicts the operation banner appears (below).
 
@@ -15,11 +15,11 @@
   - A list editor shows the commits to be replayed with one row per commit. Row actions: **pick / reword / edit / squash / fixup / drop** (row buttons).
   - Reordering is done with move up/down in v1; drag-and-drop reordering is [Later].
   - During the rebase, the operation banner offers **Continue / Skip / Abort**; stopping on an `edit` row behaves like a pause — amend or run commands, then Continue.
-- Both rebases run in the background with progress; the graph refreshes as commits are replayed.
+- Both rebases run in the background without blocking the window; Git's output for the whole run lands in the Output panel and the graph refreshes when the rebase finishes or stops.
 
 ## Cherry-pick & revert
 
-- **Cherry-pick** — one commit or a range (`A..B`) from the graph or the commit details panel; option `--no-commit` (changes staged, stop before committing).
+- **Cherry-pick** — one commit at a time from the graph or the commit details panel; option `--no-commit` (changes staged, stop before committing). Ranges (`A..B`) are [Later].
 - **Revert** — same entries, same options; revert of a merge commit requires choosing the mainline (the dialog explains which parent is which).
 - Conflicts follow the same banner flow.
 
@@ -35,7 +35,7 @@ Right-click a commit → **Reset current branch to here**:
 
 ## Conflicts
 
-Whenever an operation stops on conflicts (merge, rebase, cherry-pick, revert, stash apply):
+Whenever an operation stops on conflicts (merge, rebase, cherry-pick, revert):
 
 1. An **operation banner** appears at the top of the repository section and in the graph: **Continue / Skip / Abort**, plus a live count of unresolved files.
 2. The **Conflicts group** (page 03) lists the files. For each file:
@@ -45,6 +45,8 @@ Whenever an operation stops on conflicts (merge, rebase, cherry-pick, revert, st
 3. Resolved files are marked (a "Mark resolved" action, or automatically when staged).
 4. **Continue is validated**: if unresolved files remain, a dialog lists them instead of letting Git fail mid-way.
 5. **Abort** restores the pre-operation state exactly; **Skip** (rebase/cherry-pick) skips the current commit.
+
+A conflicting **stash apply/pop** is the exception: it does not start an operation, so no banner appears. The stash entry is kept, the conflicted files are left in the working tree with their markers, and a notice tells you what happened (page 07).
 
 ## Conflicts via merge tool inside the editor
 

@@ -7,11 +7,11 @@
 - **"Open terminal here"** from the Explorer, Repos, Source Control and diff views — the terminal starts in the selected context: a repository root, any folder, or a file's directory.
 - `` Ctrl+` `` toggles the terminal panel; the panel toolbar has a **+** button opening a terminal for the active repository.
 - Terminals open as **tabs** in the bottom panel; each tab shows its working directory and profile. Multiple terminals per repository are fine.
-- Sessions are **not** lost when the window reloads (they live in a separate process) — scrollback included.
+- Sessions are **not** lost when the window reloads (they live in a separate process). On reload the terminal re-attaches and its recent output is replayed — the last ~512 KB per session.
 
 ## Shell profiles
 
-Default profiles are auto-detected and can be edited in Settings → Terminal:
+Default profiles are auto-detected. The default profile and scrollback live in **Settings → Terminal**; every other profile field is edited in `terminal.json` (the cascading config file):
 
 | Platform | Detected profiles |
 |---|---|
@@ -44,7 +44,7 @@ Create this file at any level of the workspace to configure terminals **for that
 
 ## Quick commands
 
-Defined in `terminal.json` (any level, same cascade) and listed in the terminal toolbar, the command palette, and a per-directory picker:
+Defined in `terminal.json` (any level, same cascade) and listed in two places: the terminal toolbar menu — which resolves them for the active terminal's directory — and the command palette.
 
 | Field | Meaning |
 |---|---|
@@ -68,5 +68,5 @@ Defined in `terminal.json` (any level, same cascade) and listed in the terminal 
 
 ## Edge cases
 
-- A configured profile whose shell executable is missing is greyed with a "not found" hint and links to the profile's settings.
-- WSL profiles start in the corresponding Windows path mapping when the directory is on a mounted drive.
+- A configured profile whose shell executable is missing is greyed out with a "not found" hint and cannot be opened.
+- WSL profiles come from `wsl.exe` and start in the same directory as any other profile; WSL itself maps the Windows drive under `/mnt/…`.

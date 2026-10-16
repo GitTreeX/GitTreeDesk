@@ -28,7 +28,7 @@
 {worktreeRoot}/{repo}_{branch-slug}
 ```
 
-- `{worktreeRoot}` —— 默认 `<工作区>/__worktree__`，可在设置中修改。
+- `{worktreeRoot}` —— 默认 `<工作区>/__worktree__`，可在 设置 → Git → 工作树根目录 修改。
 - `{branch-slug}` —— 分支名中的 `/` 替换为 `-`。
 - 示例：仓库 `mobile-app` 上建分支 `worktree/feat-dark-mode` → `__worktree__/mobile-app_worktree-feat-dark-mode`。
 
