@@ -240,6 +240,13 @@ export const invokeSchemas = {
     skip: z.number().int().min(0).max(1_000_000).optional(),
     countTotal: z.boolean().optional()
   }),
+  'git:activity': z.object({
+    gitDirs: z.array(pathString).max(2000),
+    since: z.string().max(1000).optional(),
+    maxPerRepo: z.number().int().min(1).max(2000).optional(),
+    author: z.string().max(1000).optional(),
+    grep: z.string().max(1000).optional()
+  }),
   'git:commitDetails': z.object({ gitDir: pathString, sha: refString }),
   'git:editCommit': z
     .object({

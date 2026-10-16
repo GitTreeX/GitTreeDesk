@@ -694,6 +694,37 @@ export interface GitGraphResponse {
   total: number | null
 }
 
+/** Recent commits of several repositories folded into one workspace timeline. */
+export interface GitActivityRequest {
+  /** Checkout keys to read; an empty list reads nothing. */
+  gitDirs: string[]
+  /** `--since` boundary every repository walks its HEAD from; any date git understands. */
+  since?: string
+  /** Cap per repository so one busy checkout cannot flood the timeline. */
+  maxPerRepo?: number
+  /** Literal substring of the author name or email. */
+  author?: string
+  /** Case-insensitive literal substring of the commit message. */
+  grep?: string
+}
+
+export interface GitActivityEntry {
+  /** Checkout key the commit was read from. */
+  gitDir: string
+  /** Display name of that checkout, resolved while the read was in flight. */
+  repoName: string
+  commit: CommitInfo
+}
+
+export interface GitActivityResponse {
+  /** Newest first across every repository, ordered by author date. */
+  entries: GitActivityEntry[]
+  /** Checkout keys whose read failed; the surviving entries still render. */
+  failures: { gitDir: string; message: string }[]
+  /** Checkout keys that filled the per-repository cap, so older commits fell outside the page. */
+  truncated: string[]
+}
+
 export interface GitCommitDetailsRequest {
   /** Checkout key: the record's git dir. */
   gitDir: string
@@ -1218,6 +1249,7 @@ export interface InvokeMap {
   'git:stashDrop': { request: GitStashRequest; response: GitStashDropResponse }
   'git:log': { request: GitLogRequest; response: GitLogResponse }
   'git:graph': { request: GitGraphRequest; response: GitGraphResponse }
+  'git:activity': { request: GitActivityRequest; response: GitActivityResponse }
   'git:commitDetails': { request: GitCommitDetailsRequest; response: GitCommitDetailsResponse }
   'git:editCommit': { request: GitEditCommitRequest; response: GitEditCommitResponse }
   'git:oplog': { request: GitOpLogRequest; response: GitOpLogResponse }
@@ -1373,6 +1405,7 @@ export const INVOKE_CHANNELS = [
   'git:stashDrop',
   'git:log',
   'git:graph',
+  'git:activity',
   'git:commitDetails',
   'git:editCommit',
   'git:oplog',

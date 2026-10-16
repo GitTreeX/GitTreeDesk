@@ -222,6 +222,7 @@ function createHandlers(
     'git:stashDrop': (request) => service.gitStashDrop(request),
     'git:log': (request) => service.gitLog(request),
     'git:graph': (request) => service.gitGraph(request),
+    'git:activity': (request) => service.gitActivity(request),
     'git:commitDetails': (request) => service.gitCommitDetails(request),
     'git:editCommit': (request) => service.gitEditCommit(request),
     'git:oplog': (request) => service.gitOpLog(request),

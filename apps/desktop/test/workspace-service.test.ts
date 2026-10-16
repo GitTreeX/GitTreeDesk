@@ -1290,6 +1290,55 @@ describe('submodule operations', () => {
     expect(head.commits).toHaveLength(3)
   })
 
+  it('folds several checkouts into one activity timeline', async () => {
+    const root = await tempDir('gtd-svc-activity-')
+    const userData = await tempDir('gtd-svc-data-')
+    const api = join(root, 'api-server')
+    const site = join(root, 'site')
+    await initRepo(api)
+    await initRepo(site)
+    await writeFile(join(api, 'a.txt'), 'one\n')
+    await commitAll(api, 'api second')
+    await writeFile(join(site, 's.txt'), 'one\n')
+    await commitAll(site, 'site second')
+
+    const events: WorkspaceServiceEvent[] = []
+    const instance = service(userData, events)
+    const descriptor = await instance.open(root)
+    const apiDir = descriptor.records.find((record) => record.relPath === 'api-server')?.gitDir ?? ''
+    const siteDir = descriptor.records.find((record) => record.relPath === 'site')?.gitDir ?? ''
+
+    const merged = await instance.gitActivity({ gitDirs: [apiDir, siteDir], maxPerRepo: 50 })
+    const byRepo = new Map<string, string[]>()
+    for (const entry of merged.entries) {
+      byRepo.set(entry.gitDir, [...(byRepo.get(entry.gitDir) ?? []), entry.commit.subject])
+    }
+    expect(byRepo.get(apiDir)).toEqual(['api second', 'init'])
+    expect(byRepo.get(siteDir)).toEqual(['site second', 'init'])
+    expect(new Set(merged.entries.map((entry) => entry.repoName))).toEqual(new Set(['api-server', 'site']))
+    expect(merged.failures).toEqual([])
+    expect(merged.truncated).toEqual([])
+    // Author dates only carry second precision, so the two repos are checked
+    // separately rather than as one interleaved sequence.
+    const dates = merged.entries.map((entry) => Date.parse(entry.commit.author.date))
+    expect([...dates].sort((a, b) => b - a)).toEqual(dates)
+
+    const capped = await instance.gitActivity({ gitDirs: [apiDir, siteDir], maxPerRepo: 1 })
+    expect(capped.entries).toHaveLength(2)
+    expect(capped.truncated.sort()).toEqual([apiDir, siteDir].sort())
+
+    const window = await instance.gitActivity({ gitDirs: [apiDir], since: '2038-01-01' })
+    expect(window.entries).toEqual([])
+
+    const missing = await instance.gitActivity({ gitDirs: [apiDir, '/definitely/not/a/checkout'] })
+    expect(missing.entries.length).toBeGreaterThan(0)
+    expect(missing.failures).toHaveLength(1)
+    expect(missing.failures[0]?.gitDir).toBe('/definitely/not/a/checkout')
+
+    const filtered = await instance.gitActivity({ gitDirs: [apiDir, siteDir], grep: 'site' })
+    expect(filtered.entries.map((entry) => entry.commit.subject)).toEqual(['site second'])
+  })
+
   it('reads commit details and rewrites history with a backup and undo', async () => {
     const root = await tempDir('gtd-svc-edit-')
     const userData = await tempDir('gtd-svc-data-')

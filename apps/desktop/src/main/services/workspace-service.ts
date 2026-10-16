@@ -16,6 +16,9 @@ import type {
   FsStatResponse,
   FsWriteFileRequest,
   FsWriteFileResponse,
+  GitActivityEntry,
+  GitActivityRequest,
+  GitActivityResponse,
   GitApplyHunkRequest,
   GitBackupsResponse,
   GitBranchCheckoutRequest,
@@ -806,6 +809,49 @@ export class WorkspaceService {
     } catch (error) {
       throw toGitServiceError(error)
     }
+  }
+
+  /** Recent HEAD commits of many checkouts folded into one workspace timeline. */
+  async gitActivity(request: GitActivityRequest): Promise<GitActivityResponse> {
+    const session = this.#requireSession()
+    const maxPerRepo = request.maxPerRepo ?? 100
+    const entries: GitActivityEntry[] = []
+    const failures: GitActivityResponse['failures'] = []
+    const truncated: string[] = []
+    let next = 0
+    // One git process per checkout at once would stall a workspace with
+    // hundreds of repositories, so the reads advance in small waves.
+    const drain = async (): Promise<void> => {
+      for (;;) {
+        const gitDir = request.gitDirs[next]
+        if (gitDir === undefined) return
+        next += 1
+        try {
+          const record = this.#requireCheckout(session, gitDir)
+          const page = await logCommits({
+            repoPath: record.path,
+            revs: ['HEAD'],
+            author: request.author,
+            since: request.since,
+            grep: request.grep,
+            maxCount: maxPerRepo
+          })
+          for (const commit of page.commits) entries.push({ gitDir, repoName: record.name, commit })
+          if (page.hasMore) truncated.push(gitDir)
+        } catch (error) {
+          failures.push({ gitDir, message: toGitServiceError(error).message })
+        }
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(8, request.gitDirs.length) }, () => drain()))
+
+    entries.sort((a, b) => {
+      const newer = Date.parse(b.commit.author.date)
+      const older = Date.parse(a.commit.author.date)
+      if (Number.isNaN(newer) || Number.isNaN(older)) return 0
+      return newer - older
+    })
+    return { entries, failures, truncated }
   }
 
   /** Full message, identities, parents and per-file stats of one commit. */
