@@ -86,7 +86,9 @@ jobs:
       - name: Perf budgets (informational on shared runners)
         if: matrix.package == 'win'
         continue-on-error: true
-        run: pnpm perf-budget
+        run: |
+          pnpm perf-budget
+          pnpm perf-graph
       - name: Upload smoke reports
         if: always()
         uses: actions/upload-artifact@v7
@@ -96,6 +98,7 @@ jobs:
             .fixtures/packaged-profile/smoke-report.json
             .fixtures/packaged-profile/packaged-open.png
             .fixtures/perf-profile/perf-report.json
+            .fixtures/graph-profile/graph-report.json
           if-no-files-found: ignore
       - name: Upload installers
         if: github.event_name == 'workflow_dispatch'
