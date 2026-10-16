@@ -55,7 +55,7 @@ linux:
     - deb
 # The default deb artifact name is `${name}_${version}_${arch}.${ext}`, where
 # `${name}` is the scoped package name (`@gitreedesk/desktop`). That expands to
-# `release/@gitreedesk/desktop_0.1.0_amd64.deb`, but fpm will not create the
-# `@gitreedesk/` parent directory and aborts. Pin a flat name under `release/`.
+# a path under a `@gitreedesk/` parent directory, but fpm will not create the
+# parent and aborts. Pin a flat name under `release/`.
 deb:
   artifactName: ${productName}_${version}_${arch}.${ext}

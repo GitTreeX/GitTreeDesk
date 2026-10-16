@@ -1,6 +1,6 @@
 {
   "name": "@gitreedesk/shared",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Cross-process types, IPC contract and schemas for GitTreeDesk",
   "type": "module",

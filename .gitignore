@@ -6,8 +6,7 @@ docs/draft/
 # Build outputs and local artifacts
 out/
 dist/
-release/
-release-local/
+release*/
 coverage/
 .fixtures/
 *.log

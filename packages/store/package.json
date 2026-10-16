@@ -1,6 +1,6 @@
 {
   "name": "@gitreedesk/store",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Persistent storage: SQLite cache database, scoped JSON settings and workspace trust (pure Node)",
   "type": "module",
