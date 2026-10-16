@@ -462,7 +462,8 @@ Both views render with virtualization (TanStack Virtual) and keyboard navigation
 *Scope: v1.*
 
 - Targets: electron-builder — Windows (NSIS installer + portable zip), macOS (dmg + zip, arm64 + x64; notarization requires an Apple account — deferred, unsigned builds documented), Linux (AppImage + deb).
-- CI: GitHub Actions matrix builds all three platforms; `electron-rebuild` for native deps (better-sqlite3, node-pty, @parcel/watcher) with prebuilt-binary caching; a smoke test boots the packaged app and opens a fixture workspace.
+- CI: GitHub Actions matrix builds all three platforms; native deps (better-sqlite3, node-pty, @parcel/watcher) ship N-API prebuilds, so no rebuild is forced (`npmRebuild: false`) except node-pty compiled from source on Linux; prebuilt binaries and the Electron downloads are cached; a smoke test boots the packaged app and opens a fixture workspace.
+- Publishing: installer artifacts are uploaded only by a manually run (`workflow_dispatch`) workflow. A release is therefore cut by bumping the version in the root, app and package manifests, pushing `main`, running the workflow manually, and attaching the downloaded `installers-*` artifacts to a GitHub Release — the About dialog's download link points at that page. Only the host platform can be packaged locally: the Linux targets need tooling that is unavailable on a Windows host, and macOS targets need a macOS host.
 - Platform integration: native menu bar on macOS (app menu + edit menu with standard clipboard roles — required for Cmd+C/V to work at all on macOS), frameless window with custom titlebar on Windows/Linux (native frame fallback setting); keyboard shortcuts use Cmd on macOS everywhere.
 - Data locations: `%APPDATA%/GitTreeDesk`, `~/Library/Application Support/GitTreeDesk`, `~/.config/GitTreeDesk` (`settings.json`, `keybindings.json`, `cache.db`, `logs/`).
 - Auto-update (electron-updater) is *Later*; v1 ships a manual download link in the About dialog.
@@ -512,7 +513,7 @@ Each milestone ends in a demo-able outcome. Sizes are relative (S ≪ L), not ca
 | Commit graph | L | Graph tab (lanes, virtualization, paging), filters, commit details, commit actions, **history editing** (message/author/date) with backup + undo | Edit an old commit's message/author/date and undo it |
 | Editor & terminal | L | Monaco tabs + save/conflict handling + "Open in VSCode"; pty host + xterm, profiles, cascading terminal.json, quick commands, tabs | Per-directory terminal config; quick command launch |
 | Commit generation | M | Convention detection, offline drafts, LLM provider (opt-in, streaming, keychain), settings UI | One-click draft from staged diff in both modes |
-| Polish & release | M | Keyboard cheatsheet, perf pass vs budgets, packaging all platforms, About/update page, onboarding | Signed-ready installers for the three platforms |
+| Polish & release | M | Keyboard cheatsheet, perf pass vs budgets, packaging all platforms, About/update page, onboarding | Installers for the three platforms (macOS unsigned until notarization is wired up) |
 
 Ordering rationale: the changes/commit flow comes before core Git operations (a working commit flow makes the tool usable immediately and validates the operation-model design); the commit graph follows the core operations because its actions reuse them; editor and terminal come after the Git core because "Open in VSCode" covers editing meanwhile.
 

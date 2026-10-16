@@ -462,7 +462,8 @@ CREATE TABLE oplog        (id INTEGER PRIMARY KEY, repo_id INT, op TEXT, backup_
 *范围：v1。*
 
 - 目标：electron-builder——Windows（NSIS 安装包 + 便携 zip）、macOS（dmg + zip，arm64 + x64；公证需 Apple 账号——暂缓，未签名构建写入文档）、Linux（AppImage + deb）。
-- CI：GitHub Actions 三平台矩阵；原生依赖（better-sqlite3、node-pty、@parcel/watcher）走 `electron-rebuild`，带预编译产物缓存；打包产物冒烟测试：启动应用并打开 fixture 工作区。
+- CI：GitHub Actions 三平台矩阵；原生依赖（better-sqlite3、node-pty、@parcel/watcher）都是 N-API 且自带预编译产物，因此不强制 `electron-rebuild`（`npmRebuild: false`），仅 Linux 上的 node-pty 没有预编译产物需要从源码编译；预编译产物与 Electron 下载包均有缓存；打包产物冒烟测试：启动应用并打开 fixture 工作区。
+- 发布：安装包产物只在手动触发（`workflow_dispatch`）的工作流中上传。因此发布流程是：在根目录、应用与各 package 清单中提升版本号，推送 `main`，手动运行工作流，再把下载的 `installers-*` 产物挂到 GitHub Release 上——About 对话框的下载链接指向该页面。本地只能打包当前宿主平台：Linux 目标所需工具链在 Windows 宿主上不可用，macOS 目标则必须有 macOS 宿主。
 - 平台集成：macOS 原生菜单栏（应用菜单 + 编辑菜单标准剪贴板 role——macOS 上没有它 Cmd+C/V 根本不工作）；Windows/Linux 无边框窗口 + 自绘标题栏（可切换回原生边框）；macOS 上所有快捷键统一使用 Cmd。
 - 数据目录：`%APPDATA%/GitTreeDesk`、`~/Library/Application Support/GitTreeDesk`、`~/.config/GitTreeDesk`（内含 `settings.json`、`keybindings.json`、`cache.db`、`logs/`）。
 - 自动更新（electron-updater）属*后续*；v1 在 About 对话框提供手动下载页链接。
@@ -512,7 +513,7 @@ CREATE TABLE oplog        (id INTEGER PRIMARY KEY, repo_id INT, op TEXT, backup_
 | 提交图 | L | 图 tab（泳道、虚拟化、分页）、过滤、提交详情、提交操作、**历史改写**（消息/作者/时间）带备份 + 撤销 | 修改旧提交的消息/作者/时间并撤销 |
 | 编辑器与终端 | L | Monaco 标签 + 保存/冲突处理 + "在 VSCode 中打开"；pty host + xterm、profiles、级联 terminal.json、快捷命令、多标签 | 按目录生效的终端配置；快捷命令启动 |
 | 提交信息生成 | M | 约定探测、离线草稿、LLM Provider（可选开启、流式、钥匙串）、设置 UI | 两种模式下从暂存 diff 一键出草稿 |
-| 打磨与发布 | M | 键位速查、对照预算做性能收尾、三平台打包、About/更新页、入门引导 | 三个平台的可发布安装包 |
+| 打磨与发布 | M | 键位速查、对照预算做性能收尾、三平台打包、About/更新页、入门引导 | 三个平台的可发布安装包（macOS 在接入公证前不签名） |
 
 排序理由：变更与提交流程先于核心 Git 操作（先让提交流程可用，尽早验证操作模型设计）；提交图放在核心操作之后，因为图上的操作要复用它；编辑器/终端放在 Git 核心之后，因为期间由"在 VSCode 中打开"覆盖编辑需求。
 
