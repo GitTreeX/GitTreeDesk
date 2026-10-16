@@ -267,7 +267,9 @@ export function WorkspaceActivityView(): JSX.Element {
           <p className="px-3 py-2 text-xs text-muted">{t('graph.activity.loading')}</p>
         )}
         {!activity.loading && activity.error === null && lines.length === 0 && (
-          <p className="px-3 py-2 text-xs text-muted">{t('graph.activity.empty')}</p>
+          <p className="px-3 py-2 text-xs text-muted">
+            {scope.length === 0 ? t('graph.activity.emptyScope') : t('graph.activity.empty')}
+          </p>
         )}
         {lines.length > 0 && (
           <div style={{ height: virtualizer.getTotalSize() }} className="relative">

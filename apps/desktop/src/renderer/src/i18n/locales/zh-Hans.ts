@@ -638,6 +638,7 @@ export const zhHansResource: TranslationResource = {
       refresh: '重新读取',
       loading: '正在读取最近提交…',
       empty: '这个时间范围内没有提交。',
+      emptyScope: 'Repos 视图里没有勾选任何仓库。',
       failuresOne: '1 个仓库读取失败',
       failures: '{{count}} 个仓库读取失败',
       truncated: '部分仓库在这个范围内还有更早的提交。',

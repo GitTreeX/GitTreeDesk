@@ -648,6 +648,7 @@ const en = {
       refresh: 'Reload',
       loading: 'Reading recent commits…',
       empty: 'No commits in this window.',
+      emptyScope: 'No repository is checked in the Repos view.',
       failuresOne: '1 repository could not be read',
       failures: '{{count}} repositories could not be read',
       truncated: 'Some repositories have more commits in this window.',
