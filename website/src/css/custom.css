@@ -1,0 +1,45 @@
+/**
+ * Brand palette from ../brand/README.md: the aurora ramp (cyan → emerald → lime)
+ * on graphite. Emerald anchors the interactive color so links stay readable on
+ * both the light and the dark tile backgrounds.
+ */
+
+:root {
+  --ifm-color-primary: #059669;
+  --ifm-color-primary-dark: #048a61;
+  --ifm-color-primary-darker: #04825b;
+  --ifm-color-primary-darkest: #036b4b;
+  --ifm-color-primary-light: #1aa578;
+  --ifm-color-primary-lighter: #24ac7f;
+  --ifm-color-primary-lightest: #4bbf98;
+  --ifm-code-font-size: 90%;
+  --ifm-pre-background: var(--ifm-background-surface-color);
+  --docusaurus-highlighted-code-line-bg: rgba(52, 211, 153, 0.18);
+}
+
+[data-theme='dark'] {
+  --ifm-color-primary: #34d399;
+  --ifm-color-primary-dark: #22c58b;
+  --ifm-color-primary-darker: #1eb983;
+  --ifm-color-primary-darkest: #159068;
+  --ifm-color-primary-light: #4cdca7;
+  --ifm-color-primary-lighter: #61e2b2;
+  --ifm-color-primary-lightest: #96efcf;
+  --ifm-background-color: #0b0c0f;
+  --ifm-background-surface-color: #15171c;
+  --docusaurus-highlighted-code-line-bg: rgba(52, 211, 153, 0.28);
+}
+
+/* The guide tables are dense; let them breathe instead of forcing one-line cells. */
+article table {
+  display: table;
+  width: 100%;
+}
+
+article table td {
+  white-space: normal;
+}
+
+.navbar__logo {
+  border-radius: 22%;
+}

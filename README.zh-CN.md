@@ -69,9 +69,15 @@ pnpm smoke:packaged          # 启动打包后的应用并断言可以正常拉�
 
 ## 文档
 
-- [用户指南](docs/guide/README.zh-CN.md) — 逐个界面说明功能，每个特性一页
-- [工程参考](docs/spec.zh-CN.md) — 架构、关键决策与性能预算
+仓库内是英文权威文本，中文译文在 `website/i18n/zh-Hans/`：
+
+- [用户指南](docs/guide/README.md) — 逐个界面说明功能，每个特性一页
+- [工程参考](docs/spec.md) — 架构、关键决策与性能预算
 - [更新日志](CHANGELOG.zh-CN.md)
+
+在线站点 —— [简体中文](https://gittreex.github.io/GitTreeDesk/zh-Hans/) ·
+[English](https://gittreex.github.io/GitTreeDesk/) —— 由 `website/`（Docusaurus）从上述文件构建。
+`pnpm docs:start` 本地预览，`pnpm docs:build` 生成静态站点，推送到 `main` 后由 GitHub Actions 部署。
 
 ## 许可证
 

@@ -69,9 +69,14 @@ pnpm smoke:packaged          # boot the packaged build and assert it comes up
 
 ## Documentation
 
-- [User guide](docs/guide/README.md) — what every screen does, one page per feature ([简体中文](docs/guide/README.zh-CN.md))
+- [User guide](docs/guide/README.md) — what every screen does, one page per feature
 - [Engineering reference](docs/spec.md) — architecture, key decisions, performance budgets
 - [Changelog](CHANGELOG.md)
+
+The published site — [English](https://gittreex.github.io/GitTreeDesk/) ·
+[简体中文](https://gittreex.github.io/GitTreeDesk/zh-Hans/) — is built from these files by
+`website/` (Docusaurus). `pnpm docs:start` previews it locally, `pnpm docs:build` renders the
+static bundle, and pushing to `main` deploys it through GitHub Actions.
 
 ## License
 

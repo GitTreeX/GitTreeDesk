@@ -1,0 +1,45 @@
+{
+  "name": "gitreedesk-docs",
+  "version": "0.2.0",
+  "private": true,
+  "description": "GitTreeDesk documentation site (Docusaurus) built from ../docs",
+  "license": "MIT",
+  "scripts": {
+    "start": "docusaurus start",
+    "build": "docusaurus build",
+    "serve": "docusaurus serve",
+    "clear": "docusaurus clear",
+    "write-translations": "docusaurus write-translations",
+    "typecheck": "tsc"
+  },
+  "dependencies": {
+    "@docusaurus/core": "^3.10.2",
+    "@docusaurus/preset-classic": "^3.10.2",
+    "@mdx-js/react": "^3.1.0",
+    "prism-react-renderer": "^2.4.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@docusaurus/module-type-aliases": "^3.10.2",
+    "@docusaurus/plugin-content-docs": "^3.10.2",
+    "@docusaurus/tsconfig": "^3.10.2",
+    "@docusaurus/types": "^3.10.2",
+    "typescript": "~5.9.3"
+  },
+  "browserslist": {
+    "development": [
+      "last 3 chrome versions",
+      "last 3 firefox versions",
+      "last 3 safari versions"
+    ],
+    "production": [
+      ">0.5%",
+      "not dead",
+      "not op_mini all"
+    ]
+  },
+  "engines": {
+    "node": ">=20.0"
+  }
+}

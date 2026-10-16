@@ -1,0 +1,75 @@
+name: Docs
+
+# Pages serves the built site from the default branch, so only main publishes.
+# Pull requests still build (broken links and bad front matter fail the build)
+# but never touch the live site.
+on:
+  push:
+    branches: [main]
+    paths:
+      - docs/**
+      - website/**
+      - .github/workflows/docs.yml
+  pull_request:
+    paths:
+      - docs/**
+      - website/**
+      - .github/workflows/docs.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never cancel a Pages deployment halfway through; queue behind it instead.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # "Last updated" stamps come from each page's file history.
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: website/pnpm-lock.yaml
+      # The site is its own pnpm workspace: this skips the desktop app's
+      # Electron and native toolchain entirely.
+      - name: Install
+        run: pnpm install --frozen-lockfile
+        working-directory: website
+      - name: Typecheck
+        run: pnpm typecheck
+        working-directory: website
+      - name: Build
+        run: pnpm build
+        working-directory: website
+      - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: website/build
+
+  deploy:
+    name: Deploy to Pages
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Configure Pages
+        uses: actions/configure-pages@v6
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v5

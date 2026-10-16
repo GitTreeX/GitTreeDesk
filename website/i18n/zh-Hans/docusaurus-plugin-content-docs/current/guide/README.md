@@ -1,7 +1,13 @@
+---
+slug: /
+sidebar_label: 使用指南
+sidebar_position: 1
+---
+
 # GitTreeDesk — 使用指南与功能说明
 
 > 状态：✅ 已实现 —— 本指南描述的 v1 行为均已落地。
-> 英文版为权威版本，[`README.md`](./README.md) 为准；本文件为同步中文镜像。
+> 英文版为权威版本；本文件是站点 `zh-Hans` 语言目录（`website/i18n/zh-Hans/…`）下的同步译文。
 > 工程参考：[`../spec.md`](../spec.md)（架构、关键决策、性能预算）。
 
 ## 本文档如何驱动开发
@@ -76,16 +82,16 @@
 
 | # | 页面 | 内容 | 状态 |
 |---|------|------|------|
-| — | [01 工作区与仓库树](./01-workspace-and-tree.zh-CN.md) | 打开工作区、仓库发现、信任、Explorer 与 Repos 视图、徽标、过滤 | ✅ |
-| — | [02 Worktree](./02-worktrees.zh-CN.md) | 展示、创建、删除、prune、lock——worktree 一等公民 | ✅ |
-| — | [03 变更与 Diff](./03-changes-and-diff.zh-CN.md) | 多仓库变更列表、暂存、丢弃、diff 查看器、文件历史 | ✅ |
-| — | [04 提交与提交信息](./04-commit-and-messages.zh-CN.md) | 提交、amend、历史改写（消息/作者/时间）、提交信息生成（离线 + LLM） | ✅ |
-| — | [05 分支、远端与标签](./05-branches-remotes-tags.zh-CN.md) | 分支操作、远端、fetch/pull/push、tag、批量操作 | ✅ |
-| — | [06 合并、变基与冲突](./06-merge-rebase-conflicts.zh-CN.md) | merge、rebase（含交互式）、cherry-pick、revert、reset、冲突解决、安全网 | ✅ |
-| — | [07 Stash](./07-stash.zh-CN.md) | stash 的创建、列表、应用与删除 | ✅ |
-| — | [08 Submodule](./08-submodules.zh-CN.md) | submodule 展示、状态、一键更新、sync | ✅ |
-| — | [09 提交图](./09-commit-graph.zh-CN.md) | 逐仓库提交图、工作区活动时间线、过滤、提交操作、大仓库处理 | ✅ |
-| — | [10 编辑器](./10-editor.zh-CN.md) | 文件查看与轻量编辑、TypeScript 提示、diff、在 VSCode 中打开 | ✅ |
-| — | [11 终端](./11-terminal.zh-CN.md) | Shell 配置、按目录级联配置、快捷命令 | ✅ |
-| — | [12 设置与键位](./12-settings-and-keyboard.zh-CN.md) | 设置界面、配置文件、默认快捷键、命令面板、键位自定义 | ✅ |
-| — | [13 常见问题与排查](./13-faq.zh-CN.md) | 常见问题、恢复流程、如何提功能需求 | ✅ |
+| — | [01 工作区与仓库树](./01-workspace-and-tree.md) | 打开工作区、仓库发现、信任、Explorer 与 Repos 视图、徽标、过滤 | ✅ |
+| — | [02 Worktree](./02-worktrees.md) | 展示、创建、删除、prune、lock——worktree 一等公民 | ✅ |
+| — | [03 变更与 Diff](./03-changes-and-diff.md) | 多仓库变更列表、暂存、丢弃、diff 查看器、文件历史 | ✅ |
+| — | [04 提交与提交信息](./04-commit-and-messages.md) | 提交、amend、历史改写（消息/作者/时间）、提交信息生成（离线 + LLM） | ✅ |
+| — | [05 分支、远端与标签](./05-branches-remotes-tags.md) | 分支操作、远端、fetch/pull/push、tag、批量操作 | ✅ |
+| — | [06 合并、变基与冲突](./06-merge-rebase-conflicts.md) | merge、rebase（含交互式）、cherry-pick、revert、reset、冲突解决、安全网 | ✅ |
+| — | [07 Stash](./07-stash.md) | stash 的创建、列表、应用与删除 | ✅ |
+| — | [08 Submodule](./08-submodules.md) | submodule 展示、状态、一键更新、sync | ✅ |
+| — | [09 提交图](./09-commit-graph.md) | 逐仓库提交图、工作区活动时间线、过滤、提交操作、大仓库处理 | ✅ |
+| — | [10 编辑器](./10-editor.md) | 文件查看与轻量编辑、TypeScript 提示、diff、在 VSCode 中打开 | ✅ |
+| — | [11 终端](./11-terminal.md) | Shell 配置、按目录级联配置、快捷命令 | ✅ |
+| — | [12 设置与键位](./12-settings-and-keyboard.md) | 设置界面、配置文件、默认快捷键、命令面板、键位自定义 | ✅ |
+| — | [13 常见问题与排查](./13-faq.md) | 常见问题、恢复流程、如何提功能需求 | ✅ |

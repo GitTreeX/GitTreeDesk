@@ -1,0 +1,9 @@
+# The documentation site is its own pnpm workspace so that installing the
+# desktop app's toolchain never has to pull Docusaurus, and vice versa.
+packages:
+  - '.'
+
+# core-js only prints a funding note, but pnpm fails the install on any
+# unapproved build script, and CI has to pass without an interactive approve.
+allowBuilds:
+  core-js: true

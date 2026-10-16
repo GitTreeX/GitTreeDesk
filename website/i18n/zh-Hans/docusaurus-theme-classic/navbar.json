@@ -1,0 +1,26 @@
+{
+  "title": {
+    "message": "GitTreeDesk",
+    "description": "The title in the navbar"
+  },
+  "logo.alt": {
+    "message": "GitTreeDesk logo",
+    "description": "The alt text of navbar logo"
+  },
+  "item.label.Guide": {
+    "message": "指南",
+    "description": "Navbar item with label Guide"
+  },
+  "item.label.Specification": {
+    "message": "规格说明书",
+    "description": "Navbar item with label Specification"
+  },
+  "item.label.Downloads": {
+    "message": "下载",
+    "description": "Navbar item with label Downloads"
+  },
+  "item.label.GitHub": {
+    "message": "GitHub",
+    "description": "Navbar item with label GitHub"
+  }
+}

@@ -1,7 +1,14 @@
+---
+sidebar_label: Specification
+sidebar_position: 2
+---
+
 # GitTreeDesk — Specification
 
 > Status: **Draft v0.1** · 2026-10-13
-> English is the canonical language of this document. `spec.zh-CN.md` is a courtesy translation kept in sync; when they disagree, this file wins.
+> English is the canonical language of this document. The Chinese translation is the docs site's
+> `zh-Hans` locale (`website/i18n/zh-Hans/docusaurus-plugin-content-docs/current/spec.md`), kept in sync;
+> when they disagree, this file wins.
 
 ## Overview
 

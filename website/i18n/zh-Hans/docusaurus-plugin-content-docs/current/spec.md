@@ -1,3 +1,8 @@
+---
+sidebar_label: 规格说明书
+sidebar_position: 2
+---
+
 # GitTreeDesk — 规格说明书
 
 > 状态：**草案 v0.1** · 2026-10-13

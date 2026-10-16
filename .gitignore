@@ -8,6 +8,8 @@ out/
 dist/
 release*/
 coverage/
+website/build/
+website/.docusaurus/
 .fixtures/
 *.log
 *.local

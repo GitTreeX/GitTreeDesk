@@ -1,7 +1,14 @@
+---
+slug: /
+sidebar_label: User guide
+sidebar_position: 1
+---
+
 # GitTreeDesk — User Guide & Feature Reference
 
 > Status: ✅ Implemented — every page describes behavior that ships in the v1 build.
-> English is canonical. [`README.zh-CN.md`](./README.zh-CN.md) is the synced Chinese mirror.
+> English is canonical. The Chinese translation is the docs site's `zh-Hans` locale
+> (`website/i18n/zh-Hans/docusaurus-plugin-content-docs/current/`), kept in sync file for file.
 > Engineering reference: [`../spec.md`](../spec.md) (architecture, key decisions, performance budgets).
 
 ## How this guide drives development
