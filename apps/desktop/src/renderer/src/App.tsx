@@ -30,6 +30,7 @@ import { checkoutKey } from './tree/repos-model'
 
 const SIDEBAR_WIDTH_KEY = 'shell.sidebarWidth'
 const SIDEBAR_COLLAPSED_KEY = 'shell.sidebarCollapsed'
+const TRUST_PROMPTED_KEY = 'trust.promptedRoots'
 const DEFAULT_SIDEBAR_WIDTH = 300
 const MIN_SIDEBAR_WIDTH = 220
 const MAX_SIDEBAR_WIDTH = 560
@@ -84,7 +85,7 @@ function AppRoot(): JSX.Element {
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH)
-  const [trustPrompted, setTrustPrompted] = useState(false)
+  const [trustPromptedRoots, setTrustPromptedRoots] = useState<readonly string[]>([])
   const [dropActive, setDropActive] = useState(false)
   const [perfOpen, setPerfOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
@@ -305,8 +306,19 @@ function AppRoot(): JSX.Element {
   }, [terminal.resolution, registry])
 
   useEffect(() => {
-    setTrustPrompted(false)
-  }, [workspace.descriptor?.root])
+    let live = true
+    api.invoke('ui-state:get', { key: TRUST_PROMPTED_KEY }).then(
+      ({ value }) => {
+        if (live && Array.isArray(value)) {
+          setTrustPromptedRoots(value.filter((item): item is string => typeof item === 'string'))
+        }
+      },
+      () => {}
+    )
+    return () => {
+      live = false
+    }
+  }, [])
 
   useEffect(() => {
     let live = true
@@ -360,7 +372,8 @@ function AppRoot(): JSX.Element {
   }
 
   const descriptor = workspace.descriptor
-  const trustPrompt = descriptor !== null && !descriptor.trusted && !trustPrompted
+  const trustPrompt =
+    descriptor !== null && !descriptor.trusted && !trustPromptedRoots.includes(descriptor.root)
 
   return (
     <div
@@ -402,7 +415,9 @@ function AppRoot(): JSX.Element {
         <TrustDialog
           root={descriptor.root}
           onDecide={(trusted) => {
-            setTrustPrompted(true)
+            const next = [...trustPromptedRoots, descriptor.root]
+            setTrustPromptedRoots(next)
+            persist(TRUST_PROMPTED_KEY, next)
             void workspace.setTrusted(trusted)
           }}
         />

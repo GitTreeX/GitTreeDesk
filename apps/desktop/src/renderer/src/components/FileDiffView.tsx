@@ -158,7 +158,7 @@ export function FileDiffView({ tab }: { tab: DiffTab | CommitTab }): JSX.Element
         automaticLayout: true,
         renderSideBySide: sideBySide,
         ignoreTrimWhitespace: ignoreWhitespace,
-        wordWrap: 'on',
+        wordWrap: settings.wordWrap ? 'on' : 'off',
         glyphMargin: true,
         fontSize: settings.fontSize,
         fontFamily: settings.fontFamily !== '' ? settings.fontFamily : DEFAULT_FONT_FAMILY,
@@ -218,7 +218,8 @@ export function FileDiffView({ tab }: { tab: DiffTab | CommitTab }): JSX.Element
   useEffect(() => {
     diffRef.current?.updateOptions({
       fontSize: settings.fontSize,
-      fontFamily: settings.fontFamily !== '' ? settings.fontFamily : DEFAULT_FONT_FAMILY
+      fontFamily: settings.fontFamily !== '' ? settings.fontFamily : DEFAULT_FONT_FAMILY,
+      wordWrap: settings.wordWrap ? 'on' : 'off'
     })
   }, [settings])
 

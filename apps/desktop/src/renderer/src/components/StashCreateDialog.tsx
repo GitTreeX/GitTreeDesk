@@ -22,7 +22,7 @@ export function StashCreateDialog({
   const { t } = useTranslation()
   const operations = useOperations()
   const [message, setMessage] = useState('')
-  const [includeUntracked, setIncludeUntracked] = useState(true)
+  const [includeUntracked, setIncludeUntracked] = useState(false)
   const [keepIndex, setKeepIndex] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
