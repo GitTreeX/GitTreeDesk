@@ -1,0 +1,38 @@
+# Changelog
+
+English is canonical; [简体中文](CHANGELOG.zh-CN.md) is the synced mirror.
+Archives for every version are published on the [releases page](https://github.com/GitTreeX/GitTreeDesk/releases).
+
+## 0.2.0
+
+The first release packaged for all three platforms — everything below ships in it.
+
+**Workspace and repositories**
+
+- Open any folder as a workspace. Repositories and worktrees are discovered as folders expand, cached in SQLite, and shown in one tree with per-repository status.
+- Repositories view with branch, upstream, ahead/behind and dirty-state badges; push to one of several remotes.
+- Per-workspace trust prompt: untrusted roots suppress Git hooks and workspace-defined terminal commands.
+- Workspace activity timeline in the graph pane: recent commits from the checked repositories, grouped by day, each row jumping into that repository's commit graph.
+
+**Changes, commits, history**
+
+- Multi-repository Source Control view: stage per file or hunk, discard, amend, hook output surfaced in the Output panel.
+- Merge, rebase (with a list editor for interactive rebase), cherry-pick, revert, reset, stash, and conflict resolution in the editor and the diff view.
+- Commit graph: lanes, ref chips, incoming/outgoing markers, paged and streamed history, combinable filters, resizable lane column, commit details with per-file stats, history rewrite with backup refs and undo.
+- Commit message drafts generated offline from the staged diff, or through a configured LLM provider.
+
+**Editing and terminals**
+
+- Monaco editor with syntax highlighting, TypeScript hints, and a split diff view with per-file history.
+- Integrated terminals bound to a repository or worktree, with profiles, quick commands, and scrollback.
+
+**Shell and settings**
+
+- Command palette covering every action, keyboard shortcuts, an editable `keybindings.json`, and a keyboard reference page that detects conflicts and records key presses.
+- Settings for theme, accent color, UI and graph density, Git binary path, LLM provider, and log verbosity.
+- English and Simplified Chinese interfaces; the About dialog links to the project homepage and the release page.
+
+**Packaging**
+
+- Windows: NSIS installer and portable zip. macOS: dmg and zip for arm64 and x64, unsigned while notarization is deferred. Linux: AppImage and deb.
+- Three-platform CI that packages, boots the packaged build headlessly, and reports performance budgets.

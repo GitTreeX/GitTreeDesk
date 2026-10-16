@@ -41,3 +41,38 @@ GitTreeDesk takes a different approach: **not a general-purpose IDE, but a works
 - 🌍 **English-first i18n** — English by default, with i18n-ready architecture.
 - 🌙 **Dark mode** — Follow system theme or switch manually.
 - 🚀 **Performance-first** — Lazy loading, incremental updates, and SQLite caching.
+
+## Requirements
+
+- Git **≥ 2.23** (≥ 2.36 recommended), read from `PATH`. A non-standard location can be set in Settings.
+- Windows 10+ · macOS 11+ · Linux (AppImage or deb).
+
+## Download
+
+Installers and portable archives are published on the [releases page](https://github.com/GitTreeX/GitTreeDesk/releases): an NSIS `.exe` installer plus a portable `.zip` for Windows, a `.dmg` for macOS, and an `.AppImage` plus a `.deb` for Linux.
+
+macOS builds are unsigned while notarization is deferred, so the first launch needs an explicit **Open** confirmation in Gatekeeper.
+
+## Build from source
+
+Requires Node ≥ 22 and pnpm 12 (the `packageManager` field pins the version).
+
+```bash
+pnpm install
+pnpm build:native            # compiles node-pty where no prebuild ships (Linux)
+pnpm dev                     # development, with hot reload
+pnpm build && pnpm package:win   # artifacts land in release/ (package:mac / package:linux also exist)
+pnpm smoke:packaged          # boot the packaged build and assert it comes up
+```
+
+`pnpm typecheck` and `pnpm test` cover the whole workspace; `pnpm fixture` generates the large multi-repo workspace the performance budgets are measured against.
+
+## Documentation
+
+- [User guide](docs/guide/README.md) — what every screen does, one page per feature ([简体中文](docs/guide/README.zh-CN.md))
+- [Engineering reference](docs/spec.md) — architecture, key decisions, performance budgets
+- [Changelog](CHANGELOG.md)
+
+## License
+
+MIT — see [LICENSE](LICENSE).

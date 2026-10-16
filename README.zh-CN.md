@@ -41,3 +41,38 @@ GitTreeDesk 选择了另一条路：**不做通用 IDE，而是面向大量仓�
 - 🌍 **英文优先的国际化** — 默认英文，架构已为 i18n 做好准备。
 - 🌙 **深色模式** — 跟随系统主题或手动切换。
 - 🚀 **性能优先** — 懒加载、增量更新与 SQLite 缓存。
+
+## 运行要求
+
+- Git **≥ 2.23**（建议 ≥ 2.36），默认从 `PATH` 读取；非标准路径可在设置中指定。
+- Windows 10+ · macOS 11+ · Linux（AppImage 或 deb）。
+
+## 下载
+
+安装包与免安装压缩包发布在[发布页面](https://github.com/GitTreeX/GitTreeDesk/releases)：Windows 提供 NSIS `.exe` 安装器与免安装 `.zip`，macOS 提供 `.dmg`，Linux 提供 `.AppImage` 与 `.deb`。
+
+macOS 构建暂未签名（公证能力后置），首次启动需要在 Gatekeeper 中手动选择"打开"。
+
+## 从源码构建
+
+需要 Node ≥ 22 与 pnpm 12（版本由 `packageManager` 字段锁定）。
+
+```bash
+pnpm install
+pnpm build:native            # 在没有预编译产物的平台编译 node-pty（Linux）
+pnpm dev                     # 开发模式，热更新
+pnpm build && pnpm package:win   # 产物输出到 release/（另有 package:mac / package:linux）
+pnpm smoke:packaged          # 启动打包后的应用并断言可以正常拉起
+```
+
+`pnpm typecheck` 与 `pnpm test` 覆盖整个 workspace；`pnpm fixture` 会生成性能预算所依据的多仓库大型工作区夹具。
+
+## 文档
+
+- [用户指南](docs/guide/README.zh-CN.md) — 逐个界面说明功能，每个特性一页
+- [工程参考](docs/spec.zh-CN.md) — 架构、关键决策与性能预算
+- [更新日志](CHANGELOG.zh-CN.md)
+
+## 许可证
+
+MIT — 见 [LICENSE](LICENSE)。
