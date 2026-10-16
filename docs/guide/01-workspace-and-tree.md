@@ -88,7 +88,7 @@ Both views share one badge set. The badge types are the display toggles — each
 
 **Quick filters** above the tree: "Only dirty", "Only ahead/behind", "Only worktrees".
 
-**Per-repo checkboxes**: each repository row can be checked to include it in the **Source Control view** — with many repositories you can keep the changes list focused on the ones you are working on (page 03). "Select all / none" shortcuts are available in the view's toolbar.
+**Per-repo checkboxes**: each repository row can be checked to include it in the **Source Control view** — with many repositories you can keep the changes list focused on the ones you are working on (page 03) — and in the **workspace activity timeline** (page 09). "Select all / none" shortcuts are available in the view's toolbar.
 
 ## Keyboard in the trees
 

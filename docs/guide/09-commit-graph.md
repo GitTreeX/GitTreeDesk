@@ -7,6 +7,7 @@
 - One graph **tab per repository** (titled `<repository> (Graph)`): open it from the **Graph button in the activity bar** (it acts on the active repository), the graph toolbar's repository picker, the **Source Control section header button** of that repository, the command palette ("Open commit graph"), the repo row's context menu, or any folder/file row in the Explorer whose path belongs to a repository. Up to ~5 graph tabs stay alive (LRU); reopening is instant.
 - The toolbar's **repository picker** switches to another repository's graph with one click (type to filter, Enter picks the first match) and makes that repository the active one, so the status bar and Source Control follow along. Next to it a **…** button opens the repository action menu (the same list as the Repos view row menu, without the graph entry) so everyday actions stay reachable from the graph.
 - The graph covers all refs by default: local branches, remote branches, tags, and HEAD.
+- The **scope switch** at the left of the toolbar turns the same pane into the workspace-wide activity timeline (see *Workspace timeline* below).
 
 ## What you see
 
@@ -27,6 +28,17 @@
 ## Filters
 
 Toolbar filters (combinable): refs multi-select (branches/remotes/tags), author, path, date range, message text search, and **"only reachable from current branch"** (hides unrelated history). Filter state is per tab and remembered.
+
+## Workspace timeline (all checked repositories)
+
+The graph toolbar starts with a **scope switch**: `Repository` shows one repository's lanes, `Workspace` folds the recent commits of **every checked repository** into one timeline. The choice is remembered across sessions, and the command palette ("Open Workspace Activity Timeline") takes you there from any repository.
+
+- **Scope**: the same per-repository checkboxes that feed Source Control (page 01). The toolbar shows how many repositories are folded in; un-checking one in the Repos view drops its commits from the timeline.
+- **Rows**: relative time, a repository chip, subject and author, grouped under a header per day. Only each repository's **HEAD** is walked, so the timeline answers "what has been happening in the repositories I follow" rather than every branch.
+- **Window**: last 7 / 30 / 90 / 365 days (default 30), plus message and author filters and a **Reload** button; row height follows the same density setting as the graph.
+- **Stated limits**: a repository with more commits than the window reads says so; a repository that cannot be read is named in a warning strip while the rest still show; an empty window says that too.
+- **Click a row** to open that repository's graph tab with the commit selected, scrolled into view and its details panel open — the tab is back in `Repository` scope.
+- The timeline refreshes itself when a repository in scope moves its HEAD (commit, checkout, pull).
 
 ## Actions on a commit
 

@@ -84,7 +84,7 @@ A workspace-first multi-repo Git workbench. Open **any folder** — it does not 
 | — | [06 Merge, Rebase & Conflicts](./06-merge-rebase-conflicts.md) | Merge, rebase (incl. interactive), cherry-pick, revert, reset, conflict resolution, safety nets | ✅ |
 | — | [07 Stash](./07-stash.md) | Creating, listing, applying and dropping stashes | ✅ |
 | — | [08 Submodules](./08-submodules.md) | Submodule display, status, one-click update, sync | ✅ |
-| — | [09 Commit Graph](./09-commit-graph.md) | Per-repo commit graph, filters, commit actions, large-repo handling | ✅ |
+| — | [09 Commit Graph](./09-commit-graph.md) | Per-repo commit graph, workspace activity timeline, filters, commit actions, large-repo handling | ✅ |
 | — | [10 Editor](./10-editor.md) | File viewing and light editing, TypeScript hints, diffs, Open in VSCode | ✅ |
 | — | [11 Terminal](./11-terminal.md) | Shell profiles, per-directory cascading config, quick commands | ✅ |
 | — | [12 Settings & Keyboard](./12-settings-and-keyboard.md) | Settings UI, config files, default shortcuts, command palette, keymap customization | ✅ |

@@ -32,7 +32,7 @@ Three principles drive design trade-offs:
 - Multi-repo overview of changes; the user chooses which repositories and which change types are shown
 - Worktrees are first-class: detected, grouped under their main repository, created and removed from the UI
 - Complete Git workflow comparable to SourceTree: stage, commit, stash, branch, merge, rebase (incl. interactive), cherry-pick, revert, reset, tags, remotes, fetch/pull/push, submodule update, worktree CRUD, commit metadata editing, all with safety nets
-- Native commit graph (Git Graph equivalent) per repository, with actions on commits
+- Native commit graph (Git Graph equivalent) per repository, with actions on commits, plus a workspace-wide activity timeline over the checked repositories
 - Code viewing and light editing: syntax highlighting, best-effort TypeScript hints, and a one-click "Open in VSCode" escape hatch
 - Changes list and diff view: staged/unstaged/untracked/conflicted, text and image diffs, hunk-level staging
 - Integrated terminal: multiple shell profiles, per-directory cascading configuration, quick commands
@@ -306,7 +306,7 @@ Two coordinated views over the same registry:
 - **Explorer view** — the real filesystem tree: folders as-is, repositories marked with a badge (branch name or short-sha), worktree folders marked with a worktree glyph. Lazy directory reads; expanded-directory watching. File operations: new file/folder, rename, delete (moves to OS trash via `shell.trashItem` — reversible), reveal in OS file manager, copy path, copy relative path, "Open in VSCode", "Open terminal here", "Compare two selected files"; rows inside a repository also offer "Open commit graph".
 - **Repos view** — the logical view: groups (configured or derived from the first path segment), repositories as first-class rows showing name, current branch/ref, badges, and children nested: **linked worktrees** (with their own branch) and **submodules** (initialized or not) appear under their main repository; external worktrees appear greyed with their absolute path when enabled.
 
-Badges & view options: each badge type is individually toggleable — `dirty dot`, `ahead/behind counts`, `stash count`, `in-progress operation`, `detached HEAD`, `submodules pending`. Quick filters: "only dirty", "only ahead/behind", "only worktrees", plus a per-repo checkbox set deciding which repositories contribute to the SCM view and to any future aggregate surfaces. Repo rows support multi-select for batch operations (fetch all selected, pull all, open terminals) and carry a row action button that opens the same menu as the row context menu.
+Badges & view options: each badge type is individually toggleable — `dirty dot`, `ahead/behind counts`, `stash count`, `in-progress operation`, `detached HEAD`, `submodules pending`. Quick filters: "only dirty", "only ahead/behind", "only worktrees", plus a per-repo checkbox set deciding which repositories contribute to the SCM view and to the workspace activity timeline. Repo rows support multi-select for batch operations (fetch all selected, pull all, open terminals) and carry a row action button that opens the same menu as the row context menu.
 
 Both views render with virtualization (TanStack Virtual) and keyboard navigation (↑/↓, ←/→ collapse/expand, Enter open, Space stage-toggles in SCM only).
 
@@ -365,7 +365,7 @@ Both views render with virtualization (TanStack Virtual) and keyboard navigation
 
 ### Commit graph
 
-*Scope: v1, per repository.*
+*Scope: v1, per repository plus a workspace-wide activity timeline.*
 
 - Opened as a tab per repository (LRU-cached, ~5 alive) from the activity bar, the graph toolbar picker, the Source Control section header, the command palette, the repo row menu, or any Explorer row inside a repository. The toolbar switches the tab to another workspace repository through a repository picker (which also makes it the active checkout) and carries the shared repository action menu (without the graph entry). Data from `git log --all` (configurable default refs) streamed with a custom NUL-delimited format; lanes computed client-side; rendering = virtualized DOM rows + a canvas lane layer (targets 60 fps at 5 000+ loaded rows).
 - Row density: `compact` / `normal` / `comfortable` row heights, switchable from the toolbar and from the Appearance settings group (`appearance.graphDensity`, default `normal`).
@@ -375,7 +375,7 @@ Both views render with virtualization (TanStack Virtual) and keyboard navigation
 - Filters: refs multi-select, author, path (with rename detection off in v1), date range, message text, and "only reachable from current branch".
 - Commit details side panel: full message, author + committer (name/email/date), file list with stats; clicking a file opens the commit diff in the editor area.
 - Commit actions (context menu, reusing the operation models): checkout, create branch/tag here, cherry-pick, revert, reset here *(soft/mixed/hard)*, copy SHA / ref name, rebase current onto this commit, interactive rebase from this commit, **edit message / author / date** (history editing), select for compare (diff two arbitrary commits).
-- A cross-repo "activity" aggregate is *Later*.
+- **Workspace activity timeline**: a toolbar scope switch (`graph.mode`, persisted in the UI state) replaces the tab body with one merged, virtualized, day-grouped list of recent commits from the repositories the Repos checkbox set selects; the command palette opens it directly. `git:activity` fans the read out over those checkouts (8 at a time), walking each `HEAD` with `--since` / `--author` / `--grep` and a per-repository cap, and reports `failures` and `truncated` so an unreadable or clipped repository is stated rather than silently dropped. Window and filters persist under `graph.activity`; the read is debounced and re-issued when a HEAD inside the scope moves. A row click opens that repository's graph tab and hands it `{gitDir, sha, token}`, so the tab selects, scrolls to and details the commit.
 
 ### Editor
 

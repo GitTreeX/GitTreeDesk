@@ -32,7 +32,7 @@ GitTreeDesk 把这些有用的部分合进一个工具，并且把**工作区**�
 - 多仓库变更总览；由用户勾选展示哪些仓库、哪些变更类型
 - Worktree 一等公民：自动识别、归组到主仓库下、支持从 UI 创建与删除
 - 完整的 Git 操作流，对标 SourceTree：stage、commit、stash、branch、merge、rebase（含交互式）、cherry-pick、revert、reset、tag、remote、fetch/pull/push、submodule 更新、worktree 增删、提交元信息改写，都带安全网
-- 原生提交图（Git Graph 等价物），逐仓库展示，可在提交上直接操作
+- 原生提交图（Git Graph 等价物），逐仓库展示，可在提交上直接操作；另有一条覆盖勾选仓库的工作区活动时间线
 - 代码查看与轻编辑：语法高亮、尽力而为的 TypeScript 提示、一键"在 VSCode 中打开"逃生口
 - 变更列表与 diff：已暂存/未暂存/未跟踪/冲突，文本与图片 diff，hunk 级暂存
 - 集成终端：多 Shell 配置、按目录级联配置、快捷命令
@@ -306,7 +306,7 @@ CREATE TABLE oplog        (id INTEGER PRIMARY KEY, repo_id INT, op TEXT, backup_
 - **Explorer 视图** —— 真实文件系统树：文件夹按原样展示，仓库带徽标（分支名或短 sha），worktree 文件夹带 worktree 图标。目录惰性读取；已展开目录监听。文件操作：新建文件/文件夹、重命名、删除（经 `shell.trashItem` 移入系统回收站——可逆）、在系统文件管理器中显示、复制路径、复制相对路径、"在 VSCode 中打开"、"在此打开终端"、"对比选中的两个文件"；属于某仓库的行还提供"打开提交图"。
 - **Repos 视图** —— 逻辑视图：分组（配置的或按首层路径段派生），仓库为一级行，显示名称、当前分支/ref、徽标，并嵌套子节点：**链接 worktree**（带各自分支）与 **submodule**（含未初始化）显示在其主仓库下；工作区外的 worktree 在开启时以灰色 + 绝对路径显示。
 
-徽标与视图选项：每种徽标可独立开关——`dirty 圆点`、`ahead/behind 计数`、`stash 数`、`进行中操作`、`detached HEAD`、`submodule 待处理`。快捷过滤："仅 dirty"、"仅 ahead/behind"、"仅 worktree"，外加逐仓库勾选集合，决定哪些仓库进入 SCM 视图及未来的聚合界面。仓库行支持多选做批量操作（批量 fetch、批量 pull、批量开终端），并提供行内操作按钮，打开与行右键完全相同的菜单。
+徽标与视图选项：每种徽标可独立开关——`dirty 圆点`、`ahead/behind 计数`、`stash 数`、`进行中操作`、`detached HEAD`、`submodule 待处理`。快捷过滤："仅 dirty"、"仅 ahead/behind"、"仅 worktree"，外加逐仓库勾选集合，决定哪些仓库进入 SCM 视图与工作区活动时间线。仓库行支持多选做批量操作（批量 fetch、批量 pull、批量开终端），并提供行内操作按钮，打开与行右键完全相同的菜单。
 
 两个视图都用虚拟滚动（TanStack Virtual）与键盘导航（↑/↓、←/→ 折叠展开、Enter 打开、仅在 SCM 中 Space 切换 stage）。
 
@@ -365,7 +365,7 @@ CREATE TABLE oplog        (id INTEGER PRIMARY KEY, repo_id INT, op TEXT, backup_
 
 ### 提交图
 
-*范围：v1，逐仓库。*
+*范围：v1，逐仓库 + 一条工作区活动时间线。*
 
 - 按仓库开为 tab（LRU 缓存约 5 个存活），入口：活动栏、图工具栏选择器、Source Control 区头、命令面板、仓库行菜单，以及 Explorer 中属于某仓库的任意行。工具栏通过仓库选择器把该标签切换到工作区内的其他仓库（同时把该仓库设为当前检出），并提供同一套仓库操作菜单（不含提交图那一项）。数据来自 `git log --all`（默认 refs 可配置），以自定义 NUL 分隔格式流式读取；泳道在客户端计算；渲染 = 虚拟化 DOM 行 + canvas 泳道层（目标：已加载 5000+ 行时 60 fps）。
 - 行高：`紧凑` / `正常` / `宽松` 三档，可在图工具栏与「外观」设置组切换（`appearance.graphDensity`，默认 `正常`）。
@@ -375,7 +375,7 @@ CREATE TABLE oplog        (id INTEGER PRIMARY KEY, repo_id INT, op TEXT, backup_
 - 过滤：refs 多选、作者、路径（v1 不做 rename 跟随）、日期区间、消息文本，以及"仅当前分支可达"。
 - 提交详情侧栏：完整消息、作者 + 提交者（姓名/邮箱/日期）、带统计的文件列表；点击文件在编辑区打开该提交的 diff。
 - 提交操作（右键菜单，复用操作模型）：checkout、在此创建分支/tag、cherry-pick、revert、reset 到此处*（soft/mixed/hard）*、复制 SHA / ref 名、把当前分支 rebase 到该提交、自此交互式 rebase、**修改提交信息 / 作者 / 时间**（历史改写）、选择以对比（任意两个提交间 diff）。
-- 跨仓库"活动"聚合属*后续*。
+- **工作区活动时间线**：工具栏的范围切换（`graph.mode`，持久化在 UI state）把标签内容换成一条合并后的虚拟化列表，按天分组展示 Repos 勾选集合所选仓库的最近提交；命令面板可直接打开。`git:activity` 把这些检出分批并发读取（同时 8 个），各自只走 `HEAD`，带 `--since` / `--author` / `--grep` 与逐仓库上限，并把 `failures`、`truncated` 一并返回——读不了或被截断的仓库要说明，而不是悄悄丢掉。时间窗与过滤器持久化在 `graph.activity`；读取带防抖，范围内 HEAD 移动时重新读取。点击某行会打开该仓库的提交图标签并交给它 `{gitDir, sha, token}`，由该标签选中、滚动到并展开那个提交的详情。
 
 ### 编辑器
 

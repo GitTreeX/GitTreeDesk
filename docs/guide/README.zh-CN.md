@@ -84,7 +84,7 @@
 | — | [06 合并、变基与冲突](./06-merge-rebase-conflicts.zh-CN.md) | merge、rebase（含交互式）、cherry-pick、revert、reset、冲突解决、安全网 | ✅ |
 | — | [07 Stash](./07-stash.zh-CN.md) | stash 的创建、列表、应用与删除 | ✅ |
 | — | [08 Submodule](./08-submodules.zh-CN.md) | submodule 展示、状态、一键更新、sync | ✅ |
-| — | [09 提交图](./09-commit-graph.zh-CN.md) | 逐仓库提交图、过滤、提交操作、大仓库处理 | ✅ |
+| — | [09 提交图](./09-commit-graph.zh-CN.md) | 逐仓库提交图、工作区活动时间线、过滤、提交操作、大仓库处理 | ✅ |
 | — | [10 编辑器](./10-editor.zh-CN.md) | 文件查看与轻量编辑、TypeScript 提示、diff、在 VSCode 中打开 | ✅ |
 | — | [11 终端](./11-terminal.zh-CN.md) | Shell 配置、按目录级联配置、快捷命令 | ✅ |
 | — | [12 设置与键位](./12-settings-and-keyboard.zh-CN.md) | 设置界面、配置文件、默认快捷键、命令面板、键位自定义 | ✅ |
