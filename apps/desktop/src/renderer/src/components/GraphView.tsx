@@ -44,6 +44,7 @@ import {
 } from '../tree/graph-model'
 import { ContextMenu, type ContextMenuItem } from './ContextMenu'
 import { OperationBanner } from './OperationBanner'
+import { GraphModeSwitch, WorkspaceActivityView } from './WorkspaceActivityView'
 import { ChevronDownIcon, SearchIcon, XIcon } from './icons'
 
 const CHIP_LIMIT = 3
@@ -118,7 +119,18 @@ interface CompareState {
   files: readonly FileChange[]
 }
 
+/**
+ * The Graph pane shows either one repository's lanes or, in workspace mode, the
+ * activity timeline of every checked repository. The mode is a pane-wide
+ * preference, so a graph tab standing in for it swaps its body wholesale.
+ */
 export function GraphView({ tab }: { tab: GraphTab }): JSX.Element | null {
+  const graph = useGraph()
+  if (graph.mode === 'workspace') return <WorkspaceActivityView />
+  return <RepoGraphView tab={tab} />
+}
+
+function RepoGraphView({ tab }: { tab: GraphTab }): JSX.Element | null {
   const { t } = useTranslation()
   const { locale } = useSettings()
   const graph = useGraph()
@@ -323,6 +335,24 @@ export function GraphView({ tab }: { tab: GraphTab }): JSX.Element | null {
   useEffect(() => {
     virtualizer.measure()
   }, [rowHeight, virtualizer])
+
+  // A timeline row asks this repository graph to select and reveal one commit.
+  const revealedTicket = useRef(0)
+  useEffect(() => {
+    const reveal = graph.reveal
+    if (reveal === null || reveal.gitDir !== gitDir || revealedTicket.current === reveal.token) return
+    const index = commits.findIndex((commit) => commit.sha === reveal.sha)
+    if (index < 0) {
+      // Keep waiting while a page is still landing, then give up on this ticket.
+      if (slice === undefined || !slice.loading) revealedTicket.current = reveal.token
+      return
+    }
+    revealedTicket.current = reveal.token
+    setSelection(new Set([reveal.sha]))
+    setCursor(reveal.sha)
+    setDetailSha(reveal.sha)
+    virtualizer.scrollToIndex(index, { align: 'center' })
+  }, [commits, gitDir, graph.reveal, slice, virtualizer])
 
   const onScroll = useCallback((): void => {
     const element = scrollRef.current
@@ -660,6 +690,7 @@ export function GraphView({ tab }: { tab: GraphTab }): JSX.Element | null {
     >
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-b border-line bg-panel px-2 py-1.5 text-xs">
+          <GraphModeSwitch />
           <div ref={repoBoxRef} className="relative">
             <button
               type="button"

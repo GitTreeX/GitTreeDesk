@@ -631,6 +631,28 @@ const en = {
     },
     density: { label: 'Row height' },
     gutter: { resize: 'Resize the lane column' },
+    activity: {
+      mode: {
+        label: 'Graph scope',
+        repo: 'Repository',
+        workspace: 'Workspace',
+        hint: 'Show one repository graph, or the recent commits of every checked repository'
+      },
+      window: 'Window',
+      windowDays: 'Last {{count}} days',
+      search: 'Filter messages…',
+      author: 'Author',
+      scopeOne: '1 repository',
+      scope: '{{count}} repositories',
+      scopeHint: 'The Repos view checkboxes decide which repositories are folded into this timeline',
+      refresh: 'Reload',
+      loading: 'Reading recent commits…',
+      empty: 'No commits in this window.',
+      failuresOne: '1 repository could not be read',
+      failures: '{{count}} repositories could not be read',
+      truncated: 'Some repositories have more commits in this window.',
+      open: 'Open this commit in its repository graph'
+    },
     toolbar: {
       search: 'Filter messages…',
       author: 'Author',
@@ -968,6 +990,7 @@ const en = {
     checkoutBranch: 'Checkout Branch…',
     createBranch: 'Create Branch…',
     openGraph: 'Open Commit Graph',
+    openWorkspaceActivity: 'Open Workspace Activity Timeline',
     fetchRepo: 'Fetch',
     fetchAll: 'Fetch All Repositories',
     pullRepo: 'Pull (Fast-forward Only)',

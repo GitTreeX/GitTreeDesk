@@ -621,6 +621,28 @@ export const zhHansResource: TranslationResource = {
     },
     density: { label: '行高' },
     gutter: { resize: '调整泳道列宽' },
+    activity: {
+      mode: {
+        label: '图谱范围',
+        repo: '单仓库',
+        workspace: '工作区',
+        hint: '显示单个仓库的提交图，或所有勾选仓库的最近提交'
+      },
+      window: '时间范围',
+      windowDays: '最近 {{count}} 天',
+      search: '过滤提交信息…',
+      author: '作者',
+      scopeOne: '1 个仓库',
+      scope: '{{count}} 个仓库',
+      scopeHint: 'Repos 视图中的勾选决定哪些仓库进入这条时间线',
+      refresh: '重新读取',
+      loading: '正在读取最近提交…',
+      empty: '这个时间范围内没有提交。',
+      failuresOne: '1 个仓库读取失败',
+      failures: '{{count}} 个仓库读取失败',
+      truncated: '部分仓库在这个范围内还有更早的提交。',
+      open: '在该仓库的提交图中打开这次提交'
+    },
     toolbar: {
       search: '筛选提交消息…',
       author: '作者',
@@ -954,6 +976,7 @@ export const zhHansResource: TranslationResource = {
     checkoutBranch: '检出分支…',
     createBranch: '创建分支…',
     openGraph: '打开提交图',
+    openWorkspaceActivity: '打开工作区活动时间线',
     fetchRepo: '获取',
     fetchAll: '获取全部仓库',
     pullRepo: '拉取（仅快进）',

@@ -209,6 +209,11 @@ function AppRoot(): JSX.Element {
     gitBranches: () => withActiveRecord((record) => operations.openBranches(record)),
     gitCreateBranch: () => withActiveRecord((record) => operations.openCreateBranch(record)),
     gitOpenGraph: () => withActiveRecord((record) => graph.openGraph(record)),
+    gitOpenWorkspaceActivity: () =>
+      withActiveRecord((record) => {
+        graph.openGraph(record)
+        graph.setMode('workspace')
+      }),
     gitMergeInto: () => withActiveRecord((record) => operations.openBranches(record)),
     gitRebaseCurrent: () => withActiveRecord((record) => operations.openBranches(record)),
     gitFetch: () => operations.fetchRepos(fetchTargets()),

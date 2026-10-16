@@ -38,6 +38,7 @@ export const COMMAND_IDS = {
   checkoutBranch: 'git.checkoutBranch',
   createBranch: 'git.createBranch',
   openGraph: 'git.openGraph',
+  openWorkspaceActivity: 'git.openWorkspaceActivity',
   mergeInto: 'git.mergeInto',
   rebaseCurrent: 'git.rebaseCurrent',
   fetchRepo: 'git.fetchRepo',
@@ -110,6 +111,7 @@ export interface BuiltinContext {
   gitBranches: () => void
   gitCreateBranch: () => void
   gitOpenGraph: () => void
+  gitOpenWorkspaceActivity: () => void
   gitMergeInto: () => void
   gitRebaseCurrent: () => void
   gitFetch: () => void
@@ -393,6 +395,13 @@ export function createBuiltinCommands(get: () => BuiltinContext): CommandDefinit
       categoryKey: 'commands.categories.git',
       enabled: () => get().gitHasGraph(),
       run: () => get().gitOpenGraph()
+    },
+    {
+      id: COMMAND_IDS.openWorkspaceActivity,
+      titleKey: 'commands.openWorkspaceActivity',
+      categoryKey: 'commands.categories.git',
+      enabled: () => get().gitHasGraph(),
+      run: () => get().gitOpenWorkspaceActivity()
     },
     {
       id: COMMAND_IDS.mergeInto,

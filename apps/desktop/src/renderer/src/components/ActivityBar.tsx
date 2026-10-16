@@ -53,7 +53,11 @@ export function ActivityBar({
         aria-label={t('activity.graph')}
         disabled={graphTarget === null}
         onClick={() => {
-          if (graphTarget !== null) graph.openGraph(graphTarget)
+          if (graphTarget === null) return
+          const workspaceMode = graph.mode === 'workspace'
+          graph.openGraph(graphTarget)
+          // A timeline the user already lives in survives opening this tab.
+          if (workspaceMode) graph.setMode('workspace')
         }}
         className={`flex size-9 items-center justify-center rounded-md disabled:opacity-40 ${
           graphActive ? 'bg-ink/5 text-ink' : 'text-muted hover:bg-ink/5 hover:text-ink'

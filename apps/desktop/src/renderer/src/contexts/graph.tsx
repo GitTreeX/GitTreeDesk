@@ -9,10 +9,18 @@ import {
   type JSX,
   type ReactNode
 } from 'react'
-import type { CommitInfo, GitGraphRequest, GitRef, RepoRecord } from '@gitreedesk/shared'
+import type {
+  CommitInfo,
+  GitActivityEntry,
+  GitActivityResponse,
+  GitGraphRequest,
+  GitRef,
+  RepoRecord
+} from '@gitreedesk/shared'
 import { api } from '../api'
 import { GRAPH_TAB_LIMIT, repoInfoOf, useEditor } from './editor'
 import { useWorkspace } from './workspace'
+import { useUiState } from '../use-ui-state'
 
 /** Toolbar filters of one graph tab; `null` revs walk every branch, remote, tag and HEAD. */
 export interface GraphFilters {
@@ -41,6 +49,70 @@ export const GRAPH_PAGE_SIZE = 1000
 export const GRAPH_PAGE_STEP = 2000
 /** Huge-repo mode: the loaded window never grows past this. */
 export const GRAPH_WINDOW_LIMIT = 10000
+
+/** What the Graph pane shows: one repository's lanes, or the merged workspace timeline. */
+export type GraphMode = 'repo' | 'workspace'
+
+/** Window and text filters of the workspace activity timeline. */
+export interface ActivityFilters {
+  days: number
+  author: string
+  grep: string
+}
+
+export const DEFAULT_ACTIVITY_FILTERS: ActivityFilters = { days: 30, author: '', grep: '' }
+export const ACTIVITY_WINDOW_VALUES: readonly number[] = [7, 30, 90, 365]
+/** Per repository the timeline reads; recent activity, not whole histories. */
+export const ACTIVITY_PER_REPO_LIMIT = 60
+
+/** Loaded state of the cross-repository timeline. */
+export interface ActivityState {
+  entries: readonly GitActivityEntry[]
+  failures: Readonly<GitActivityResponse['failures']>
+  /** Checkout keys that filled {@link ACTIVITY_PER_REPO_LIMIT}. */
+  truncated: readonly string[]
+  loading: boolean
+  error: string | null
+  /** Checkout keys the running or finished read covers. */
+  scope: readonly string[]
+  loadedAt: number | null
+}
+
+/** A commit the timeline asked a repository graph to select and scroll to. */
+export interface GraphReveal {
+  gitDir: string
+  sha: string
+  token: number
+}
+
+const INITIAL_ACTIVITY: ActivityState = {
+  entries: [],
+  failures: [],
+  truncated: [],
+  loading: false,
+  error: null,
+  scope: [],
+  loadedAt: null
+}
+
+const ACTIVITY_FILTERS_KEY = 'graph.activity'
+const GRAPH_MODE_KEY = 'graph.mode'
+
+function sanitizeGraphMode(stored: unknown): GraphMode | null {
+  return stored === 'workspace' || stored === 'repo' ? stored : null
+}
+
+function sanitizeActivityFilters(stored: unknown): ActivityFilters | null {
+  if (typeof stored !== 'object' || stored === null) return null
+  const value = stored as Record<string, unknown>
+  const window = ACTIVITY_WINDOW_VALUES.find((candidate) => candidate === value.days)
+  const text = (input: unknown): string => (typeof input === 'string' ? input : '')
+  return {
+    days: window ?? DEFAULT_ACTIVITY_FILTERS.days,
+    author: text(value.author),
+    grep: text(value.grep)
+  }
+}
 
 /** Loaded state of one repository's graph; a slice survives its tab closing (LRU). */
 export interface GraphSlice {
@@ -71,6 +143,16 @@ interface GraphContextValue {
   resetFilters: (gitDir: string) => void
   reload: (gitDir: string) => void
   loadMore: (gitDir: string) => void
+  mode: GraphMode
+  setMode: (mode: GraphMode) => void
+  activity: ActivityState
+  activityFilters: ActivityFilters
+  setActivityFilters: (update: Partial<ActivityFilters>) => void
+  /** Reads the timeline of the given checkouts; the last scope reloads on filter changes. */
+  loadActivity: (gitDirs: readonly string[]) => void
+  /** Set when the timeline asks a repository graph to show one of its commits. */
+  reveal: GraphReveal | null
+  revealCommit: (gitDir: string, sha: string) => void
 }
 
 const GraphContext = createContext<GraphContextValue | null>(null)
@@ -149,6 +231,27 @@ export function GraphProvider({ children }: { children: ReactNode }): JSX.Elemen
   const workspace = useWorkspace()
   const editor = useEditor()
   const [slices, setSlices] = useState<ReadonlyMap<string, GraphSlice>>(EMPTY_SLICES)
+  const [activity, setActivity] = useState<ActivityState>(INITIAL_ACTIVITY)
+  const [reveal, setReveal] = useState<GraphReveal | null>(null)
+  const [mode, storeMode] = useUiState<GraphMode>(GRAPH_MODE_KEY, 'repo', sanitizeGraphMode)
+  const [activityFilters, storeActivityFilters] = useUiState<ActivityFilters>(
+    ACTIVITY_FILTERS_KEY,
+    DEFAULT_ACTIVITY_FILTERS,
+    sanitizeActivityFilters
+  )
+  // useUiState hands out a fresh closure per render; the context keeps stable
+  // setters so its value does not change on every status stream update.
+  const storeModeRef = useRef(storeMode)
+  storeModeRef.current = storeMode
+  const storeActivityFiltersRef = useRef(storeActivityFilters)
+  storeActivityFiltersRef.current = storeActivityFilters
+  const setMode = useCallback((next: GraphMode): void => storeModeRef.current(next), [])
+  const activityRef = useRef(activity)
+  activityRef.current = activity
+  const activityFiltersRef = useRef(activityFilters)
+  activityFiltersRef.current = activityFilters
+  const activityGeneration = useRef(0)
+  const revealTicket = useRef(0)
   const slicesRef = useRef(slices)
   slicesRef.current = slices
   const statusesRef = useRef(workspace.statuses)
@@ -167,6 +270,10 @@ export function GraphProvider({ children }: { children: ReactNode }): JSX.Elemen
     recency.current = []
     generations.current = new Map()
     hydrating.current.clear()
+    // A closing read of the previous workspace must not land in the new one.
+    activityGeneration.current += 1
+    setActivity(INITIAL_ACTIVITY)
+    setReveal(null)
   }, [root])
 
   const headOf = useCallback((gitDir: string): string | null => {
@@ -356,18 +463,104 @@ export function GraphProvider({ children }: { children: ReactNode }): JSX.Elemen
     }
   }, [root, slices, workspace.statuses, headOf, loadFirstPage])
 
+  const loadActivity = useCallback((gitDirs: readonly string[]): void => {
+    const scope = [...gitDirs]
+    const generation = activityGeneration.current + 1
+    activityGeneration.current = generation
+    if (scope.length === 0) {
+      setActivity({ ...INITIAL_ACTIVITY, loading: false })
+      return
+    }
+    setActivity((current) => ({ ...current, loading: true, error: null, scope }))
+    const filters = activityFiltersRef.current
+    const text = (value: string): string | undefined => (value.trim().length > 0 ? value.trim() : undefined)
+    void api
+      .invoke('git:activity', {
+        gitDirs: scope,
+        since: `${String(filters.days)} days ago`,
+        author: text(filters.author),
+        grep: text(filters.grep),
+        maxPerRepo: ACTIVITY_PER_REPO_LIMIT
+      })
+      .then((response) => {
+        if (activityGeneration.current !== generation) return
+        setActivity({
+          entries: response.entries,
+          failures: response.failures,
+          truncated: response.truncated,
+          loading: false,
+          error: null,
+          scope,
+          loadedAt: Date.now()
+        })
+      })
+      .catch((error: unknown) => {
+        if (activityGeneration.current !== generation) return
+        setActivity((current) => ({ ...current, loading: false, error: errorText(error) }))
+      })
+  }, [])
+
+  const setActivityFilters = useCallback(
+    (update: Partial<ActivityFilters>): void => {
+      const filters = { ...activityFiltersRef.current, ...update }
+      // loadActivity reads the ref, so it must see the new filters before the
+      // re-render that stores them.
+      activityFiltersRef.current = filters
+      storeActivityFiltersRef.current(filters)
+      if (activityRef.current.scope.length > 0) loadActivity(activityRef.current.scope)
+    },
+    [loadActivity]
+  )
+
+  const revealCommit = useCallback((gitDir: string, sha: string): void => {
+    revealTicket.current += 1
+    setReveal({ gitDir, sha, token: revealTicket.current })
+  }, [])
+
   const openGraph = useCallback(
     (record: RepoRecord): void => {
       if (record.gitDir.length === 0) return
       ensure(record.gitDir)
+      // Opening a repository's graph from anywhere leaves the workspace timeline.
+      setMode('repo')
       editor.openGraph(repoInfoOf(record))
     },
-    [editor, ensure]
+    [editor, ensure, setMode]
   )
 
   const value = useMemo(
-    () => ({ slices, openGraph, setFilters, resetFilters, reload, loadMore }),
-    [slices, openGraph, setFilters, resetFilters, reload, loadMore]
+    () => ({
+      slices,
+      openGraph,
+      setFilters,
+      resetFilters,
+      reload,
+      loadMore,
+      mode,
+      setMode,
+      activity,
+      activityFilters,
+      setActivityFilters,
+      loadActivity,
+      reveal,
+      revealCommit
+    }),
+    [
+      slices,
+      openGraph,
+      setFilters,
+      resetFilters,
+      reload,
+      loadMore,
+      mode,
+      setMode,
+      activity,
+      activityFilters,
+      setActivityFilters,
+      loadActivity,
+      reveal,
+      revealCommit
+    ]
   )
 
   return <GraphContext.Provider value={value}>{children}</GraphContext.Provider>
