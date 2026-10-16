@@ -19,11 +19,11 @@
 ## Loading behavior & scale
 
 - The first page loads 1 000 commits; scrolling down streams older history in chunks of 2 000 — the graph never blocks on full history.
-- For very large repositories a "huge repo mode" caps the loaded window (windowed queries + total count) and says so in the toolbar; [Later] a setting to raise the window.
+- In a repository with more history than the window, loading stops at the newest 10 000 commits and the toolbar says so ("Huge repository — showing the newest 10 000 commits"); filters narrow the window to the part you care about. [Later] a setting to raise the window.
 - The **lane column sizes itself**: a handful of lanes gets the natural width, and a branching-heavy repository compresses the lane spacing instead of pushing the commit text off-screen (the commit text keeps its column).
 - **Resizable**: drag the right edge of the lane column to set your own width; the width is remembered across sessions. Filters that reduce the lane count (e.g. "current branch only") free the space again.
 - **Row height**: `compact` / `normal` / `comfortable`, switchable from the graph toolbar or Settings → Appearance ("Commit graph density"); `normal` is the default.
-- Performance target: smooth scrolling (60 fps) with 5 000+ loaded rows; first paint within ~1.5 s on a 10 k-commit repository.
+- Performance target: smooth scrolling (60 fps) with 5 000+ loaded rows, and the first page of a 10 000-commit repository painting within 1.5 s.
 
 ## Filters
 

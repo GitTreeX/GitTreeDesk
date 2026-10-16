@@ -370,7 +370,7 @@ Both views render with virtualization (TanStack Virtual) and keyboard navigation
 - Opened as a tab per repository (LRU-cached, ~5 alive) from the activity bar, the graph toolbar picker, the Source Control section header, the command palette, the repo row menu, or any Explorer row inside a repository. The toolbar switches the tab to another workspace repository through a repository picker (which also makes it the active checkout) and carries the shared repository action menu (without the graph entry). Data from `git log --all` (configurable default refs) streamed with a custom NUL-delimited format; lanes computed client-side; rendering = virtualized DOM rows + a canvas lane layer (targets 60 fps at 5 000+ loaded rows).
 - Row density: `compact` / `normal` / `comfortable` row heights, switchable from the toolbar and from the Appearance settings group (`appearance.graphDensity`, default `normal`).
 - Lane column: natural width while the lanes fit, compressed lane spacing rather than a gutter that swallows the commit text, user-resizable by dragging its edge, with the chosen width persisted in the UI state.
-- Paging: first page 1 000 commits; older history loads in 2 000-row chunks on scroll; "huge repo" mode caps the window (uses `--skip/--max-count` and `rev-list --count` for totals).
+- Paging: first page 1 000 commits; older history loads in 2 000-row chunks on scroll; the loaded window stops at 10 000 commits and the toolbar states the cap ("huge repo" mode — `--skip/--max-count` for the window, `rev-list --count` for the total).
 - Row content: lane graph, refs (local/remote/tags/HEAD with distinct chips), subject, author, relative date, "incoming/outgoing" markers relative to upstream and current branch; the `comfortable` row height adds a second, smaller line with the first line of the commit body.
 - Filters: refs multi-select, author, path (with rename detection off in v1), date range, message text, and "only reachable from current branch".
 - Commit details side panel: full message, author + committer (name/email/date), file list with stats; clicking a file opens the commit diff in the editor area.
@@ -529,12 +529,13 @@ Budgets are release gates for v1, measured on the reference scenario on a mid-ra
 | Single-repo status refresh (typical, < 5 k files) | ≤ 300 ms p50, ≤ 800 ms p95 | perf overlay histogram |
 | Status refresh skip (no changes, fingerprint hit) | ≤ 5 ms | stat-only path |
 | Tree/list scroll | 60 fps at 5 000 rows loaded | devtools FPS meter in CI harness |
-| Graph first page (10 k-commit repo) | ≤ 1.5 s to first paint | streamed rows |
+| Graph first page (10 k-commit repo) | ≤ 1.5 s to first paint | open-graph action → rows painted, single-repo 10 000-commit scale fixture |
+| Graph streamed page (2 000 commits) | ≤ 500 ms, frame pacing stays at 60 fps | same fixture, scroll-to-bottom chunk timing |
 | Terminal input → echo | ≤ 50 ms p95 | xterm.js marker timing |
 | Memory (idle, 55 repos) | ≤ 600 MB RSS total | measured after warm-up |
 | Installer size | ≤ 130 MB (win x64) | electron-builder output |
 
-Budget failures are treated as bugs, not polish; the dev overlay (toggleable, showing scan/status/op latencies and watcher counts) ships in dev builds.
+Budget failures are treated as bugs, not polish; the dev overlay (toggleable, showing scan/status/op latencies and watcher counts) ships in dev builds. `pnpm perf-budget` and `pnpm perf-graph` measure the table against the generated fixture workspace — the first the workspace rows (tree, warm-up, status latency, fingerprint skip, RSS), the second the two graph rows on a single-repo 10 000-commit scale fixture — each driving a built app through an isolated profile and exiting non-zero on a miss.
 
 ## Risks & mitigations
 
