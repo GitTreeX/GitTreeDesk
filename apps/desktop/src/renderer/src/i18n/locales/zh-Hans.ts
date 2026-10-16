@@ -512,6 +512,8 @@ export const zhHansResource: TranslationResource = {
       drop: '不要该提交'
     },
     messageLabel: '新的提交信息',
+    dragToReorder: '拖动以重新排序',
+    dragHint: '拖动某一行，或用上移/下移按钮，调整重放顺序。',
     moveUp: '上移',
     moveDown: '下移',
     run: '开始变基',

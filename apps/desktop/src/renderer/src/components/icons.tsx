@@ -257,6 +257,25 @@ export function MinusIcon({ className }: IconProps): JSX.Element {
   )
 }
 
+export function GripIcon({ className }: IconProps): JSX.Element {
+  return (
+    <svg
+      className={className ?? 'size-4'}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      stroke="none"
+      aria-hidden="true"
+    >
+      <circle cx="9" cy="6" r="1.6" />
+      <circle cx="9" cy="12" r="1.6" />
+      <circle cx="9" cy="18" r="1.6" />
+      <circle cx="15" cy="6" r="1.6" />
+      <circle cx="15" cy="12" r="1.6" />
+      <circle cx="15" cy="18" r="1.6" />
+    </svg>
+  )
+}
+
 export function UndoIcon({ className }: IconProps): JSX.Element {
   return (
     <svg {...iconProps(className)} aria-hidden="true">

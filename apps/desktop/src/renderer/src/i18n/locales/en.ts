@@ -518,6 +518,8 @@ const en = {
       drop: 'Omit the commit'
     },
     messageLabel: 'New message',
+    dragToReorder: 'Drag to reorder',
+    dragHint: 'Drag a row, or use the arrows, to change the replay order.',
     moveUp: 'Move up',
     moveDown: 'Move down',
     run: 'Start Rebase',

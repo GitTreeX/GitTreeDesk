@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type JSX, type MouseEvent } from 'react'
+import { useCallback, useEffect, useState, type DragEvent, type JSX, type MouseEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { RebaseAction, RepoRecord } from '@gitreedesk/shared'
 import { api } from '../api'
@@ -6,18 +6,11 @@ import { useOperations } from '../contexts/operations-context'
 import { useWorkspace } from '../contexts/workspace'
 import { errorText, isOperationBlocked, notifyUndoable } from '../lib/reporting'
 import { notify } from '../notify'
+import { moveRow, planIssues, type PlanRow } from '../tree/rebase-plan'
 import { ContextMenu } from './ContextMenu'
-import { ChevronRightIcon, XIcon } from './icons'
+import { ChevronRightIcon, GripIcon, XIcon } from './icons'
 
 const ACTIONS: readonly RebaseAction[] = ['pick', 'reword', 'edit', 'squash', 'fixup', 'drop']
-
-interface PlanRow {
-  sha: string
-  subject: string
-  action: RebaseAction
-  /** Replacement message of a `reword`; prefilled with the subject. */
-  message: string
-}
 
 /** Plans a scripted interactive rebase: reorder rows and choose an action per commit. */
 export function InteractiveRebaseDialog({
@@ -35,6 +28,7 @@ export function InteractiveRebaseDialog({
   const { statuses } = useWorkspace()
   const [rows, setRows] = useState<readonly PlanRow[] | null>(null)
   const [menu, setMenu] = useState<{ x: number; y: number; index: number } | null>(null)
+  const [drag, setDrag] = useState<{ from: number; over: number } | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -76,34 +70,46 @@ export function InteractiveRebaseDialog({
     )
   }, [])
 
-  const move = useCallback((index: number, delta: -1 | 1): void => {
-    setRows((current) => {
-      if (current === null) return null
-      const target = index + delta
-      if (target < 0 || target >= current.length) return current
-      const next = [...current]
-      const a = next[index]
-      const b = next[target]
-      if (a === undefined || b === undefined) return current
-      next[index] = b
-      next[target] = a
-      return next
-    })
+  const reorder = useCallback((from: number, to: number): void => {
+    setRows((current) => (current === null ? null : moveRow(current, from, to)))
   }, [])
+
+  const move = useCallback(
+    (index: number, delta: -1 | 1): void => {
+      reorder(index, index + delta)
+    },
+    [reorder]
+  )
 
   const openMenu = (event: MouseEvent<HTMLButtonElement>, index: number): void => {
     event.preventDefault()
     setMenu({ x: event.clientX, y: event.clientY, index })
   }
 
-  const firstActive = rows?.findIndex((row) => row.action !== 'drop') ?? -1
-  const invalidFirst =
-    rows !== null &&
-    firstActive !== -1 &&
-    (rows[firstActive]?.action === 'squash' || rows[firstActive]?.action === 'fixup')
-  const rewordMissing = rows !== null && rows.some((row) => row.action === 'reword' && row.message.trim() === '')
-  const empty = rows !== null && rows.length === 0
-  const canRun = rows !== null && !empty && !invalidFirst && !rewordMissing && !busy
+  const issues = planIssues(rows ?? [])
+  const canRun = rows !== null && !issues.empty && !issues.firstStepUnreplayable && !issues.rewordMissing && !busy
+
+  const startDrag = (event: DragEvent<HTMLSpanElement>, index: number): void => {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', String(index))
+    const rowElement = event.currentTarget.closest('[data-plan-row]')
+    if (rowElement !== null) event.dataTransfer.setDragImage(rowElement, 12, 12)
+    setDrag({ from: index, over: index })
+  }
+
+  const dragOverRow = (event: DragEvent<HTMLDivElement>, index: number): void => {
+    if (drag === null) return
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'move'
+    if (drag.over !== index) setDrag({ from: drag.from, over: index })
+  }
+
+  const dropOnRow = (event: DragEvent<HTMLDivElement>, index: number): void => {
+    if (drag === null) return
+    event.preventDefault()
+    reorder(drag.from, index)
+    setDrag(null)
+  }
 
   const run = (): void => {
     if (rows === null || !canRun) return
@@ -166,79 +172,114 @@ export function InteractiveRebaseDialog({
 
         <p className="border-b border-line/60 px-3 py-1 text-xs text-muted">
           {t('rebase.interactiveBase', { base })}
+          {rows !== null && rows.length > 1 && (
+            <span className="ml-2 text-muted/80">{t('rebase.dragHint')}</span>
+          )}
         </p>
 
         <div className="min-h-0 flex-1 overflow-y-auto py-1">
           {rows === null && <p className="px-3 py-4 text-center text-sm text-muted">…</p>}
-          {empty && <p className="px-3 py-4 text-center text-sm text-muted">{t('rebase.empty')}</p>}
-          {rows?.map((row, index) => (
-            <div key={row.sha} className="px-2">
-              <div className="flex items-center gap-1.5 rounded px-1 py-1 hover:bg-ink/5">
-                <span className="w-4 shrink-0 text-right font-mono text-xs text-muted">
-                  {index + 1}
-                </span>
-                <span className="flex shrink-0 flex-col">
+          {issues.empty && <p className="px-3 py-4 text-center text-sm text-muted">{t('rebase.empty')}</p>}
+          {rows?.map((row, index) => {
+            const landingBelow = drag !== null && drag.over === index && drag.from < index
+            const landingAbove = drag !== null && drag.over === index && drag.from > index
+            return (
+              <div
+                key={row.sha}
+                data-plan-row={String(index)}
+                className="px-2"
+                onDragOver={(event) => dragOverRow(event, index)}
+                onDrop={(event) => dropOnRow(event, index)}
+              >
+                <div
+                  className={`relative flex items-center gap-1.5 rounded px-1 py-1 hover:bg-ink/5 ${
+                    drag !== null && drag.from === index ? 'opacity-40' : ''
+                  }`}
+                >
+                  {(landingAbove || landingBelow) && (
+                    <span
+                      aria-hidden="true"
+                      className={`absolute inset-x-1 h-0.5 rounded bg-accent ${landingAbove ? 'top-0' : 'bottom-0'}`}
+                    />
+                  )}
+                  <span className="w-4 shrink-0 text-right font-mono text-xs text-muted">
+                    {index + 1}
+                  </span>
+                  <span
+                    role="button"
+                    tabIndex={-1}
+                    title={t('rebase.dragToReorder')}
+                    aria-label={t('rebase.dragToReorder')}
+                    draggable
+                    onDragStart={(event) => startDrag(event, index)}
+                    onDragEnd={() => setDrag(null)}
+                    className="shrink-0 cursor-grab rounded p-0.5 text-muted hover:bg-ink/10 hover:text-ink active:cursor-grabbing"
+                  >
+                    <GripIcon className="size-3.5" />
+                  </span>
+                  <span className="flex shrink-0 flex-col">
+                    <button
+                      type="button"
+                      title={t('rebase.moveUp')}
+                      aria-label={t('rebase.moveUp')}
+                      disabled={index === 0}
+                      className="rounded p-0.5 text-muted hover:bg-ink/10 hover:text-ink disabled:opacity-30"
+                      onClick={() => move(index, -1)}
+                    >
+                      <ChevronRightIcon className="size-3 -rotate-90" />
+                    </button>
+                    <button
+                      type="button"
+                      title={t('rebase.moveDown')}
+                      aria-label={t('rebase.moveDown')}
+                      disabled={rows.length - 1 === index}
+                      className="rounded p-0.5 text-muted hover:bg-ink/10 hover:text-ink disabled:opacity-30"
+                      onClick={() => move(index, 1)}
+                    >
+                      <ChevronRightIcon className="size-3 rotate-90" />
+                    </button>
+                  </span>
                   <button
                     type="button"
-                    title={t('rebase.moveUp')}
-                    aria-label={t('rebase.moveUp')}
-                    disabled={index === 0}
-                    className="rounded p-0.5 text-muted hover:bg-ink/10 hover:text-ink disabled:opacity-30"
-                    onClick={() => move(index, -1)}
+                    className={`w-20 shrink-0 rounded border px-1 py-0.5 text-xs hover:bg-ink/5 ${
+                      row.action === 'drop'
+                        ? 'border-line text-muted'
+                        : row.action === 'pick'
+                          ? 'border-line text-ink'
+                          : 'border-accent/40 text-accent'
+                    }`}
+                    onClick={(event) => openMenu(event, index)}
                   >
-                    <ChevronRightIcon className="size-3 -rotate-90" />
+                    {t(`rebase.actions.${row.action}`)}
                   </button>
-                  <button
-                    type="button"
-                    title={t('rebase.moveDown')}
-                    aria-label={t('rebase.moveDown')}
-                    disabled={rows.length - 1 === index}
-                    className="rounded p-0.5 text-muted hover:bg-ink/10 hover:text-ink disabled:opacity-30"
-                    onClick={() => move(index, 1)}
+                  <span className="shrink-0 font-mono text-xs text-muted">{row.sha.slice(0, 7)}</span>
+                  <span
+                    className={`min-w-0 flex-1 truncate text-sm ${
+                      row.action === 'drop' ? 'text-muted line-through' : 'text-ink'
+                    }`}
+                    title={row.subject}
                   >
-                    <ChevronRightIcon className="size-3 rotate-90" />
-                  </button>
-                </span>
-                <button
-                  type="button"
-                  className={`w-20 shrink-0 rounded border px-1 py-0.5 text-xs hover:bg-ink/5 ${
-                    row.action === 'drop'
-                      ? 'border-line text-muted'
-                      : row.action === 'pick'
-                        ? 'border-line text-ink'
-                        : 'border-accent/40 text-accent'
-                  }`}
-                  onClick={(event) => openMenu(event, index)}
-                >
-                  {t(`rebase.actions.${row.action}`)}
-                </button>
-                <span className="shrink-0 font-mono text-xs text-muted">{row.sha.slice(0, 7)}</span>
-                <span
-                  className={`min-w-0 flex-1 truncate text-sm ${
-                    row.action === 'drop' ? 'text-muted line-through' : 'text-ink'
-                  }`}
-                  title={row.subject}
-                >
-                  {row.subject}
-                </span>
+                    {row.subject}
+                  </span>
+                </div>
+                {row.action === 'reword' && (
+                  <textarea
+                    value={row.message}
+                    rows={2}
+                    aria-label={t('rebase.messageLabel')}
+                    placeholder={row.subject}
+                    className="mb-1 ml-12 w-[calc(100%-3.5rem)] resize-y rounded border border-line bg-canvas px-2 py-1 font-mono text-xs text-ink outline-none focus:border-accent"
+                    onChange={(event) => setMessage(index, event.target.value)}
+                  />
+                )}
               </div>
-              {row.action === 'reword' && (
-                <textarea
-                  value={row.message}
-                  rows={2}
-                  aria-label={t('rebase.messageLabel')}
-                  placeholder={row.subject}
-                  className="mb-1 ml-12 w-[calc(100%-3.5rem)] resize-y rounded border border-line bg-canvas px-2 py-1 font-mono text-xs text-ink outline-none focus:border-accent"
-                  onChange={(event) => setMessage(index, event.target.value)}
-                />
-              )}
-            </div>
-          ))}
+            )
+          })}
         </div>
 
-        {(invalidFirst || rewordMissing) && (
+        {(issues.firstStepUnreplayable || issues.rewordMissing) && (
           <p className="border-t border-line px-3 py-1 text-xs text-warn">
-            {invalidFirst ? t('rebase.firstStepHint') : t('rebase.invalidRequest')}
+            {issues.firstStepUnreplayable ? t('rebase.firstStepHint') : t('rebase.invalidRequest')}
           </p>
         )}
         {error !== null && (
@@ -259,9 +300,7 @@ export function InteractiveRebaseDialog({
             className="rounded bg-accent px-3 py-1 text-sm text-white hover:opacity-90 disabled:opacity-50"
             onClick={run}
           >
-            {rows === null || empty
-              ? t('rebase.run')
-              : t('rebase.runCount', { count: rows.length })}
+            {rows === null || issues.empty ? t('rebase.run') : t('rebase.runCount', { count: rows.length })}
           </button>
         </div>
       </div>
