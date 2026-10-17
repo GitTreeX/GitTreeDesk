@@ -157,5 +157,16 @@ describe('invokeSchemas', () => {
       invokeSchemas['git:submoduleSync'].safeParse({ gitDir, paths: ['libs/core'], recursive: true }).success
     ).toBe(true)
     expect(invokeSchemas['git:submoduleSync'].safeParse({ gitDir, paths: ['libs\\core'] }).success).toBe(false)
+    expect(
+      invokeSchemas['git:submoduleAdd']
+        .safeParse({ gitDir, url: 'https://example.invalid/core.git', path: 'libs/core', branch: 'main' })
+        .success
+    ).toBe(true)
+    expect(invokeSchemas['git:submoduleAdd'].safeParse({ gitDir, url: '' }).success).toBe(false)
+    expect(invokeSchemas['git:submoduleAdd'].safeParse({ gitDir, url: 'x', path: '../escape' }).success).toBe(
+      false
+    )
+    expect(invokeSchemas['git:submoduleDeinit'].safeParse({ gitDir, paths: ['libs/core'] }).success).toBe(true)
+    expect(invokeSchemas['git:submoduleDeinit'].safeParse({ gitDir, paths: [] }).success).toBe(false)
   })
 })

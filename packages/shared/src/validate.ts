@@ -314,6 +314,19 @@ export const invokeSchemas = {
     paths: z.array(repoRelPath).min(1).max(1024).optional(),
     recursive: z.boolean().optional()
   }),
+  'git:submoduleAdd': z.object({
+    gitDir: pathString,
+    /** A URL, or a local path when the file protocol is allowed. */
+    url: z.string().min(1).max(2000),
+    path: repoRelPath.optional(),
+    branch: z.string().min(1).max(255).optional(),
+    force: z.boolean().optional()
+  }),
+  'git:submoduleDeinit': z.object({
+    gitDir: pathString,
+    paths: z.array(repoRelPath).min(1).max(1024),
+    force: z.boolean().optional()
+  }),
   'commitmsg:generate': z.object({ gitDir: pathString }),
   'commitmsg:cancel': z.object({ generationId: z.string().min(1).max(64) }),
   'commitmsg:approveHost': z.object({ host: z.string().min(1).max(255) }),

@@ -92,6 +92,9 @@ import type {
   GitStashRequest,
   GitStatusRequest,
   GitSubmodulesResponse,
+  GitSubmoduleAddRequest,
+  GitSubmoduleAddResponse,
+  GitSubmoduleDeinitRequest,
   GitSubmoduleSyncRequest,
   GitSubmoduleSyncResponse,
   GitSubmoduleUpdateRequest,
@@ -135,6 +138,7 @@ import type {
 import { findSettingDescriptor, sanitizeSettingValue } from '@gitreedesk/shared'
 import {
   addRemote,
+  addSubmodule,
   addWorktree,
   applyPatch,
   applyStash,
@@ -148,6 +152,7 @@ import {
   createBranch,
   createStash,
   createTag,
+  deinitSubmodules,
   deleteBranch,
   deleteRemoteTag,
   deleteTag,
@@ -159,6 +164,7 @@ import {
   fetchRemote,
   GitCommandError,
   GitPool,
+  hasPendingSubmoduleEntry,
   isBranchMerged,
   isHeadPushed,
   isWorktreeDirty,
@@ -1512,6 +1518,67 @@ export class WorkspaceService {
       syncSubmoduleUrls({ repoPath, paths: request.paths, recursive: request.recursive === true })
     )
     return { output: `${result.stdout}${result.stderr}`.trimEnd() }
+  }
+
+  /**
+   * Clones a repository into the checkout and records it as a submodule. git names
+   * the folder after the URL when the request omits a path, so the new entry is
+   * found by diffing the submodule list rather than by the requested path.
+   */
+  async gitSubmoduleAdd(request: GitSubmoduleAddRequest): Promise<GitSubmoduleAddResponse> {
+    const record = this.#requireWriteCheckout(request.gitDir)
+    const before = await listSubmodules({ repoPath: record.path })
+    await this.#gitOperation(record, (repoPath) =>
+      addSubmodule({
+        repoPath,
+        url: request.url,
+        ...(request.path === undefined ? {} : { path: request.path }),
+        ...(request.branch === undefined ? {} : { branch: request.branch }),
+        ...(request.force === true ? { force: true } : {})
+      })
+    )
+    const added = (await listSubmodules({ repoPath: record.path })).find(
+      (entry) => !before.some((row) => row.path === entry.path)
+    )
+    if (added === undefined) return { submodule: null }
+    // The clone is a repository of its own; register its row without waiting for the watcher.
+    try {
+      await this.rescan([await this.resolveInside(toPosix(join(record.path, added.path)))])
+    } catch {
+      // The checkout did not appear where the submodule list says it is.
+    }
+    return { submodule: added }
+  }
+
+  /** Stops tracking submodule checkouts; their `.gitmodules` entries stay. */
+  async gitSubmoduleDeinit(request: GitSubmoduleDeinitRequest): Promise<null> {
+    const record = this.#requireWriteCheckout(request.gitDir)
+    if (request.force !== true) {
+      const listed = await listSubmodules({ repoPath: record.path })
+      for (const path of request.paths) {
+        if (listed.find((entry) => entry.path === path)?.checkout === 'different') {
+          throw new ServiceError(
+            'submodule-dirty',
+            `Submodule "${path}" is checked out at a commit other than the recorded one`
+          )
+        }
+        if ((await isWorktreeDirty(toPosix(join(record.path, path)))) === true) {
+          throw new ServiceError('submodule-dirty', `Submodule "${path}" has uncommitted changes`)
+        }
+        if (await hasPendingSubmoduleEntry({ repoPath: record.path, path })) {
+          throw new ServiceError('submodule-dirty', `Submodule "${path}" is not committed yet`)
+        }
+      }
+    }
+    await this.#gitOperation(record, (repoPath) =>
+      deinitSubmodules({
+        repoPath,
+        paths: request.paths,
+        ...(request.force === true ? { force: true } : {})
+      })
+    )
+    await this.#refreshSubmoduleRecords(record, request.paths)
+    return null
   }
 
   /**

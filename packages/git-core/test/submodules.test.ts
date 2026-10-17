@@ -3,7 +3,14 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { runGitOrThrow } from '../src/run'
-import { listSubmodules, syncSubmoduleUrls, updateSubmodules } from '../src/submodules'
+import {
+  addSubmodule,
+  deinitSubmodules,
+  hasPendingSubmoduleEntry,
+  listSubmodules,
+  syncSubmoduleUrls,
+  updateSubmodules
+} from '../src/submodules'
 
 const toPosix = (value: string): string => value.replace(/\\/g, '/')
 
@@ -133,5 +140,45 @@ describe('submodules', () => {
     expect(result.code).toBe(0)
     const url = (await git(repo, ['config', 'submodule.libs/core.url'])).trim()
     expect(url).toBe(toPosix(sub))
+  }, 30_000)
+
+  it('adds a submodule and pins the commit it checked out', async () => {
+    const { repo } = await initSuperproject()
+    const extra = await initRepo()
+    await write(extra, 'helper.txt', 'helper\n')
+    const sha = await commitAll(extra, 'helper')
+
+    await addSubmodule({ repoPath: repo, url: toPosix(extra), path: 'libs/helper', branch: 'main' })
+
+    const status = await listSubmodules({ repoPath: repo })
+    expect(status.find((entry) => entry.path === 'libs/helper')?.sha).toBe(sha)
+    expect(status.find((entry) => entry.path === 'libs/helper')?.checkout).toBe('in-sync')
+    const modules = await readFile(join(repo, '.gitmodules'), 'utf8')
+    expect(modules).toContain('path = libs/helper')
+    // git refuses a plain deinit while the new entry is only staged.
+    expect(await hasPendingSubmoduleEntry({ repoPath: repo, path: 'libs/helper' })).toBe(true)
+    await commitAll(repo, 'add helper submodule')
+    expect(await hasPendingSubmoduleEntry({ repoPath: repo, path: 'libs/helper' })).toBe(false)
+  }, 30_000)
+
+  it('deinitializes a submodule and keeps its .gitmodules entry', async () => {
+    const { repo } = await initSuperproject()
+    const result = await deinitSubmodules({ repoPath: repo, paths: ['libs/core'] })
+    expect(result.code).toBe(0)
+    expect((await listSubmodules({ repoPath: repo }))[0]?.checkout).toBe('uninitialized')
+    await expect(readFile(join(repo, 'libs', 'core', 'lib.txt'), 'utf8')).rejects.toThrow()
+    expect(await readFile(join(repo, '.gitmodules'), 'utf8')).toContain('libs/core')
+  }, 30_000)
+
+  it('refuses a revision-shaped URL or path', async () => {
+    const { repo } = await initSuperproject()
+    await expect(addSubmodule({ repoPath: repo, url: '--force' })).rejects.toThrow('Invalid submodule URL')
+    await expect(addSubmodule({ repoPath: repo, url: '' })).rejects.toThrow('Submodule URL is empty')
+    await expect(deinitSubmodules({ repoPath: repo, paths: ['-r'] })).rejects.toThrow(
+      'Invalid submodule path'
+    )
+    await expect(deinitSubmodules({ repoPath: repo, paths: [] })).rejects.toThrow(
+      'No submodule path given'
+    )
   }, 30_000)
 })

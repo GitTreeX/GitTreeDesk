@@ -13,6 +13,7 @@ export type ServiceErrorCode =
   | 'branch-in-use'
   | 'worktree-dirty'
   | 'worktree-locked'
+  | 'submodule-dirty'
   | 'invalid-request'
   | 'operation-in-progress'
   | 'no-operation'

@@ -898,6 +898,32 @@ export interface GitSubmoduleSyncResponse {
   output: string
 }
 
+export interface GitSubmoduleAddRequest {
+  /** Checkout key: the record's git dir. */
+  gitDir: string
+  /** Repository to clone; a URL, or a local path when the file protocol is allowed. */
+  url: string
+  /** Folder to check it out into; git names it after the URL when omitted. */
+  path?: string
+  /** Branch to record. */
+  branch?: string
+  /** Tracks a path the repository would otherwise ignore. */
+  force?: boolean
+}
+
+export interface GitSubmoduleAddResponse {
+  /** The new submodule as the superproject records it; `null` when it did not appear. */
+  submodule: SubmoduleInfo | null
+}
+
+export interface GitSubmoduleDeinitRequest {
+  gitDir: string
+  /** Repo-relative submodule paths. */
+  paths: string[]
+  /** Deinitializes a submodule that has its own uncommitted changes. */
+  force?: boolean
+}
+
 export interface WorkspaceListFilesRequest {
   limit?: number
 }
@@ -1266,6 +1292,8 @@ export interface InvokeMap {
   'git:submodules': { request: GitCheckoutRequest; response: GitSubmodulesResponse }
   'git:submoduleUpdate': { request: GitSubmoduleUpdateRequest; response: GitSubmoduleUpdateResponse }
   'git:submoduleSync': { request: GitSubmoduleSyncRequest; response: GitSubmoduleSyncResponse }
+  'git:submoduleAdd': { request: GitSubmoduleAddRequest; response: GitSubmoduleAddResponse }
+  'git:submoduleDeinit': { request: GitSubmoduleDeinitRequest; response: null }
   'commitmsg:generate': { request: CommitDraftRequest; response: CommitDraftResponse }
   'commitmsg:cancel': { request: CommitMessageCancelRequest; response: null }
   'commitmsg:approveHost': { request: CommitMessageApproveHostRequest; response: null }
@@ -1422,6 +1450,8 @@ export const INVOKE_CHANNELS = [
   'git:submodules',
   'git:submoduleUpdate',
   'git:submoduleSync',
+  'git:submoduleAdd',
+  'git:submoduleDeinit',
   'commitmsg:generate',
   'commitmsg:cancel',
   'commitmsg:approveHost',

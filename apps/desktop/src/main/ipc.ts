@@ -238,6 +238,8 @@ function createHandlers(
     'git:submodules': (request) => service.gitSubmodules(request),
     'git:submoduleUpdate': (request) => service.gitSubmoduleUpdate(request),
     'git:submoduleSync': (request) => service.gitSubmoduleSync(request),
+    'git:submoduleAdd': (request) => service.gitSubmoduleAdd(request),
+    'git:submoduleDeinit': (request) => service.gitSubmoduleDeinit(request),
     'commitmsg:generate': (request) => commitMessages.generate(request),
     'commitmsg:cancel': (request) => commitMessages.cancel(request.generationId),
     'commitmsg:approveHost': (request) => commitMessages.approveHost(request.host),

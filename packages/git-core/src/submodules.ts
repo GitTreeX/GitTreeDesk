@@ -52,6 +52,12 @@ function assertSubmodulePath(path: string): void {
   if (path.startsWith('-')) throw new Error(`Invalid submodule path: ${path}`)
 }
 
+/** Rejected before the separator so a URL cannot be read as an option. */
+function assertSubmoduleUrl(url: string): void {
+  if (url.length === 0) throw new Error('Submodule URL is empty')
+  if (url.startsWith('-')) throw new Error(`Invalid submodule URL: ${url}`)
+}
+
 export interface UpdateSubmodulesOptions {
   repoPath: string
   /** Repo-relative submodule paths; omitted updates every submodule of the repository. */
@@ -80,6 +86,82 @@ export async function updateSubmodules(options: UpdateSubmodulesOptions): Promis
       ? {}
       : { onStdout: options.onOutput, onStderr: options.onOutput })
   })
+}
+
+export interface AddSubmoduleOptions {
+  repoPath: string
+  /** Repository to clone; a URL, or a local path when the file protocol is allowed. */
+  url: string
+  /** Folder to check it out into; git names it after the URL when omitted. */
+  path?: string
+  /** Branch to record (`--branch`). */
+  branch?: string
+  /** Tracks a path the index already ignores or holds (`--force`). */
+  force?: boolean
+  signal?: AbortSignal
+}
+
+/** `git submodule add`: clones a repository, pins its commit and lists it in `.gitmodules`. */
+export async function addSubmodule(options: AddSubmoduleOptions): Promise<GitRunResult> {
+  assertSubmoduleUrl(options.url)
+  const args = ['submodule', 'add']
+  if (options.force === true) args.push('--force')
+  const branch = options.branch?.trim()
+  // The `=` form keeps a branch name that starts with a dash out of option parsing.
+  if (branch !== undefined && branch.length > 0) args.push(`--branch=${branch}`)
+  args.push('--', options.url)
+  if (options.path !== undefined && options.path.length > 0) {
+    assertSubmodulePath(options.path)
+    args.push(options.path)
+  }
+  return await runGitOrThrow(args, { cwd: options.repoPath, signal: options.signal })
+}
+
+export interface DeinitSubmodulesOptions {
+  repoPath: string
+  /** Repo-relative submodule paths. */
+  paths: readonly string[]
+  /** Deinitializes a submodule with its own uncommitted changes (`--force`). */
+  force?: boolean
+  signal?: AbortSignal
+}
+
+/**
+ * `git submodule deinit`: empties the checkout and unregisters it from the git
+ * configuration. The `.gitmodules` entry and the recorded commit stay, so the
+ * submodule can be initialized again.
+ */
+export async function deinitSubmodules(options: DeinitSubmodulesOptions): Promise<GitRunResult> {
+  if (options.paths.length === 0) throw new Error('No submodule path given')
+  for (const path of options.paths) assertSubmodulePath(path)
+  const args = ['submodule', 'deinit']
+  if (options.force === true) args.push('--force')
+  args.push('--', ...options.paths)
+  return await runGitOrThrow(args, { cwd: options.repoPath, signal: options.signal })
+}
+
+export interface PendingSubmoduleEntryOptions {
+  repoPath: string
+  /** Repo-relative submodule path. */
+  path: string
+  signal?: AbortSignal
+}
+
+/**
+ * Whether the superproject still holds an uncommitted entry for a submodule, such
+ * as a fresh `git submodule add` that has not been committed yet. git refuses to
+ * deinit one of those without `--force`.
+ */
+export async function hasPendingSubmoduleEntry(
+  options: PendingSubmoduleEntryOptions
+): Promise<boolean> {
+  assertSubmodulePath(options.path)
+  const result = await runGit(['status', '--porcelain', '--', options.path], {
+    cwd: options.repoPath,
+    signal: options.signal
+  })
+  if (result.code !== 0) return false
+  return result.stdout.trim().length > 0
 }
 
 export interface SyncSubmoduleUrlsOptions {

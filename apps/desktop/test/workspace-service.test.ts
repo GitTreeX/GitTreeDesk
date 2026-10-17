@@ -1,4 +1,4 @@
-import { realpathSync } from 'node:fs'
+import { existsSync, realpathSync } from 'node:fs'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
@@ -1245,6 +1245,104 @@ describe('submodule operations', () => {
       const added = events.flatMap((event) => (event.type === 'reposChanged' ? event.diff.added : []))
       const child = added.find((entry) => entry.relPath === 'api-server/libs/core')
       expect(child).toMatchObject({ kind: 'repository', parentId: main?.id })
+    },
+    60_000
+  )
+
+  it(
+    'adds a submodule from a local repository, registers its checkout and deinits it',
+    async () => {
+      const root = await tempDir('gtd-svc-sub-')
+      const userData = await tempDir('gtd-svc-data-')
+      const library = await tempDir('gtd-svc-sub-lib-')
+      await git(library, ['init', '-q', '-b', 'main'])
+      await writeFile(join(library, 'lib.txt'), 'lib\n')
+      await commitAll(library, 'library')
+
+      const repo = join(root, 'api-server')
+      await initRepo(repo)
+
+      const events: WorkspaceServiceEvent[] = []
+      const instance = service(userData, events)
+      const descriptor = await instance.open(root)
+      const main = descriptor.records.find((entry) => entry.relPath === 'api-server')
+      const gitDir = main?.gitDir ?? ''
+
+      const { submodule } = await instance.gitSubmoduleAdd({
+        gitDir,
+        url: library.replace(/\\/g, '/'),
+        path: 'libs/core'
+      })
+      expect(submodule).toMatchObject({ path: 'libs/core', checkout: 'in-sync' })
+      expect(submodule?.sha).toBe((await git(library, ['rev-parse', 'HEAD'])).trim())
+      expect((await git(repo, ['config', '-f', '.gitmodules', 'submodule.libs/core.path'])).trim()).toBe(
+        'libs/core'
+      )
+      expect(existsSync(join(repo, 'libs', 'core', 'lib.txt'))).toBe(true)
+
+      const added = events.flatMap((event) => (event.type === 'reposChanged' ? event.diff.added : []))
+      expect(added.find((entry) => entry.relPath === 'api-server/libs/core')).toMatchObject({
+        kind: 'repository',
+        parentId: main?.id
+      })
+
+      // git will not deinit an entry that is only staged, so the service refuses
+      // rather than reporting a raw git failure.
+      const staged = await instance
+        .gitSubmoduleDeinit({ gitDir, paths: ['libs/core'] })
+        .catch((failure: unknown) => failure)
+      expect(staged).toBeInstanceOf(ServiceError)
+      expect((staged as ServiceError).code).toBe('submodule-dirty')
+
+      await commitAll(repo, 'add library submodule')
+      await instance.gitSubmoduleDeinit({ gitDir, paths: ['libs/core'] })
+
+      const after = (await instance.gitSubmodules({ gitDir })).submodules
+      expect(after).toHaveLength(1)
+      expect(after[0]).toMatchObject({ path: 'libs/core', checkout: 'uninitialized' })
+      expect((await git(repo, ['config', '-f', '.gitmodules', 'submodule.libs/core.path'])).trim()).toBe(
+        'libs/core'
+      )
+      expect(existsSync(join(repo, 'libs', 'core', 'lib.txt'))).toBe(false)
+    },
+    60_000
+  )
+
+  it(
+    'refuses to deinit a submodule with changes of its own unless forced',
+    async () => {
+      const root = await tempDir('gtd-svc-sub-')
+      const userData = await tempDir('gtd-svc-data-')
+      const library = await tempDir('gtd-svc-sub-lib-')
+      await git(library, ['init', '-q', '-b', 'main'])
+      await writeFile(join(library, 'lib.txt'), 'lib\n')
+      await commitAll(library, 'library')
+
+      const repo = join(root, 'api-server')
+      await initRepo(repo)
+      await git(repo, ['submodule', 'add', '-q', library.replace(/\\/g, '/'), 'libs/core'])
+      await commitAll(repo, 'add library submodule')
+
+      const events: WorkspaceServiceEvent[] = []
+      const instance = service(userData, events)
+      const descriptor = await instance.open(root)
+      const gitDir = descriptor.records.find((entry) => entry.relPath === 'api-server')?.gitDir ?? ''
+
+      await writeFile(join(repo, 'libs', 'core', 'scratch.txt'), 'not committed anywhere\n')
+
+      const refusal = await instance
+        .gitSubmoduleDeinit({ gitDir, paths: ['libs/core'] })
+        .catch((failure: unknown) => failure)
+      expect(refusal).toBeInstanceOf(ServiceError)
+      expect((refusal as ServiceError).code).toBe('submodule-dirty')
+      expect(existsSync(join(repo, 'libs', 'core', 'scratch.txt'))).toBe(true)
+
+      await instance.gitSubmoduleDeinit({ gitDir, paths: ['libs/core'], force: true })
+      expect((await instance.gitSubmodules({ gitDir })).submodules[0]).toMatchObject({
+        path: 'libs/core',
+        checkout: 'uninitialized'
+      })
+      expect(existsSync(join(repo, 'libs', 'core', 'scratch.txt'))).toBe(false)
     },
     60_000
   )
