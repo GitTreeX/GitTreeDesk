@@ -122,6 +122,26 @@ export async function addWorktree(options: AddWorktreeOptions): Promise<void> {
   await runGitOrThrow(args, { cwd: options.repoPath, signal: options.signal })
 }
 
+export interface MoveWorktreeOptions {
+  repoPath: string
+  /** The linked working tree to relocate. */
+  path: string
+  /** Where to put it. A directory that already exists makes git nest the worktree inside it. */
+  target: string
+  signal?: AbortSignal
+}
+
+export async function moveWorktree(options: MoveWorktreeOptions): Promise<void> {
+  assertArgument(options.path, 'Worktree path')
+  assertArgument(options.target, 'Worktree move target')
+  // git refuses a target whose parent is missing, the same way `worktree add` does.
+  await mkdir(dirname(options.target), { recursive: true })
+  await runGitOrThrow(['worktree', 'move', '--', options.path, options.target], {
+    cwd: options.repoPath,
+    signal: options.signal
+  })
+}
+
 export interface RemoveWorktreeOptions {
   repoPath: string
   path: string

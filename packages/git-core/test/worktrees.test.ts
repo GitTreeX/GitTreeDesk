@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -10,6 +10,7 @@ import {
   isWorktreeDirty,
   listWorktrees,
   lockWorktree,
+  moveWorktree,
   pruneWorktrees,
   removeWorktree,
   unlockWorktree
@@ -112,6 +113,39 @@ describe('worktrees', () => {
     await removeWorktree({ repoPath: repo, path: wt, force: true })
     expect(await listWorktrees({ repoPath: repo })).toHaveLength(1)
     expect(await isWorktreeDirty(wt)).toBeNull()
+  })
+
+  it('moves a worktree, keeping its branch and uncommitted edits', async () => {
+    const repo = await initRepo()
+    const from = join(await tempDir(), 'moved', 'keeper')
+    await addWorktree({ repoPath: repo, path: from, mode: { kind: 'new-branch', branch: 'traveler' } })
+    await write(from, 'loose.txt', 'still staged nothing\n')
+
+    // The parent of the target does not exist yet: git needs the directory chain present.
+    const to = join(await tempDir(), 'fresh', 'parent', 'renamed')
+    await moveWorktree({ repoPath: repo, path: from, target: to })
+
+    expect(await listWorktrees({ repoPath: repo })).toHaveLength(2)
+    expect(find(await listWorktrees({ repoPath: repo }), from)).toBeUndefined()
+    const entry = find(await listWorktrees({ repoPath: repo }), to)
+    expect(entry?.branch).toBe('refs/heads/traveler')
+    expect(await isWorktreeDirty(to)).toBe(true)
+    expect(await readFile(join(to, 'loose.txt'), 'utf8')).toBe('still staged nothing\n')
+  })
+
+  it('refuses to move a locked worktree or the main working tree', async () => {
+    const repo = await initRepo()
+    const wt = join(await tempDir(), 'chained')
+    await addWorktree({ repoPath: repo, path: wt, mode: { kind: 'new-branch', branch: 'paused' } })
+
+    await lockWorktree({ repoPath: repo, path: wt })
+    const elsewhere = join(await tempDir(), 'elsewhere')
+    await expect(moveWorktree({ repoPath: repo, path: wt, target: elsewhere })).rejects.toThrow()
+    expect(find(await listWorktrees({ repoPath: repo }), wt)).toBeDefined()
+
+    const mainAway = join(await tempDir(), 'main-away')
+    await expect(moveWorktree({ repoPath: repo, path: repo, target: mainAway })).rejects.toThrow()
+    expect(await listWorktrees({ repoPath: repo })).toHaveLength(2)
   })
 
   it('locks and unlocks a worktree', async () => {
