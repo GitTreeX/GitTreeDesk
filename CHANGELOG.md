@@ -11,6 +11,7 @@ The first release packaged for all three platforms — everything below ships in
 
 - Open any folder as a workspace. Repositories and worktrees are discovered as folders expand, cached in SQLite, and shown in one tree with per-repository status.
 - Repositories view with branch, upstream, ahead/behind and dirty-state badges; push to one of several remotes.
+- Submodules: status for each one in the tree, one-click recursive update with streamed output, URL sync, and add or deinitialize a submodule.
 - Per-workspace trust prompt: untrusted roots suppress Git hooks and workspace-defined terminal commands.
 - Workspace activity timeline in the graph pane: recent commits from the checked repositories, grouped by day, each row jumping into that repository's commit graph.
 

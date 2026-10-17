@@ -24,10 +24,12 @@
 - **检出记录的提交**——把漂移的 submodule 拉回父仓库 pin 的提交。
 - **Sync URLs**——`.gitmodules` 里的远端地址变更后执行 `git submodule sync`。
 - **作为仓库打开**——把该 submodule 聚焦为一个完整仓库节点（提交图、变更、自己的远端）。
-- **Add / deinit**——[Later]。
+- **添加子模块…**（仓库右键菜单）——把一个仓库克隆到指定文件夹，钉住它检出的提交，并写进 `.gitmodules`。文件夹留空则按仓库名命名；可选的分支用于指定后续更新要跟踪的目标。
+- **注销此子模块**（submodule 行菜单）——清空它的检出目录并让父仓库不再跟踪它。`.gitmodules` 条目保留，之后仍可再次初始化。若 submodule 有自己的改动——未提交的文件，或父仓库尚未记录的检出——会再确认一次才丢弃。
 
 ## 说明
 
 - `Update all` 的并发度遵循 `git.concurrency` 设置（第 12 页）；默认值调低以温和对待网络。
 - submodule 的 fetch/push 使用它自己的远端与凭据；认证失败只对该 submodule 报类型化错误（排查见第 13 页）。
 - 支持 submodule 套 submodule（`--recursive`）——嵌套深度在进度输出中展示。
+- 用本地文件夹路径添加需要放行 git 的 file 协议（`protocol.file.allow`）；远端地址不受影响。

@@ -365,7 +365,7 @@ Both views render with virtualization (TanStack Virtual) and keyboard navigation
 - Cherry-pick: one revision, a discrete list applied in the order given, or a range (`A..B`), `--no-commit` option; revert same.
 - Reset: `--soft | --mixed | --hard` to any ref (backup ref + confirm for `--hard`; dialog states exactly what will be lost).
 - Stash: create (message, include-untracked, keep-index, path subset), list with expandable file lists and diffs, apply / pop / drop (drop creates a backup ref), show.
-- Submodules: per-submodule status (initialized, commit drift, dirty), **"Update all" one-click** (`submodule update --init --recursive --jobs <n>` with streamed progress), sync URLs, open-as-repository (navigates the Repos view), add/deinit are *Later*.
+- Submodules: per-submodule status (initialized, commit drift, dirty), **"Update all" one-click** (`submodule update --init --recursive --jobs <n>` with streamed progress), sync URLs, open-as-repository (navigates the Repos view), add (`submodule add` with an optional folder and `--branch`; the clone registers the new checkout) and deinit (`submodule deinit`, forced only after a second confirmation when the checkout has changes of its own).
 - Conflicts (shared flow): operation-in-progress banner (continue/abort/skip), conflicted-file list with per-file **ours/theirs/both** resolution, "open in editor with markers", external merge tool launch (configurable command), mark-resolved, and a before-continue validation ("unresolved conflicts remain" list).
 
 **Operation-in-progress detection** blocks conflicting operations (e.g., cannot rebase during a merge) with an explanatory dialog offering the legal actions.

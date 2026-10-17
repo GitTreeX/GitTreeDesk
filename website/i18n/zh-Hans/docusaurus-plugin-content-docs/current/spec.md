@@ -363,7 +363,7 @@ CREATE TABLE oplog        (id INTEGER PRIMARY KEY, repo_id INT, op TEXT, backup_
 - Cherry-pick：单个提交、按所给顺序依次应用的提交列表，或区间（`A..B`），可选 `--no-commit`；revert 同理。
 - Reset：`--soft | --mixed | --hard` 到任意 ref（`--hard` 需 backup ref + 确认；对话框明确说明将丢失什么）。
 - Stash：创建（消息、含未跟踪、keep-index、按路径子集）、列表可展开文件与 diff、apply / pop / drop（drop 前建 backup ref）、show。
-- Submodule：每个 submodule 的状态（是否初始化、commit 漂移、脏）、**一键 "Update all"**（`submodule update --init --recursive --jobs <n>`，进度流式）、sync URLs、作为仓库打开（跳转 Repos 视图）；add/deinit 属*后续*。
+- Submodule：每个 submodule 的状态（是否初始化、commit 漂移、脏）、**一键 "Update all"**（`submodule update --init --recursive --jobs <n>`，进度流式）、sync URLs、作为仓库打开（跳转 Repos 视图）、添加（`submodule add`，可选文件夹与 `--branch`，克隆后登记新检出）与注销（`submodule deinit`，仅当检出有自己的改动、二次确认后才强制）。
 - 冲突（统一流程）：进行中操作横幅（continue/abort/skip）、冲突文件列表，逐文件 **ours/theirs/both** 解决、"在编辑器中打开带标记内容"、启动外部合并工具（命令可配置）、标记已解决，以及 continue 前的校验（"仍有未解决冲突"清单）。
 
 **进行中操作检测**会拦截互斥操作（如 merge 中不可 rebase），弹窗解释并给出合法操作。

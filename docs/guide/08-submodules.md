@@ -24,10 +24,12 @@
 - **Checkout recorded commit** — resolves a drifted submodule back to the parent's pin.
 - **Sync URLs** — `git submodule sync` after remote URL changes in `.gitmodules`.
 - **Open as repository** — focuses the submodule as a full repository node (graph, changes, its own remotes).
-- **Add / deinit** — [Later].
+- **Add Submodule…** (repository context menu) — clones a repository into a folder, pins the commit it checked out and lists it in `.gitmodules`. Leave the folder empty to name it after the repository; an optional branch names what a later update should follow.
+- **Deinit Submodule** (submodule row menu) — empties the checkout and stops the parent from tracking it. The `.gitmodules` entry stays, so it can be initialized again. A submodule with changes of its own — uncommitted files, or a checkout the parent has not recorded — is confirmed a second time before anything is discarded.
 
 ## Notes
 
 - The parallelism of `Update all` follows the `git.concurrency` setting (page 12); the default is tuned to be gentle on the network.
 - Submodule fetch/push uses the submodule's own remote and credentials; an authentication failure surfaces as a typed error for that submodule only (troubleshooting: page 13).
 - Submodule of submodule (`--recursive`) is covered — nesting depth is shown in progress output.
+- Adding from a local folder path needs git's file-protocol allowance (`protocol.file.allow`); remote URLs are unaffected.
