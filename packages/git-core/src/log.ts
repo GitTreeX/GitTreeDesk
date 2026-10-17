@@ -1,4 +1,4 @@
-import type { CommitInfo } from '@gitreedesk/shared'
+import type { CommitInfo, FileHistoryEntry } from '@gitreedesk/shared'
 import { GitCommandError } from './errors'
 import { runGit } from './run'
 import { LITERAL_PATHS_ENV } from './staging'
@@ -195,16 +195,6 @@ export async function countCommits(options: CountCommitsOptions): Promise<number
   return Number.isFinite(value) ? value : 0
 }
 
-/**
- * One commit of a single file's history, carrying the name the file had in that
- * commit so a caller can open its diff even across renames.
- */
-export interface FileHistoryEntry extends CommitInfo {
-  filePath: string
-  /** Where the file came from when this commit moved it; null otherwise. */
-  previousPath: string | null
-}
-
 export interface FileHistoryOptions {
   repoPath: string
   path: string
@@ -255,7 +245,9 @@ function parseFileHistory(stdout: string, requestedPath: string): FileHistoryEnt
         next += 2
       }
     }
-    if ((fields[0] ?? '').length > 0) entries.push({ ...commitFromFields(fields), filePath, previousPath })
+    if ((fields[0] ?? '').length > 0) {
+      entries.push({ ...commitFromFields(fields), path: filePath, origPath: previousPath })
+    }
     i = next - 1
   }
   return entries

@@ -130,6 +130,13 @@ export interface HeadCommit {
   message: string
 }
 
+/** One commit of a single file's history, naming the file as it was in that commit. */
+export interface FileHistoryEntry extends CommitInfo {
+  path: string
+  /** Where the file came from when this commit moved it; null otherwise. */
+  origPath: string | null
+}
+
 export interface CommitFileStat {
   path: string
   /** Previous path of a rename or copy. */

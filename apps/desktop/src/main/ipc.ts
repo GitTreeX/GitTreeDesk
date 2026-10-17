@@ -177,7 +177,7 @@ function createHandlers(
     'git:applyHunk': (request) => service.gitApplyHunk(request),
     'git:commit': (request) => service.gitCommit(request),
     'git:headCommit': (request) => service.gitHeadCommit(request),
-    'git:fileLog': (request) => service.gitFileLog(request),
+    'git:fileHistory': (request) => service.gitFileHistory(request),
     'git:refs': (request) => service.gitRefs(request),
     'git:branchCheckout': (request) => service.gitBranchCheckout(request),
     'git:checkoutDetach': (request) => service.gitCheckoutDetach(request),

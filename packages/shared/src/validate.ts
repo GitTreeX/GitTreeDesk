@@ -80,11 +80,12 @@ export const invokeSchemas = {
     stageAll: z.boolean().optional()
   }),
   'git:headCommit': z.object({ gitDir: pathString }),
-  'git:fileLog': z.object({
+  'git:fileHistory': z.object({
     gitDir: pathString,
     path: repoRelPath,
     limit: z.number().int().min(1).max(1000).optional(),
-    skip: z.number().int().min(0).max(1_000_000).optional()
+    skip: z.number().int().min(0).max(1_000_000).optional(),
+    follow: z.boolean().optional()
   }),
   'git:refs': z.object({ gitDir: pathString }),
   'git:branchCheckout': z.object({ gitDir: pathString, name: branchName }),

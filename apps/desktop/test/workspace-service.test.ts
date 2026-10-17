@@ -543,8 +543,9 @@ describe('WorkspaceService', () => {
     await instance.gitApplyHunk({ gitDir, patch: staged.patch, mode: 'unstage' })
     expect(await git(repo, ['show', ':app.txt'])).toBe('first\n')
 
-    const history = await instance.gitFileLog({ gitDir, path: 'app.txt', limit: 10 })
-    expect(history.commits.map((commit) => commit.subject)).toEqual(['add app'])
+    const history = await instance.gitFileHistory({ gitDir, path: 'app.txt', limit: 10 })
+    expect(history.entries.map((entry) => entry.subject)).toEqual(['add app'])
+    expect(history.entries.map((entry) => entry.path)).toEqual(['app.txt'])
     expect(history.hasMore).toBe(false)
 
     const refs = await instance.gitRefs({ gitDir })
@@ -558,6 +559,44 @@ describe('WorkspaceService', () => {
         to: { kind: 'worktree' }
       })
     ).rejects.toMatchObject({ code: 'unknown-repo' })
+  })
+
+  it('walks a renamed file back to its first commit', async () => {
+    const root = await tempDir('gtd-svc-history-')
+    const userData = await tempDir('gtd-svc-data-')
+    const repo = join(root, 'api-server')
+    await initRepo(repo)
+    await writeFile(join(repo, 'app.txt'), 'first\n')
+    await commitAll(repo, 'add app')
+    await writeFile(join(repo, 'app.txt'), 'second\n')
+    await commitAll(repo, 'edit app')
+    await git(repo, ['mv', 'app.txt', 'server.txt'])
+    await git(repo, ['commit', '-q', '-m', 'rename app'])
+    await writeFile(join(repo, 'server.txt'), 'second\nthird\n')
+    await commitAll(repo, 'edit server')
+
+    const events: WorkspaceServiceEvent[] = []
+    const instance = service(userData, events)
+    const descriptor = await instance.open(root)
+    const gitDir = descriptor.records[0]?.gitDir ?? ''
+
+    const followed = await instance.gitFileHistory({ gitDir, path: 'server.txt', limit: 10, follow: true })
+    expect(followed.entries.map((entry) => entry.subject)).toEqual([
+      'edit server',
+      'rename app',
+      'edit app',
+      'add app'
+    ])
+    expect(followed.entries.map((entry) => entry.path)).toEqual([
+      'server.txt',
+      'server.txt',
+      'app.txt',
+      'app.txt'
+    ])
+    expect(followed.entries.map((entry) => entry.origPath)).toEqual([null, 'app.txt', null, null])
+
+    const plain = await instance.gitFileHistory({ gitDir, path: 'server.txt', limit: 10 })
+    expect(plain.entries.map((entry) => entry.subject)).toEqual(['edit server', 'rename app'])
   })
 
   it('reads, stats and saves editor files and lists workspace files', async () => {

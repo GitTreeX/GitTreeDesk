@@ -79,7 +79,7 @@ describe('fileHistory', () => {
       'edit a',
       'add a'
     ])
-    expect(entries.map((entry) => entry.filePath)).toEqual([
+    expect(entries.map((entry) => entry.path)).toEqual([
       'c.txt',
       'c.txt',
       'b.txt',
@@ -87,7 +87,7 @@ describe('fileHistory', () => {
       'a.txt',
       'a.txt'
     ])
-    expect(entries.map((entry) => entry.previousPath)).toEqual([null, 'b.txt', null, 'a.txt', null, null])
+    expect(entries.map((entry) => entry.origPath)).toEqual([null, 'b.txt', null, 'a.txt', null, null])
     expect(entries[5]?.parents).toEqual([])
   })
 
@@ -96,7 +96,7 @@ describe('fileHistory', () => {
     const { entries } = await fileHistory({ repoPath: repo, path: 'c.txt' })
 
     expect(entries.map((entry) => entry.subject)).toEqual(['edit c', 'rename to c'])
-    expect(entries.map((entry) => entry.filePath)).toEqual(['c.txt', 'c.txt'])
+    expect(entries.map((entry) => entry.path)).toEqual(['c.txt', 'c.txt'])
 
     const skipped = await fileHistory({ repoPath: repo, path: 'c.txt', skip: 1 })
     expect(skipped.entries.map((entry) => entry.subject)).toEqual(['rename to c'])
@@ -114,11 +114,11 @@ describe('fileHistory', () => {
     })
 
     expect(first.hasMore).toBe(true)
-    expect(first.entries.map((entry) => entry.filePath)).toEqual(['c.txt', 'c.txt', 'b.txt'])
+    expect(first.entries.map((entry) => entry.path)).toEqual(['c.txt', 'c.txt', 'b.txt'])
     expect(second.hasMore).toBe(false)
     expect(second.entries.map((entry) => entry.subject)).toEqual(['rename to b', 'edit a', 'add a'])
-    expect(second.entries.map((entry) => entry.filePath)).toEqual(['b.txt', 'a.txt', 'a.txt'])
-    expect(second.entries.map((entry) => entry.previousPath)).toEqual(['a.txt', null, null])
+    expect(second.entries.map((entry) => entry.path)).toEqual(['b.txt', 'a.txt', 'a.txt'])
+    expect(second.entries.map((entry) => entry.origPath)).toEqual(['a.txt', null, null])
   })
 
   it('lists nothing before the first commit', async () => {
@@ -141,12 +141,12 @@ describe('fileHistory', () => {
 
     const { entries } = await fileHistory({ repoPath: repo, path: 'docs 文档/c d.txt', follow: true })
     expect(entries.map((entry) => entry.subject)).toEqual(['edit', 'rename', 'add'])
-    expect(entries.map((entry) => entry.filePath)).toEqual([
+    expect(entries.map((entry) => entry.path)).toEqual([
       'docs 文档/c d.txt',
       'docs 文档/c d.txt',
       'docs 文档/a b.txt'
     ])
-    expect(entries.map((entry) => entry.previousPath)).toEqual([null, 'docs 文档/a b.txt', null])
+    expect(entries.map((entry) => entry.origPath)).toEqual([null, 'docs 文档/a b.txt', null])
   })
 
   it('sees a file that was deleted in the newest commit', async () => {
@@ -156,6 +156,6 @@ describe('fileHistory', () => {
 
     const { entries } = await fileHistory({ repoPath: repo, path: 'c.txt', follow: true, maxCount: 2 })
     expect(entries.map((entry) => entry.subject)).toEqual(['drop c', 'edit c'])
-    expect(entries.map((entry) => entry.filePath)).toEqual(['c.txt', 'c.txt'])
+    expect(entries.map((entry) => entry.path)).toEqual(['c.txt', 'c.txt'])
   })
 })

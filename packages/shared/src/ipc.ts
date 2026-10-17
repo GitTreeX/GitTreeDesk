@@ -6,6 +6,7 @@ import type {
   CommitDetails,
   CommitInfo,
   FileChange,
+  FileHistoryEntry,
   GitRef,
   HeadCommit,
   RemoteInfo,
@@ -235,11 +236,13 @@ export interface GitHeadCommitResponse {
   pushed: boolean
 }
 
-export interface GitFileLogRequest {
+export interface GitFileHistoryRequest {
   gitDir: string
   path: string
   limit?: number
   skip?: number
+  /** Walk the file back through renames; each entry then names the path it had in that commit. */
+  follow?: boolean
 }
 
 export interface GitRefsRequest {
@@ -1241,7 +1244,7 @@ export interface InvokeMap {
   'git:applyHunk': { request: GitApplyHunkRequest; response: null }
   'git:commit': { request: GitCommitRequest; response: { sha: string } }
   'git:headCommit': { request: GitHeadCommitRequest; response: GitHeadCommitResponse }
-  'git:fileLog': { request: GitFileLogRequest; response: { commits: CommitInfo[]; hasMore: boolean } }
+  'git:fileHistory': { request: GitFileHistoryRequest; response: { entries: FileHistoryEntry[]; hasMore: boolean } }
   'git:refs': { request: GitRefsRequest; response: { refs: GitRef[] } }
   'git:branchCheckout': { request: GitBranchCheckoutRequest; response: BranchOpResponse }
   'git:checkoutDetach': { request: GitCheckoutDetachRequest; response: BranchOpResponse }
@@ -1400,7 +1403,7 @@ export const INVOKE_CHANNELS = [
   'git:applyHunk',
   'git:commit',
   'git:headCommit',
-  'git:fileLog',
+  'git:fileHistory',
   'git:refs',
   'git:branchCheckout',
   'git:checkoutDetach',

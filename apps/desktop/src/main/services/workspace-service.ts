@@ -4,10 +4,10 @@ import { basename, dirname, join, posix, resolve } from 'node:path'
 import type {
   AutoStashReport,
   BackupRef,
-  CommitInfo,
   DiscoveryResult,
   DiscoveryStats,
   FileChange,
+  FileHistoryEntry,
   FsEntry,
   FsEntryKind,
   FsPathRequest,
@@ -43,7 +43,7 @@ import type {
   GitFetchManyRequest,
   GitFetchRequest,
   GitFetchResponse,
-  GitFileLogRequest,
+  GitFileHistoryRequest,
   GitGraphRequest,
   GitGraphResponse,
   GitHeadCommitRequest,
@@ -164,6 +164,7 @@ import {
   editCommits,
   encodeUndoState,
   fetchRemote,
+  fileHistory,
   GitCommandError,
   GitPool,
   hasPendingSubmoduleEntry,
@@ -765,13 +766,15 @@ export class WorkspaceService {
     return { commit, pushed }
   }
 
-  async gitFileLog(request: GitFileLogRequest): Promise<{ commits: CommitInfo[]; hasMore: boolean }> {
+  /** One page of a file's history; each entry names the file as it was in that commit. */
+  async gitFileHistory(request: GitFileHistoryRequest): Promise<{ entries: FileHistoryEntry[]; hasMore: boolean }> {
     const record = this.#requireCheckout(this.#requireSession(), request.gitDir)
-    return await logCommits({
+    return await fileHistory({
       repoPath: record.path,
+      path: request.path,
       maxCount: request.limit,
       skip: request.skip,
-      path: request.path
+      follow: request.follow
     })
   }
 
