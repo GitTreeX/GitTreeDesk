@@ -231,6 +231,7 @@ function createHandlers(
     'git:restoreBackup': (request) => service.gitRestoreBackup(request),
     'git:worktrees': (request) => service.gitWorktrees(request),
     'git:worktreeAdd': (request) => service.gitWorktreeAdd(request),
+    'git:worktreeMove': (request) => service.gitWorktreeMove(request),
     'git:worktreeRemove': (request) => service.gitWorktreeRemove(request),
     'git:worktreePrune': (request) => service.gitWorktreePrune(request),
     'git:worktreeLock': (request) => service.gitWorktreeLock(request),

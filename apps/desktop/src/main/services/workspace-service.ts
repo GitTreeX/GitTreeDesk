@@ -110,6 +110,8 @@ import type {
   GitWorktreeAddRequest,
   GitWorktreeAddResponse,
   GitWorktreeLockRequest,
+  GitWorktreeMoveRequest,
+  GitWorktreeMoveResponse,
   GitWorktreeRemoveRequest,
   GitWorktreeRemoveResponse,
   GitWorktreeTargetRequest,
@@ -182,6 +184,7 @@ import {
   mergeAbort,
   mergeContinue,
   mergeRepo,
+  moveWorktree,
   parseBackupRefName,
   parseUndoState,
   pathExists,
@@ -1374,6 +1377,41 @@ export class WorkspaceService {
   }
 
   /**
+   * Relocates a linked worktree. Its uncommitted changes travel with the folder,
+   * so only a locked tree or the main checkout is refused. An existing target
+   * directory makes git nest the worktree inside it, so the resulting path is
+   * read back from git rather than assumed.
+   */
+  async gitWorktreeMove(request: GitWorktreeMoveRequest): Promise<GitWorktreeMoveResponse> {
+    const session = this.#requireSession()
+    const record = this.#requireWriteCheckout(request.gitDir)
+    const target = await this.#findWorktree(record, request.path)
+    if (target === null) {
+      throw new ServiceError('invalid-request', `Unknown worktree: ${request.path}`)
+    }
+    if (target.locked !== null) {
+      throw new ServiceError('worktree-locked', `Worktree "${target.path}" is locked; unlock it first`)
+    }
+    // Run from the main checkout, and refuse there: the main tree is the repository itself.
+    const main = session.registry.all.find((row) => row.gitDir === row.id && row.id === record.id)
+    const repoPath = main?.path ?? record.path
+    if (this.#pathKey(await this.#absPosix(repoPath)) === this.#pathKey(target.path)) {
+      throw new ServiceError('invalid-request', 'The main working tree is not a linked worktree to move')
+    }
+    const destination = await this.#absPosix(request.target)
+    if (this.#pathKey(destination) === this.#pathKey(target.path)) {
+      throw new ServiceError('invalid-request', `Worktree "${target.path}" is already at that path`)
+    }
+    await this.#gitOperation(record, () =>
+      moveWorktree({ repoPath, path: target.path, target: destination })
+    )
+    const moved = await this.#movedWorktreePath(repoPath, destination, target.path)
+    await this.#refreshAfterWorktreeRemove(target.path)
+    await this.#refreshAfterWorktreeAdd(record, moved)
+    return { path: moved }
+  }
+
+  /**
    * Removes a linked worktree. A locked worktree is refused; a dirty one requires
    * `force`, which takes a backup ref first. Either way the removal stays undoable
    * by recreating the worktree.
@@ -1741,6 +1779,21 @@ export class WorkspaceService {
       if (this.#pathKey(normalized) === target) return { ...worktree, path: normalized }
     }
     return null
+  }
+
+  /**
+   * The path git settled on after a move: an existing target directory becomes the
+   * parent, so the worktree is read back from the list instead of guessed.
+   */
+  async #movedWorktreePath(repoPath: string, destination: string, previous: string): Promise<string> {
+    const name = previous.split('/').pop() ?? ''
+    const candidates = [destination, `${destination}/${name}`].map((path) => this.#pathKey(path))
+    const worktrees = await listWorktrees({ repoPath })
+    for (const worktree of worktrees) {
+      const normalized = await this.#absPosix(worktree.path)
+      if (candidates.includes(this.#pathKey(normalized))) return normalized
+    }
+    return destination
   }
 
   #absPosix(path: string): Promise<string> {

@@ -840,6 +840,16 @@ export interface GitWorktreeTargetRequest {
   path: string
 }
 
+export interface GitWorktreeMoveRequest extends GitWorktreeTargetRequest {
+  /** Directory to relocate the worktree to; missing parent directories are created. */
+  target: string
+}
+
+export interface GitWorktreeMoveResponse {
+  /** Normalized absolute path the worktree ended up at. */
+  path: string
+}
+
 export interface GitWorktreeRemoveRequest extends GitWorktreeTargetRequest {
   /** Confirms removing a dirty worktree; a backup ref is taken first. */
   force?: boolean
@@ -1285,6 +1295,7 @@ export interface InvokeMap {
   'git:restoreBackup': { request: GitRestoreBackupRequest; response: null }
   'git:worktrees': { request: GitCheckoutRequest; response: GitWorktreesResponse }
   'git:worktreeAdd': { request: GitWorktreeAddRequest; response: GitWorktreeAddResponse }
+  'git:worktreeMove': { request: GitWorktreeMoveRequest; response: GitWorktreeMoveResponse }
   'git:worktreeRemove': { request: GitWorktreeRemoveRequest; response: GitWorktreeRemoveResponse }
   'git:worktreePrune': { request: GitCheckoutRequest; response: null }
   'git:worktreeLock': { request: GitWorktreeLockRequest; response: null }
@@ -1443,6 +1454,7 @@ export const INVOKE_CHANNELS = [
   'git:restoreBackup',
   'git:worktrees',
   'git:worktreeAdd',
+  'git:worktreeMove',
   'git:worktreeRemove',
   'git:worktreePrune',
   'git:worktreeLock',

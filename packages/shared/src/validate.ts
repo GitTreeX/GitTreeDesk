@@ -290,6 +290,11 @@ export const invokeSchemas = {
       },
       { message: 'exactly one of branch, newBranch or detachAt is required; base requires newBranch' }
     ),
+  'git:worktreeMove': z.object({
+    gitDir: pathString,
+    path: pathString,
+    target: pathString
+  }),
   'git:worktreeRemove': z.object({
     gitDir: pathString,
     path: pathString,

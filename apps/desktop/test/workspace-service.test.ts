@@ -1143,6 +1143,105 @@ describe('worktree operations', () => {
     },
     60_000
   )
+
+  it(
+    'moves a linked worktree, re-registers it at the new path and keeps its edits',
+    async () => {
+      const root = await tempDir('gtd-svc-wt-')
+      const userData = await tempDir('gtd-svc-data-')
+      const repo = join(root, 'api-server')
+      await initRepo(repo)
+
+      const events: WorkspaceServiceEvent[] = []
+      const instance = service(userData, events)
+      const descriptor = await instance.open(root)
+      const gitDir = descriptor.records[0]?.gitDir ?? ''
+
+      const from = join(root, '__worktree__', 'api-server_moved')
+      await instance.gitWorktreeAdd({ gitDir, path: from, newBranch: 'traveler' })
+      await writeFile(join(from, 'notes.txt'), 'wip\n')
+      const oldPath = real(from)
+
+      // The destination is a fresh path whose parent chain does not exist yet.
+      const to = join(root, 'relocated', 'api-server_abroad')
+      const beforeMove = events.length
+      const moved = await instance.gitWorktreeMove({ gitDir, path: from, target: to })
+      expect(moved.path).toBe(real(to))
+      expect(await readFile(join(to, 'notes.txt'), 'utf8')).toBe('wip\n')
+
+      const diffs = events
+        .slice(beforeMove)
+        .flatMap((event) => (event.type === 'reposChanged' ? [event.diff] : []))
+      expect(diffs.flatMap((entry) => entry.removed).map((entry) => entry.path)).toContain(oldPath)
+      expect(diffs.flatMap((entry) => entry.added).map((entry) => entry.path)).toContain(real(to))
+
+      const list = (await git(repo, ['worktree', 'list'])).trim()
+      expect(list).toContain('relocated/api-server_abroad')
+      expect(list).not.toContain('api-server_moved')
+    },
+    60_000
+  )
+
+  it(
+    'reports the nested path when the destination directory already exists',
+    async () => {
+      const root = await tempDir('gtd-svc-wt-')
+      const userData = await tempDir('gtd-svc-data-')
+      const repo = join(root, 'api-server')
+      await initRepo(repo)
+
+      const instance = service(userData, [])
+      const descriptor = await instance.open(root)
+      const gitDir = descriptor.records[0]?.gitDir ?? ''
+
+      const from = join(root, '__worktree__', 'api-server_nested')
+      await instance.gitWorktreeAdd({ gitDir, path: from, newBranch: 'nested' })
+
+      const holder = join(root, 'holder')
+      await mkdir(holder, { recursive: true })
+      const moved = await instance.gitWorktreeMove({ gitDir, path: from, target: holder })
+      expect(moved.path).toBe(real(join(holder, 'api-server_nested')))
+
+      const { worktrees } = await instance.gitWorktrees({ gitDir })
+      expect(worktrees.map((entry) => entry.path)).toContain(real(join(holder, 'api-server_nested')))
+    },
+    60_000
+  )
+
+  it(
+    'refuses to move a locked worktree, onto itself, or the main working tree',
+    async () => {
+      const root = await tempDir('gtd-svc-wt-')
+      const userData = await tempDir('gtd-svc-data-')
+      const repo = join(root, 'api-server')
+      await initRepo(repo)
+
+      const instance = service(userData, [])
+      const descriptor = await instance.open(root)
+      const gitDir = descriptor.records[0]?.gitDir ?? ''
+
+      const target = join(root, '__worktree__', 'api-server_held')
+      await instance.gitWorktreeAdd({ gitDir, path: target, newBranch: 'held' })
+      await instance.gitWorktreeLock({ gitDir, path: target, reason: 'on a drive elsewhere' })
+
+      await expect(
+        instance.gitWorktreeMove({ gitDir, path: target, target: join(root, 'abroad') })
+      ).rejects.toMatchObject({ code: 'worktree-locked' })
+
+      await instance.gitWorktreeUnlock({ gitDir, path: target })
+      await expect(instance.gitWorktreeMove({ gitDir, path: target, target })).rejects.toMatchObject({
+        code: 'invalid-request'
+      })
+      await expect(
+        instance.gitWorktreeMove({ gitDir, path: repo, target: join(root, 'api-server-elsewhere') })
+      ).rejects.toMatchObject({ code: 'invalid-request' })
+
+      // Nothing moved: the worktree is still where it was.
+      const { worktrees } = await instance.gitWorktrees({ gitDir })
+      expect(worktrees.map((entry) => entry.path)).toContain(real(target))
+    },
+    60_000
+  )
 })
 
 describe('submodule operations', () => {
