@@ -19,9 +19,9 @@
 
 ## Cherry-pick & revert
 
-- **Cherry-pick** — one commit at a time from the graph or the commit details panel; option `--no-commit` (changes staged, stop before committing). Ranges (`A..B`) are [Later].
-- **Revert** — same entries, same options; revert of a merge commit requires choosing the mainline (the dialog explains which parent is which).
-- Conflicts follow the same banner flow.
+- **Cherry-pick** — from the graph or the commit details panel. One commit at a time, or **Ctrl/Cmd-click** several rows and pick the whole selection in one go; the dialog lists the commits in the order they run, oldest first. Option `--no-commit` (changes staged, stop before committing). Picking a range given as `A..B` from the UI is [Later].
+- **Revert** — same entries, same options, single or as a selection; a batch is undone from the newest commit so an earlier change does not reappear. Revert of a merge commit requires choosing the mainline (the dialog explains which parent is which).
+- Conflicts follow the same banner flow. In a batch, **Skip** drops the commit that stopped it and runs the ones still queued.
 
 ## Reset
 

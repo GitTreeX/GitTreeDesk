@@ -360,7 +360,7 @@ CREATE TABLE oplog        (id INTEGER PRIMARY KEY, repo_id INT, op TEXT, backup_
 
 - 合并进当前分支：可选 `--no-ff`、`--squash`、`--ff-only`；冲突流程见下。
 - Rebase：把当前分支 rebase 到指定 ref（自动 stash 可选）；交互式 rebase 提供列表编辑器（拖动行手柄或用上移 / 下移按钮调整顺序；行操作：pick / reword / edit / squash / fixup / drop）；continue / skip / abort。
-- Cherry-pick：单提交或区间（`A..B`），可选 `--no-commit`；revert 同理。
+- Cherry-pick：单个提交、按所给顺序依次应用的提交列表，或区间（`A..B`），可选 `--no-commit`；revert 同理。
 - Reset：`--soft | --mixed | --hard` 到任意 ref（`--hard` 需 backup ref + 确认；对话框明确说明将丢失什么）。
 - Stash：创建（消息、含未跟踪、keep-index、按路径子集）、列表可展开文件与 diff、apply / pop / drop（drop 前建 backup ref）、show。
 - Submodule：每个 submodule 的状态（是否初始化、commit 漂移、脏）、**一键 "Update all"**（`submodule update --init --recursive --jobs <n>`，进度流式）、sync URLs、作为仓库打开（跳转 Repos 视图）；add/deinit 属*后续*。
@@ -379,7 +379,7 @@ CREATE TABLE oplog        (id INTEGER PRIMARY KEY, repo_id INT, op TEXT, backup_
 - 行内容：泳道图、refs（本地/远端/tag/HEAD 用不同 chip）、subject、作者、相对时间、"incoming/outgoing" 标记（相对 upstream 与当前分支）；行高为"宽松"时额外以更小一行显示提交正文首行。
 - 过滤：refs 多选、作者、路径（v1 不做 rename 跟随）、日期区间、消息文本，以及"仅当前分支可达"。
 - 提交详情侧栏：完整消息、作者 + 提交者（姓名/邮箱/日期）、带统计的文件列表；点击文件在编辑区打开该提交的 diff。
-- 提交操作（右键菜单，复用操作模型）：checkout、在此创建分支/tag、cherry-pick、revert、reset 到此处*（soft/mixed/hard）*、复制 SHA / ref 名、把当前分支 rebase 到该提交、自此交互式 rebase、**修改提交信息 / 作者 / 时间**（历史改写）、选择以对比（任意两个提交间 diff）。
+- 提交操作（右键菜单，复用操作模型）：checkout、在此创建分支/tag、cherry-pick、revert、reset 到此处*（soft/mixed/hard）*、复制 SHA / ref 名、把当前分支 rebase 到该提交、自此交互式 rebase、**修改提交信息 / 作者 / 时间**（历史改写）、选择以对比（任意两个提交间 diff）。Ctrl/Cmd 点选多行可同时选中多个提交，此时菜单会为整份选区提供 cherry-pick、revert 与提交编辑。
 - **工作区活动时间线**：工具栏的范围切换（`graph.mode`，持久化在 UI state）把标签内容换成一条合并后的虚拟化列表，按天分组展示 Repos 勾选集合所选仓库的最近提交；命令面板可直接打开。`git:activity` 把这些检出分批并发读取（同时 8 个），各自只走 `HEAD`，带 `--since` / `--author` / `--grep` 与逐仓库上限，并把 `failures`、`truncated` 一并返回——读不了或被截断的仓库要说明，而不是悄悄丢掉。时间窗与过滤器持久化在 `graph.activity`；读取带防抖，范围内 HEAD 移动时重新读取。点击某行会打开该仓库的提交图标签并交给它 `{gitDir, sha, token}`，由该标签选中、滚动到并展开那个提交的详情。
 
 ### 编辑器

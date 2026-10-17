@@ -48,13 +48,15 @@ Right-click any commit (or use the details panel):
 |---|---|
 | Checkout commit | detached HEAD with "Create branch here" banner |
 | Create branch here / Create tag here | picker dialogs |
-| Cherry-pick / Revert | with the `--no-commit` option (page 06) |
+| Cherry-pick / Revert | one commit or a multi-selected batch, with the `--no-commit` option (page 06) |
 | Reset current branch to here | soft / mixed / hard (page 06) |
 | Rebase current onto this commit | |
 | Interactive rebase from here | list editor (page 06) |
 | **Edit commit…** | message / author / date rewrite with backup + undo (page 04) |
 | Copy SHA / Copy ref name | |
 | Select for compare | then right-click another commit → "Compare with selected" — a two-commit diff opens in the editor area |
+
+**Ctrl/Cmd-click** rows to select several commits; the menu then offers cherry-pick, revert and commit editing for the whole selection.
 
 ## Keyboard
 

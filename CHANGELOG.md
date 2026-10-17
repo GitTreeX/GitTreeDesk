@@ -17,7 +17,7 @@ The first release packaged for all three platforms — everything below ships in
 **Changes, commits, history**
 
 - Multi-repository Source Control view: stage per file or hunk, discard, amend, hook output surfaced in the Output panel.
-- Merge, rebase (interactive rebase has a list editor where you drag a row to reorder it), cherry-pick, revert, reset, stash, and conflict resolution in the editor and the diff view.
+- Merge, rebase (interactive rebase has a list editor where you drag a row to reorder it), cherry-pick, revert (one commit or a Ctrl/Cmd-selected batch), reset, stash, and conflict resolution in the editor and the diff view.
 - Commit graph: lanes, ref chips, incoming/outgoing markers, paged and streamed history, combinable filters, resizable lane column, commit details with per-file stats, history rewrite with backup refs and undo.
 - Commit message drafts generated offline from the staged diff, or through a configured LLM provider.
 

@@ -362,7 +362,7 @@ Both views render with virtualization (TanStack Virtual) and keyboard navigation
 
 - Merge into current: options `--no-ff`, `--squash`, `--ff-only`; conflict flow below.
 - Rebase: current onto ref (auto-stash option); interactive rebase with a list editor (rows reorder by dragging a handle or with up/down buttons; per-row actions: pick / reword / edit / squash / fixup / drop); continue / skip / abort.
-- Cherry-pick: single or range (`A..B`), `--no-commit` option; revert same.
+- Cherry-pick: one revision, a discrete list applied in the order given, or a range (`A..B`), `--no-commit` option; revert same.
 - Reset: `--soft | --mixed | --hard` to any ref (backup ref + confirm for `--hard`; dialog states exactly what will be lost).
 - Stash: create (message, include-untracked, keep-index, path subset), list with expandable file lists and diffs, apply / pop / drop (drop creates a backup ref), show.
 - Submodules: per-submodule status (initialized, commit drift, dirty), **"Update all" one-click** (`submodule update --init --recursive --jobs <n>` with streamed progress), sync URLs, open-as-repository (navigates the Repos view), add/deinit are *Later*.
@@ -381,7 +381,7 @@ Both views render with virtualization (TanStack Virtual) and keyboard navigation
 - Row content: lane graph, refs (local/remote/tags/HEAD with distinct chips), subject, author, relative date, "incoming/outgoing" markers relative to upstream and current branch; the `comfortable` row height adds a second, smaller line with the first line of the commit body.
 - Filters: refs multi-select, author, path (with rename detection off in v1), date range, message text, and "only reachable from current branch".
 - Commit details side panel: full message, author + committer (name/email/date), file list with stats; clicking a file opens the commit diff in the editor area.
-- Commit actions (context menu, reusing the operation models): checkout, create branch/tag here, cherry-pick, revert, reset here *(soft/mixed/hard)*, copy SHA / ref name, rebase current onto this commit, interactive rebase from this commit, **edit message / author / date** (history editing), select for compare (diff two arbitrary commits).
+- Commit actions (context menu, reusing the operation models): checkout, create branch/tag here, cherry-pick, revert, reset here *(soft/mixed/hard)*, copy SHA / ref name, rebase current onto this commit, interactive rebase from this commit, **edit message / author / date** (history editing), select for compare (diff two arbitrary commits). Ctrl/Cmd-click selects several rows and the menu then offers cherry-pick, revert and commit editing for the whole selection.
 - **Workspace activity timeline**: a toolbar scope switch (`graph.mode`, persisted in the UI state) replaces the tab body with one merged, virtualized, day-grouped list of recent commits from the repositories the Repos checkbox set selects; the command palette opens it directly. `git:activity` fans the read out over those checkouts (8 at a time), walking each `HEAD` with `--since` / `--author` / `--grep` and a per-repository cap, and reports `failures` and `truncated` so an unreadable or clipped repository is stated rather than silently dropped. Window and filters persist under `graph.activity`; the read is debounced and re-issued when a HEAD inside the scope moves. A row click opens that repository's graph tab and hands it `{gitDir, sha, token}`, so the tab selects, scrolls to and details the commit.
 
 ### Editor
