@@ -25,7 +25,7 @@
 
 **编辑与终端**
 
-- Monaco 编辑器：语法高亮、TypeScript 提示、分栏 diff 与文件历史。
+- Monaco 编辑器：语法高亮、TypeScript 提示、分栏 diff，以及默认跟随重命名的文件历史。
 - 集成终端可绑定仓库或 worktree，支持 profile、快捷命令与回看缓冲。
 
 **界面与设置**

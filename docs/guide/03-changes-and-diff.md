@@ -46,7 +46,7 @@ Clicking a changed file opens a diff tab in the editor area.
 ## File history
 
 - The diff tab's toolbar has a **History** toggle: a list of commits touching that file; clicking a commit opens that revision's diff for the file.
-- Rename-following is [Later].
+- The list follows the file across renames (`--follow`) by default, so commits made before the first rename are included. A row from before a rename says what the file was called there, and opening it compares that old name. The **Follow renames** chip in the panel switches to the commits under the current name only.
 
 ## Edge cases
 

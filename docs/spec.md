@@ -400,7 +400,7 @@ Both views render with virtualization (TanStack Virtual) and keyboard navigation
 - **SCM view** (activity bar): repository sections — which repositories appear is governed by the per-repo checkboxes in the Repos view; each section shows staged / unstaged / untracked / conflicted groups (each group's visibility individually toggleable), a commit box (message + generate + commit/amend/stage-all), and its in-progress operation banner.
 - File rows: status icon (M/A/D/R/U/!/C), staged vs unstaged, hover actions (stage/unstage/discard), multi-select, click → diff.
 - **Diff view**: Monaco diff editor (side-by-side ⇄ inline toggle), whitespace-ignore toggle, word-wrap; rename-aware; binary files show size info; images get a 2-up before/after preview (onion slider *Later*); hunk actions from the diff margin: stage hunk / revert hunk; "Compare with…" picker (INDEX / HEAD / any ref / another branch) for a file or a whole repository scope.
-- **File history**: per-file `git log` list (rename-follow *Later*), clicking a revision opens that revision's diff for the file.
+- **File history**: per-file `git log` list, rename-following on by default (a togglable "Follow renames" chip); every entry carries the path the file had in that commit, so clicking a revision opens that revision's diff even across a rename.
 - Empty states and skeleton loaders follow the UX blueprint.
 
 ### Terminal

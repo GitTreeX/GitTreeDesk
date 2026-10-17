@@ -25,7 +25,7 @@ The first release packaged for all three platforms — everything below ships in
 
 **Editing and terminals**
 
-- Monaco editor with syntax highlighting, TypeScript hints, and a split diff view with per-file history.
+- Monaco editor with syntax highlighting, TypeScript hints, and a split diff view with per-file history that follows the file across renames.
 - Integrated terminals bound to a repository or worktree, with profiles, quick commands, and scrollback.
 
 **Shell and settings**

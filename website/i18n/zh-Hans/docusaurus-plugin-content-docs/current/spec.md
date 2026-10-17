@@ -398,7 +398,7 @@ CREATE TABLE oplog        (id INTEGER PRIMARY KEY, repo_id INT, op TEXT, backup_
 - **SCM 视图**（活动栏）：按仓库分节——哪些仓库出现由 Repos 视图的逐仓库勾选决定；每节展示 已暂存 / 未暂存 / 未跟踪 / 冲突 分组（每组可见性可单独开关）、提交框（消息 + 生成 + commit/amend/stage-all），以及该仓库的进行中操作横幅。
 - 文件行：状态图标（M/A/D/R/U/!/C）、已暂存与未暂存区分、悬停操作（stage/unstage/discard）、多选、点击 → diff。
 - **Diff 视图**：Monaco diff 编辑器（并排 ⇄ 内联切换）、忽略空白开关、自动换行；rename 感知；二进制显示体积信息；图片给 2-up 前后对比预览（洋葱皮滑块属*后续*）；diff 边栏提供 hunk 操作：stage hunk / revert hunk；"与…对比"选择器（INDEX / HEAD / 任意 ref / 另一分支），可作用于单个文件或整个仓库范围。
-- **文件历史**：单文件 `git log` 列表（rename 跟随属*后续*），点某版本打开该文件在该版本的 diff。
+- **文件历史**：单文件 `git log` 列表，默认跟随重命名（"跟随重命名"开关可切换）；每条记录带上该提交中文件当时的路径，因此点某版本时即便跨过重命名也能打开该文件在该版本的 diff。
 - 空态与骨架屏遵循 UX 蓝图。
 
 ### 终端
