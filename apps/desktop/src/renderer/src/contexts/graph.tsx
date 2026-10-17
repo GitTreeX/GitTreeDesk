@@ -17,6 +17,7 @@ import type {
   GitRef,
   RepoRecord
 } from '@gitreedesk/shared'
+import { GRAPH_WINDOW_DEFAULT, GRAPH_WINDOW_MAX } from '@gitreedesk/shared'
 import { api } from '../api'
 import { GRAPH_TAB_LIMIT, repoInfoOf, useEditor } from './editor'
 import { useWorkspace } from './workspace'
@@ -47,8 +48,17 @@ export const EMPTY_GRAPH_FILTERS: GraphFilters = {
 /** First page; scrolling streams older history in {@link GRAPH_PAGE_STEP} chunks. */
 export const GRAPH_PAGE_SIZE = 1000
 export const GRAPH_PAGE_STEP = 2000
-/** Huge-repo mode: the loaded window never grows past this. */
-export const GRAPH_WINDOW_LIMIT = 10000
+
+const WINDOW_KEY = ['graph', 'windowSize']
+
+/**
+ * Loaded window cap, taken from the `graph.windowSize` setting. It never drops
+ * below the first page, so a fresh graph always has room to render.
+ */
+function normalizeWindow(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return GRAPH_WINDOW_DEFAULT
+  return Math.min(GRAPH_WINDOW_MAX, Math.max(GRAPH_PAGE_SIZE, Math.floor(value)))
+}
 
 /** What the Graph pane shows: one repository's lanes, or the merged workspace timeline. */
 export type GraphMode = 'repo' | 'workspace'
@@ -128,7 +138,7 @@ export interface GraphSlice {
   loading: boolean
   loadingMore: boolean
   error: string | null
-  /** True once the window stopped at {@link GRAPH_WINDOW_LIMIT}. */
+  /** True once the loaded window stopped at the configured `graph.windowSize` cap. */
   capped: boolean
   /** HEAD sha the loaded window was read against; auto-refresh watches it. */
   headSha: string | null
@@ -233,6 +243,7 @@ export function GraphProvider({ children }: { children: ReactNode }): JSX.Elemen
   const [slices, setSlices] = useState<ReadonlyMap<string, GraphSlice>>(EMPTY_SLICES)
   const [activity, setActivity] = useState<ActivityState>(INITIAL_ACTIVITY)
   const [reveal, setReveal] = useState<GraphReveal | null>(null)
+  const [windowSize, setWindowSize] = useState(GRAPH_WINDOW_DEFAULT)
   const [mode, storeMode] = useUiState<GraphMode>(GRAPH_MODE_KEY, 'repo', sanitizeGraphMode)
   const [activityFilters, storeActivityFilters] = useUiState<ActivityFilters>(
     ACTIVITY_FILTERS_KEY,
@@ -258,6 +269,8 @@ export function GraphProvider({ children }: { children: ReactNode }): JSX.Elemen
   statusesRef.current = workspace.statuses
   const tabsRef = useRef(editor.tabs)
   tabsRef.current = editor.tabs
+  const windowSizeRef = useRef(windowSize)
+  windowSizeRef.current = windowSize
   /** gitDirs most recently opened first; bounds how many slices stay cached. */
   const recency = useRef<string[]>([])
   const generations = useRef(new Map<string, number>())
@@ -275,6 +288,40 @@ export function GraphProvider({ children }: { children: ReactNode }): JSX.Elemen
     setActivity(INITIAL_ACTIVITY)
     setReveal(null)
   }, [root])
+
+  // The window a graph may grow into is a setting, not a fixed internal cap.
+  useEffect(() => {
+    let live = true
+    const load = (): void => {
+      void api.invoke('settings:getEffective', { keyPath: WINDOW_KEY }).then(
+        ({ value }) => {
+          if (live) setWindowSize(normalizeWindow(value))
+        },
+        () => undefined
+      )
+    }
+    load()
+    const unsubscribe = api.on('settings:changed', (change) => {
+      if (change.keyPath.join('.') === WINDOW_KEY.join('.')) load()
+    })
+    return () => {
+      live = false
+      unsubscribe()
+    }
+  }, [])
+
+  // A raised window releases the slices that stopped at the previous cap.
+  useEffect(() => {
+    setSlices((current) => {
+      let next: Map<string, GraphSlice> | null = null
+      for (const [gitDir, slice] of current) {
+        if (!slice.capped || slice.commits.length >= windowSize) continue
+        next = next ?? new Map(current)
+        next.set(gitDir, { ...slice, capped: false })
+      }
+      return next ?? current
+    })
+  }, [windowSize])
 
   const headOf = useCallback((gitDir: string): string | null => {
     const snapshot = statusesRef.current.get(gitDir)
@@ -360,12 +407,13 @@ export function GraphProvider({ children }: { children: ReactNode }): JSX.Elemen
           requestFor(gitDir, slice.filters, slice.commits.length, GRAPH_PAGE_STEP)
         )
         if (generations.current.get(gitDir) !== generation) return
+        const limit = windowSizeRef.current
         const merged = [...slice.commits, ...page.commits]
-        const capped = merged.length >= GRAPH_WINDOW_LIMIT
+        const capped = merged.length >= limit && page.hasMore
         patch(gitDir, (current) => ({
           ...current,
           loadingMore: false,
-          commits: capped ? merged.slice(0, GRAPH_WINDOW_LIMIT) : merged,
+          commits: capped ? merged.slice(0, limit) : merged,
           hasMore: page.hasMore,
           capped
         }))

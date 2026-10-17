@@ -40,6 +40,7 @@ const LABEL_KEYS: Record<string, string> = {
   'git.defaultPullStrategy': 'settings.items.gitPullStrategy',
   'git.untrackedStrategy': 'settings.items.gitUntrackedStrategy',
   'git.worktreeRoot': 'settings.items.gitWorktreeRoot',
+  'graph.windowSize': 'settings.items.graphWindowSize',
   'merge.toolCommand': 'settings.items.mergeToolCommand',
   'terminal.defaultProfile': 'settings.items.terminalProfile',
   'terminal.scrollback': 'settings.items.terminalScrollback',
@@ -60,6 +61,7 @@ const HINT_KEYS: Record<string, string> = {
   'git.pollIntervalSec': 'settings.hints.gitPollInterval',
   'git.untrackedStrategy': 'settings.hints.gitUntrackedStrategy',
   'git.worktreeRoot': 'settings.hints.gitWorktreeRoot',
+  'graph.windowSize': 'settings.hints.graphWindowSize',
   'terminal.defaultProfile': 'settings.hints.terminalProfile',
   'commitMessage.temperature': 'settings.hints.commitTemperature',
   'advanced.logLevel': 'settings.hints.logLevel'

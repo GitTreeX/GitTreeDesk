@@ -913,6 +913,7 @@ export const zhHansResource: TranslationResource = {
       gitPullStrategy: '默认拉取策略',
       gitUntrackedStrategy: '未跟踪文件',
       gitWorktreeRoot: '工作树根目录',
+      graphWindowSize: '提交图窗口',
       mergeToolCommand: '外部合并工具',
       terminalProfile: '默认终端配置',
       terminalScrollback: '回滚缓冲行数',
@@ -932,6 +933,7 @@ export const zhHansResource: TranslationResource = {
       gitPollInterval: '文件监听不可用时的回退刷新间隔（秒）。',
       gitUntrackedStrategy: '列出每个未跟踪文件，或保持未跟踪文件夹收起。',
       gitWorktreeRoot: '新建工作树存放的目录。留空则使用工作区下的 "__worktree__" 目录。',
+      graphWindowSize: '提交图向下滚动加载的历史上限。超大仓库可以调高。',
       terminalProfile: '留空则按目录选择。',
       commitTemperature: '数值越高，生成的草稿越多样。',
       logLevel: '作用于日志文件夹中的日志文件。'
