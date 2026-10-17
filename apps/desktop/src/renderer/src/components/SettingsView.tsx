@@ -25,6 +25,7 @@ const LABEL_KEYS: Record<string, string> = {
   'appearance.theme': 'settings.items.theme',
   'appearance.density': 'settings.items.density',
   'appearance.graphDensity': 'settings.items.graphDensity',
+  'appearance.graphCurve': 'settings.items.graphCurve',
   'appearance.accent': 'settings.items.accent',
   locale: 'settings.items.locale',
   'editor.fontSize': 'settings.items.editorFontSize',

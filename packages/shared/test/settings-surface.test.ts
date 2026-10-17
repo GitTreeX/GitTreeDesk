@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   ACCENT_VALUES,
   DENSITY_VALUES,
+  GRAPH_CURVE_VALUES,
   GRAPH_DENSITY_VALUES,
   LOG_LEVEL_VALUES,
   SETTINGS_SURFACE,
@@ -40,12 +41,14 @@ describe('SETTINGS_SURFACE', () => {
       'appearance.theme',
       'appearance.density',
       'appearance.graphDensity',
+      'appearance.graphCurve',
       'appearance.accent',
       'locale'
     ])
     expect(settingDefault(['density'])).toBeUndefined()
     expect(settingDefault(['appearance', 'density'])).toBe('comfortable')
     expect(settingDefault(['appearance', 'graphDensity'])).toBe('normal')
+    expect(settingDefault(['appearance', 'graphCurve'])).toBe('smooth')
     expect(settingDefault(['git', 'pollIntervalSec'])).toBe(60)
   })
 
@@ -53,6 +56,7 @@ describe('SETTINGS_SURFACE', () => {
     expect(THEME_VALUES).toEqual(['system', 'light', 'dark'])
     expect(DENSITY_VALUES).toEqual(['comfortable', 'compact'])
     expect(GRAPH_DENSITY_VALUES).toEqual(['compact', 'normal', 'comfortable'])
+    expect(GRAPH_CURVE_VALUES).toEqual(['smooth', 'straight'])
     expect(ACCENT_VALUES).toEqual(['blue', 'green', 'violet', 'amber', 'rose'])
     expect(LOG_LEVEL_VALUES).toEqual(['error', 'warn', 'info', 'debug'])
   })
