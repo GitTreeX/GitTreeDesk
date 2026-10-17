@@ -703,6 +703,8 @@ const en = {
       createTag: 'Create Tag Here…',
       cherryPick: 'Cherry-pick…',
       revert: 'Revert…',
+      cherryPickMany: 'Cherry-pick {{count}} Commits…',
+      revertMany: 'Revert {{count}} Commits…',
       reset: 'Reset Current Branch to Here…',
       rebaseOnto: 'Rebase Current Branch onto This…',
       rebaseInteractive: 'Interactive Rebase from Here…',
@@ -716,23 +718,32 @@ const en = {
     apply: {
       mainline: 'Mainline parent',
       mainlineHint:
-        'This commit is a merge — the change is taken relative to the chosen parent. Parent 1 is the branch the merge was made into.',
-      parent: 'Parent {{number}} · {{sha}}'
+        'A merge commit is taken relative to the chosen parent. Parent 1 is the branch the merge was made into.',
+      parent: 'Parent {{number}} · {{sha}}',
+      parentNumber: 'Parent {{number}}',
+      more: '… and {{count}} more',
+      manyHint: 'The commits run in this order.'
     },
-    cherryPick: {
-      title: 'Cherry-pick {{sha}}',
+    'cherry-pick': {
+      singleTitle: 'Cherry-pick {{sha}}',
+      manyTitle: 'Cherry-pick {{count}} Commits',
       action: 'Cherry-pick',
-      done: 'Cherry-picked {{sha}}',
-      staged: 'Cherry-picked {{sha}} — changes staged, commit when ready',
+      singleDone: 'Cherry-picked {{sha}}',
+      singleStaged: 'Cherry-picked {{sha}} — changes staged, commit when ready',
+      manyDone: 'Cherry-picked {{count}} commits',
+      manyStaged: 'Cherry-picked {{count}} commits — changes staged, commit when ready',
       stopped: 'Conflicts stopped the cherry-pick — resolve them in Source Control',
       noCommit: 'Stop before committing',
       noCommitHint: 'Stage the changes and leave the commit to you.'
     },
     revert: {
-      title: 'Revert {{sha}}',
+      singleTitle: 'Revert {{sha}}',
+      manyTitle: 'Revert {{count}} Commits',
       action: 'Revert',
-      done: 'Reverted {{sha}}',
-      staged: 'Reverted {{sha}} — changes staged, commit when ready',
+      singleDone: 'Reverted {{sha}}',
+      singleStaged: 'Reverted {{sha}} — changes staged, commit when ready',
+      manyDone: 'Reverted {{count}} commits',
+      manyStaged: 'Reverted {{count}} commits — changes staged, commit when ready',
       stopped: 'Conflicts stopped the revert — resolve them in Source Control',
       noCommit: 'Stop before committing',
       noCommitHint: 'Stage the inverse changes and leave the commit to you.'

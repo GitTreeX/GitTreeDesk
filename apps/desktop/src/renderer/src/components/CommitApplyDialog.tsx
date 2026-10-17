@@ -7,16 +7,22 @@ import { errorText, isOperationBlocked } from '../lib/reporting'
 import { notify } from '../notify'
 import { XIcon } from './icons'
 
-/** Applies one commit onto the current branch, as a new commit or a staged change. */
+const PREVIEW_LIMIT = 5
+
+/**
+ * Applies one or more commits onto the current branch as new commits, or stages
+ * their changes and stops before committing.
+ */
 export function CommitApplyDialog({
   record,
   mode,
-  target,
+  targets,
   onClose
 }: {
   record: RepoRecord
   mode: 'cherry-pick' | 'revert'
-  target: CommitTarget
+  /** Selected commits, newest first as the graph lists them. */
+  targets: readonly CommitTarget[]
   onClose: () => void
 }): JSX.Element {
   const { t } = useTranslation()
@@ -25,8 +31,13 @@ export function CommitApplyDialog({
   const [mainline, setMainline] = useState(1)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const short = target.sha.slice(0, 7)
-  const merge = target.parents.length > 1
+  const single = targets.length === 1 ? targets[0] : undefined
+  // A pick replays from the oldest commit so the newest lands on top; undoing a
+  // batch has to start from the newest, otherwise an earlier change reappears.
+  const ordered =
+    mode === 'cherry-pick' ? [...targets].reverse() : targets
+  const merges = ordered.filter((target) => target.parents.length > 1)
+  const parentCount = merges.reduce((max, target) => Math.max(max, target.parents.length), 0)
 
   const submit = (event?: FormEvent): void => {
     event?.preventDefault()
@@ -37,9 +48,9 @@ export function CommitApplyDialog({
       try {
         const request = {
           gitDir: record.gitDir,
-          rev: target.sha,
+          revs: ordered.map((target) => target.sha),
           ...(noCommit ? { noCommit: true } : {}),
-          ...(merge ? { mainline } : {})
+          ...(merges.length > 0 ? { mainline } : {})
         }
         const result =
           mode === 'cherry-pick'
@@ -47,11 +58,16 @@ export function CommitApplyDialog({
             : await api.invoke('git:revert', request)
         if (result.stopped) {
           notify({ message: t(`graph.${mode}.stopped`), tone: 'error' })
+        } else if (single !== undefined) {
+          const sha = single.sha.slice(0, 7)
+          notify({
+            message: noCommit ? t(`graph.${mode}.singleStaged`, { sha }) : t(`graph.${mode}.singleDone`, { sha })
+          })
         } else {
           notify({
             message: noCommit
-              ? t(`graph.${mode}.staged`, { sha: short })
-              : t(`graph.${mode}.done`, { sha: short })
+              ? t(`graph.${mode}.manyStaged`, { count: targets.length })
+              : t(`graph.${mode}.manyDone`, { count: targets.length })
           })
         }
         onClose()
@@ -82,7 +98,9 @@ export function CommitApplyDialog({
       >
         <header className="flex items-center gap-2 border-b border-line px-3 py-2">
           <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">
-            {t(`graph.${mode}.title`, { sha: short })}
+            {single !== undefined
+              ? t(`graph.${mode}.singleTitle`, { sha: single.sha.slice(0, 7) })
+              : t(`graph.${mode}.manyTitle`, { count: targets.length })}
           </span>
           <button
             type="button"
@@ -95,35 +113,76 @@ export function CommitApplyDialog({
         </header>
 
         <div className="px-3 py-2">
-          <p className="truncate text-sm text-ink" title={target.subject}>
-            {target.subject}
-          </p>
-          <p className="truncate font-mono text-xs text-muted" title={target.sha}>
-            {target.sha}
-          </p>
+          {single !== undefined ? (
+            <>
+              <p className="truncate text-sm text-ink" title={single.subject}>
+                {single.subject}
+              </p>
+              <p className="truncate font-mono text-xs text-muted" title={single.sha}>
+                {single.sha}
+              </p>
+            </>
+          ) : (
+            <>
+              <div className="max-h-28 overflow-y-auto rounded border border-line/60 bg-canvas py-0.5">
+                {ordered.slice(0, PREVIEW_LIMIT).map((target) => (
+                  <p key={target.sha} className="flex gap-2 px-2 py-0.5 text-xs">
+                    <span className="shrink-0 font-mono text-muted">{target.sha.slice(0, 7)}</span>
+                    <span className="min-w-0 flex-1 truncate text-ink" title={target.subject}>
+                      {target.subject}
+                    </span>
+                  </p>
+                ))}
+              </div>
+              {ordered.length > PREVIEW_LIMIT && (
+                <p className="mt-1 text-xs text-muted">
+                  {t('graph.apply.more', { count: ordered.length - PREVIEW_LIMIT })}
+                </p>
+              )}
+              <p className="mt-1 text-xs text-muted">{t('graph.apply.manyHint')}</p>
+            </>
+          )}
 
-          {merge && (
+          {merges.length > 0 && (
             <div className="mt-2">
               <p className="text-xs font-semibold text-ink">{t('graph.apply.mainline')}</p>
               <p className="mt-0.5 text-xs text-muted">{t('graph.apply.mainlineHint')}</p>
               <div className="mt-1 space-y-0.5" role="radiogroup">
-                {target.parents.map((parent, index) => (
-                  <label
-                    key={parent}
-                    className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 hover:bg-ink/5"
-                  >
-                    <input
-                      type="radio"
-                      name="commit-mainline"
-                      checked={mainline === index + 1}
-                      className="accent-accent"
-                      onChange={() => setMainline(index + 1)}
-                    />
-                    <span className="truncate font-mono text-xs text-ink">
-                      {t('graph.apply.parent', { number: index + 1, sha: parent.slice(0, 7) })}
-                    </span>
-                  </label>
-                ))}
+                {single !== undefined
+                  ? single.parents.map((parent, index) => (
+                      <label
+                        key={parent}
+                        className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 hover:bg-ink/5"
+                      >
+                        <input
+                          type="radio"
+                          name="commit-mainline"
+                          checked={mainline === index + 1}
+                          className="accent-accent"
+                          onChange={() => setMainline(index + 1)}
+                        />
+                        <span className="truncate font-mono text-xs text-ink">
+                          {t('graph.apply.parent', { number: index + 1, sha: parent.slice(0, 7) })}
+                        </span>
+                      </label>
+                    ))
+                  : Array.from({ length: parentCount }, (_, index) => (
+                      <label
+                        key={index}
+                        className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 hover:bg-ink/5"
+                      >
+                        <input
+                          type="radio"
+                          name="commit-mainline"
+                          checked={mainline === index + 1}
+                          className="accent-accent"
+                          onChange={() => setMainline(index + 1)}
+                        />
+                        <span className="truncate text-xs text-ink">
+                          {t('graph.apply.parentNumber', { number: index + 1 })}
+                        </span>
+                      </label>
+                    ))}
               </div>
             </div>
           )}

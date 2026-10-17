@@ -46,10 +46,10 @@ export interface OperationsValue {
   rebaseOnto: (record: RepoRecord, onto: string) => void
   /** Opens the interactive rebase planner based on `base`. */
   beginInteractiveRebase: (record: RepoRecord, base: string) => void
-  /** Opens the cherry-pick dialog for one commit. */
-  openCherryPick: (record: RepoRecord, target: CommitTarget) => void
-  /** Opens the revert dialog for one commit. */
-  openRevert: (record: RepoRecord, target: CommitTarget) => void
+  /** Opens the cherry-pick dialog for the selected commits. */
+  openCherryPick: (record: RepoRecord, targets: readonly CommitTarget[]) => void
+  /** Opens the revert dialog for the selected commits. */
+  openRevert: (record: RepoRecord, targets: readonly CommitTarget[]) => void
   /** Opens the reset dialog that moves the current branch to `target`. */
   openReset: (record: RepoRecord, target: CommitTarget) => void
   /** Opens the history-rewrite dialog; `pushed` warns about published history. */

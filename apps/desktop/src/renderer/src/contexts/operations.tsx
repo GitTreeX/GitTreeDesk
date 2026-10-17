@@ -56,8 +56,8 @@ type DialogState =
   | { kind: 'createTag'; record: RepoRecord; target?: string }
   | { kind: 'merge'; record: RepoRecord; branch: string }
   | { kind: 'interactiveRebase'; record: RepoRecord; base: string }
-  | { kind: 'cherryPick'; record: RepoRecord; target: CommitTarget }
-  | { kind: 'revert'; record: RepoRecord; target: CommitTarget }
+  | { kind: 'cherryPick'; record: RepoRecord; targets: readonly CommitTarget[] }
+  | { kind: 'revert'; record: RepoRecord; targets: readonly CommitTarget[] }
   | { kind: 'reset'; record: RepoRecord; target: CommitTarget }
   | { kind: 'editCommits'; record: RepoRecord; targets: readonly CommitTarget[]; pushed: boolean }
   | { kind: 'stashCreate'; record: RepoRecord; paths?: readonly string[] }
@@ -217,11 +217,13 @@ export function OperationsProvider({ children }: { children: ReactNode }): JSX.E
     []
   )
   const openCherryPick = useCallback(
-    (record: RepoRecord, target: CommitTarget) => setDialog({ kind: 'cherryPick', record, target }),
+    (record: RepoRecord, targets: readonly CommitTarget[]) =>
+      setDialog({ kind: 'cherryPick', record, targets }),
     []
   )
   const openRevert = useCallback(
-    (record: RepoRecord, target: CommitTarget) => setDialog({ kind: 'revert', record, target }),
+    (record: RepoRecord, targets: readonly CommitTarget[]) =>
+      setDialog({ kind: 'revert', record, targets }),
     []
   )
   const openReset = useCallback(
@@ -990,7 +992,7 @@ export function OperationsProvider({ children }: { children: ReactNode }): JSX.E
         <CommitApplyDialog
           record={dialog.record}
           mode="cherry-pick"
-          target={dialog.target}
+          targets={dialog.targets}
           onClose={closeDialog}
         />
       )}
@@ -998,7 +1000,7 @@ export function OperationsProvider({ children }: { children: ReactNode }): JSX.E
         <CommitApplyDialog
           record={dialog.record}
           mode="revert"
-          target={dialog.target}
+          targets={dialog.targets}
           onClose={closeDialog}
         />
       )}

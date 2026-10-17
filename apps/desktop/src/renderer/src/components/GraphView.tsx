@@ -595,11 +595,11 @@ function RepoGraphView({ tab }: { tab: GraphTab }): JSX.Element | null {
       items.push({
         divider: true,
         label: t('graph.menu.cherryPick'),
-        onSelect: () => operations.openCherryPick(record, single)
+        onSelect: () => operations.openCherryPick(record, [single])
       })
       items.push({
         label: t('graph.menu.revert'),
-        onSelect: () => operations.openRevert(record, single)
+        onSelect: () => operations.openRevert(record, [single])
       })
       if (!detached) {
         items.push({
@@ -650,6 +650,15 @@ function RepoGraphView({ tab }: { tab: GraphTab }): JSX.Element | null {
       }
     } else if (selectedTargets.length > 1) {
       items.push({
+        label: t('graph.menu.cherryPickMany', { count: selectedTargets.length }),
+        onSelect: () => operations.openCherryPick(record, selectedTargets)
+      })
+      items.push({
+        label: t('graph.menu.revertMany', { count: selectedTargets.length }),
+        onSelect: () => operations.openRevert(record, selectedTargets)
+      })
+      items.push({
+        divider: true,
         label: t('graph.menu.editMany', { count: selectedTargets.length }),
         onSelect: () =>
           operations.openEditCommits(record, selectedTargets, {

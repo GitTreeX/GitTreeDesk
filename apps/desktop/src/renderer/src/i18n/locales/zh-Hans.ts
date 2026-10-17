@@ -693,6 +693,8 @@ export const zhHansResource: TranslationResource = {
       createTag: '在此新建标签…',
       cherryPick: '拣选…',
       revert: '还原…',
+      cherryPickMany: '拣选 {{count}} 个提交…',
+      revertMany: '还原 {{count}} 个提交…',
       reset: '重置当前分支到此提交…',
       rebaseOnto: '将当前分支变基到此处…',
       rebaseInteractive: '从此处开始交互式变基…',
@@ -705,24 +707,32 @@ export const zhHansResource: TranslationResource = {
     },
     apply: {
       mainline: '主线父提交',
-      mainlineHint:
-        '该提交是一个合并 — 更改将相对所选父提交应用。父提交 1 是合并时所在的分支。',
-      parent: '父提交 {{number}} · {{sha}}'
+      mainlineHint: '合并提交会相对所选父提交取变更。父提交 1 是合并时所在的分支。',
+      parent: '父提交 {{number}} · {{sha}}',
+      parentNumber: '父提交 {{number}}',
+      more: '… 还有 {{count}} 个',
+      manyHint: '这些提交会按这里的顺序执行。'
     },
-    cherryPick: {
-      title: '拣选 {{sha}}',
+    'cherry-pick': {
+      singleTitle: '拣选 {{sha}}',
+      manyTitle: '拣选 {{count}} 个提交',
       action: '拣选',
-      done: '已拣选 {{sha}}',
-      staged: '已拣选 {{sha}} — 更改已暂存，可自行提交',
+      singleDone: '已拣选 {{sha}}',
+      singleStaged: '已拣选 {{sha}} — 更改已暂存，可自行提交',
+      manyDone: '已拣选 {{count}} 个提交',
+      manyStaged: '已拣选 {{count}} 个提交 — 更改已暂存，可自行提交',
       stopped: '冲突导致拣选停止 — 请在源代码管理中解决',
       noCommit: '提交前暂停',
       noCommitHint: '暂存更改，提交由你完成。'
     },
     revert: {
-      title: '还原 {{sha}}',
+      singleTitle: '还原 {{sha}}',
+      manyTitle: '还原 {{count}} 个提交',
       action: '还原',
-      done: '已还原 {{sha}}',
-      staged: '已还原 {{sha}} — 更改已暂存，可自行提交',
+      singleDone: '已还原 {{sha}}',
+      singleStaged: '已还原 {{sha}} — 更改已暂存，可自行提交',
+      manyDone: '已还原 {{count}} 个提交',
+      manyStaged: '已还原 {{count}} 个提交 — 更改已暂存，可自行提交',
       stopped: '冲突导致还原停止 — 请在源代码管理中解决',
       noCommit: '提交前暂停',
       noCommitHint: '暂存反向更改，提交由你完成。'
