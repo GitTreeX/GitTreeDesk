@@ -34,14 +34,14 @@ Context menu on a repository → **"New Worktree…"**. The dialog:
 
 A freshly created `__worktree__` folder is automatically attached to its parent repository (and excluded from ordinary discovery noise). After creation the tree focuses the new worktree row.
 
-## Removing, pruning, locking
+## Moving, removing, pruning, locking
 
 | Action | Behavior |
 |---|---|
+| **Move** | Relocates or renames the folder (`git worktree move`); uncommitted changes travel with it. The dialog suggests the worktree folder, so a rename is an edit of the last path segment, and a destination that is already the worktree's own path is refused before git runs. Missing parent directories are created; a destination folder that already exists becomes the parent. Locked worktrees are refused — unlock them first — and the main checkout never offers Move. |
 | **Remove** | Refuses on a dirty worktree; "Force Remove" appears with a confirmation, and a backup ref is created first (safety nets, page 06). The folder is deleted, branch untouched. |
 | **Prune** | Cleans up worktree records whose folders are already gone (`git worktree prune`). Runs manually from the repo context menu, and automatically after fetch. |
 | **Lock / Unlock** | Protects a worktree from prune/remove (for removable drives, long-running experiments). Locked state shows on the row. |
-| **Move** | [Later] |
 
 ## Edge cases
 

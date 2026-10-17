@@ -83,7 +83,7 @@ sidebar_position: 1
 | # | 页面 | 内容 | 状态 |
 |---|------|------|------|
 | — | [01 工作区与仓库树](./01-workspace-and-tree.md) | 打开工作区、仓库发现、信任、Explorer 与 Repos 视图、徽标、过滤 | ✅ |
-| — | [02 Worktree](./02-worktrees.md) | 展示、创建、删除、prune、lock——worktree 一等公民 | ✅ |
+| — | [02 Worktree](./02-worktrees.md) | 展示、创建、移动、删除、prune、lock——worktree 一等公民 | ✅ |
 | — | [03 变更与 Diff](./03-changes-and-diff.md) | 多仓库变更列表、暂存、丢弃、diff 查看器、文件历史 | ✅ |
 | — | [04 提交与提交信息](./04-commit-and-messages.md) | 提交、amend、历史改写（消息/作者/时间）、提交信息生成（离线 + LLM） | ✅ |
 | — | [05 分支、远端与标签](./05-branches-remotes-tags.md) | 分支操作、远端、fetch/pull/push、tag、批量操作 | ✅ |

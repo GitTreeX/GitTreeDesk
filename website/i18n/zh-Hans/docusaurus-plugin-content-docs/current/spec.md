@@ -35,7 +35,7 @@ GitTreeDesk 把这些有用的部分合进一个工具，并且把**工作区**�
 
 - 打开任意文件夹作为工作区；发现其中所有仓库、worktree、submodule；以带实时状态的树呈现
 - 多仓库变更总览；由用户勾选展示哪些仓库、哪些变更类型
-- Worktree 一等公民：自动识别、归组到主仓库下、支持从 UI 创建与删除
+- Worktree 一等公民：自动识别、归组到主仓库下、支持从 UI 创建、移动与删除
 - 完整的 Git 操作流，对标 SourceTree：stage、commit、stash、branch、merge、rebase（含交互式）、cherry-pick、revert、reset、tag、remote、fetch/pull/push、submodule 更新、worktree 增删、提交元信息改写，都带安全网
 - 原生提交图（Git Graph 等价物），逐仓库展示，可在提交上直接操作；另有一条覆盖勾选仓库的工作区活动时间线
 - 代码查看与轻编辑：语法高亮、尽力而为的 TypeScript 提示、一键"在 VSCode 中打开"逃生口
@@ -321,7 +321,7 @@ CREATE TABLE oplog        (id INTEGER PRIMARY KEY, repo_id INT, op TEXT, backup_
 
 - **展示**：链接 worktree 在 Repos 视图中嵌套于主仓库之下，标注 `<分支> @ <路径>`；主工作树带 "main" 标记。
 - **创建**：对话框含源仓库、新建或已有分支选择器（选已有分支时做"已被其他工作树检出"拦截——Git 禁止同一分支出现在两个 worktree）、新分支的基底 ref、目标路径模板。默认模板：`{worktreeRoot}/{repo}_{branch-slug}`，其中 `branch-slug` 把 `/` 替换为 `-`（如 `__worktree__/mobile-app_worktree-feat-dark-mode`——`worktreeRoot` 默认 `<workspace>/__worktree__`，模板可配置）。新建的 `__worktree__` 根自动从发现噪声中排除，并归到父仓库下显示。
-- **删除 / prune / lock / unlock** 全部暴露；**move** 属*后续*。脏工作树删除需 force（二次确认 + backup ref），prune 支持手动触发与 fetch 后触发。
+- **删除 / prune / lock / unlock / move** 全部暴露。脏工作树删除需 force（二次确认 + backup ref），prune 支持手动触发与 fetch 后触发；move 移动或重命名工作树文件夹并带走未提交改动，已锁定的工作树会被拒绝。
 - worktree 行完全可操作：每个 Git 功能都可在该 worktree 的仓库上下文与工作树中执行。
 
 ### Git 操作

@@ -10,6 +10,7 @@ The first release packaged for all three platforms — everything below ships in
 **Workspace and repositories**
 
 - Open any folder as a workspace. Repositories and worktrees are discovered as folders expand, cached in SQLite, and shown in one tree with per-repository status.
+- Worktrees are managed from the tree: create one on a new or existing branch, remove a dirty one with a backup first, prune stale records, lock and unlock, or move the folder — uncommitted changes come along.
 - Repositories view with branch, upstream, ahead/behind and dirty-state badges; push to one of several remotes.
 - Submodules: status for each one in the tree, one-click recursive update with streamed output, URL sync, and add or deinitialize a submodule.
 - Per-workspace trust prompt: untrusted roots suppress Git hooks and workspace-defined terminal commands.

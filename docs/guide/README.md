@@ -84,7 +84,7 @@ A workspace-first multi-repo Git workbench. Open **any folder** — it does not 
 | # | Page | Covers | Status |
 |---|------|--------|--------|
 | — | [01 Workspace & Tree](./01-workspace-and-tree.md) | Opening workspaces, repository discovery, trust, Explorer & Repos views, badges, filters | ✅ |
-| — | [02 Worktrees](./02-worktrees.md) | Display, create, remove, prune, lock — worktrees as first-class citizens | ✅ |
+| — | [02 Worktrees](./02-worktrees.md) | Display, create, move, remove, prune, lock — worktrees as first-class citizens | ✅ |
 | — | [03 Changes & Diff](./03-changes-and-diff.md) | Multi-repo changes list, staging, discarding, diff viewer, file history | ✅ |
 | — | [04 Commit & Messages](./04-commit-and-messages.md) | Commit, amend, history rewrite (message/author/date), commit message generation (offline + LLM) | ✅ |
 | — | [05 Branches, Remotes & Tags](./05-branches-remotes-tags.md) | Branch operations, remotes, fetch/pull/push, tags, batch operations | ✅ |

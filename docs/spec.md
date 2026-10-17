@@ -37,7 +37,7 @@ Three principles drive design trade-offs:
 
 - Open any folder as a workspace; discover all repositories, worktrees, and submodules inside it; present them in a tree with live status
 - Multi-repo overview of changes; the user chooses which repositories and which change types are shown
-- Worktrees are first-class: detected, grouped under their main repository, created and removed from the UI
+- Worktrees are first-class: detected, grouped under their main repository, created, moved and removed from the UI
 - Complete Git workflow comparable to SourceTree: stage, commit, stash, branch, merge, rebase (incl. interactive), cherry-pick, revert, reset, tags, remotes, fetch/pull/push, submodule update, worktree CRUD, commit metadata editing, all with safety nets
 - Native commit graph (Git Graph equivalent) per repository, with actions on commits, plus a workspace-wide activity timeline over the checked repositories
 - Code viewing and light editing: syntax highlighting, best-effort TypeScript hints, and a one-click "Open in VSCode" escape hatch
@@ -323,7 +323,7 @@ Both views render with virtualization (TanStack Virtual) and keyboard navigation
 
 - **Display**: linked worktrees are nested under their main repository in the Repos view, labelled `<branch> @ <path>`; the main worktree shows a "main" marker.
 - **Create**: dialog with source repository, new-or-existing branch picker (existing branch gets a "already checked out elsewhere" guard — Git forbids the same branch in two worktrees), base ref for new branches, target path with a configurable template. Default template: `{worktreeRoot}/{repo}_{branch-slug}` where `branch-slug` replaces `/` with `-` (e.g. `__worktree__/mobile-app_worktree-feat-dark-mode` — `worktreeRoot` defaults to `<workspace>/__worktree__`, path template itself is configurable). New `__worktree__` roots are auto-excluded from discovery noise and shown under the parent repo instead.
-- **Remove / prune / lock / unlock** are exposed; **move** is *Later*. Remove refuses on a dirty worktree unless forced (with confirm + backup ref); pruning runs on demand and after fetch.
+- **Remove / prune / lock / unlock / move** are exposed. Remove refuses on a dirty worktree unless forced (with confirm + backup ref); pruning runs on demand and after fetch; move relocates or renames the worktree folder, uncommitted changes included, and refuses a locked worktree.
 - Worktree rows are fully operable: every Git feature works on the worktree's repository context with that worktree's working tree.
 
 ### Git operations
