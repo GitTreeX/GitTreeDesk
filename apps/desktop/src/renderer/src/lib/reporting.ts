@@ -42,6 +42,8 @@ export function errorText(error: unknown, t: Translate): string {
         return t('errors.worktreeDirty')
       case 'worktree-locked':
         return t('errors.worktreeLocked')
+      case 'submodule-dirty':
+        return t('errors.submoduleDirty')
       case 'operation-in-progress':
         return t('errors.operationInProgress')
       case 'merge-tool-missing':
@@ -93,6 +95,11 @@ export function isOperationBlocked(error: unknown): boolean {
 /** The service refused to remove a worktree because it has uncommitted changes. */
 export function isWorktreeDirtyRefusal(error: unknown): boolean {
   return error instanceof GtdIpcError && error.code === 'worktree-dirty'
+}
+
+/** The service refused to deinit a submodule that has changes of its own. */
+export function isSubmoduleDirtyRefusal(error: unknown): boolean {
+  return error instanceof GtdIpcError && error.code === 'submodule-dirty'
 }
 
 /** One-line notice for an auto-stash guard; `null` when no stash was involved. */

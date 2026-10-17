@@ -76,6 +76,10 @@ export interface OperationsValue {
   updateSubmodule: (record: RepoRecord, path: string, options?: { init?: boolean }) => void
   /** Re-copies the `.gitmodules` URLs of `record` into its git configuration. */
   syncSubmoduleUrls: (record: RepoRecord) => void
+  /** Opens the dialog that clones a repository into `record` as a submodule. */
+  openAddSubmodule: (record: RepoRecord) => void
+  /** Asks, then stops tracking the submodule recorded at `path` inside `record`. */
+  deinitSubmodule: (record: RepoRecord, path: string) => void
   /** Validates unresolved conflicts, then continues the stopped operation. */
   continueOperation: (record: RepoRecord) => void
   skipOperation: (record: RepoRecord) => void

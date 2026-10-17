@@ -103,6 +103,10 @@ export function useRepoMenu(): (
               onSelect: () => operations.updateSubmodule(submoduleParent, submodulePath)
             },
             {
+              label: t('menu.deinitSubmodule'),
+              onSelect: () => operations.deinitSubmodule(submoduleParent, submodulePath)
+            },
+            {
               label: t('menu.openAsRepository'),
               onSelect: () => {
                 if (record.gitDir.length > 0) repoUi.setActiveKey(record.gitDir)
@@ -169,8 +173,16 @@ export function useRepoMenu(): (
         ? [{ ...(submoduleItems[0] as ContextMenuItem), divider: true }, ...submoduleItems.slice(1)]
         : []),
       {
-        label: t('menu.updateSubmodules'),
+        label: t('menu.addSubmodule'),
         divider: submoduleItems.length === 0,
+        disabled: !canTarget || record.kind === 'bare',
+        onSelect: () => {
+          repoUi.setActiveKey(record.gitDir)
+          operations.openAddSubmodule(record)
+        }
+      },
+      {
+        label: t('menu.updateSubmodules'),
         disabled: !canTarget || record.kind === 'bare' || !hasSubmodules,
         onSelect: () => operations.updateSubmodules(record)
       },

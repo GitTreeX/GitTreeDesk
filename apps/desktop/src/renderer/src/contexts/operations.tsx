@@ -24,12 +24,14 @@ import { RemotesDialog } from '../components/RemotesDialog'
 import { ResetDialog } from '../components/ResetDialog'
 import { StashCreateDialog } from '../components/StashCreateDialog'
 import { StashesDialog } from '../components/StashesDialog'
+import { SubmoduleAddDialog } from '../components/SubmoduleAddDialog'
 import { TagsDialog } from '../components/TagsDialog'
 import { api } from '../api'
 import {
   errorText,
   isOperationBlocked,
   isRejectedPushText,
+  isSubmoduleDirtyRefusal,
   isWorktreeDirtyRefusal,
   notifyServiceError,
   notifyUndoable,
@@ -64,6 +66,7 @@ type DialogState =
   | { kind: 'stashes'; record: RepoRecord }
   | { kind: 'backups'; record: RepoRecord }
   | { kind: 'worktreeCreate'; record: RepoRecord }
+  | { kind: 'submoduleAdd'; record: RepoRecord }
 
 interface OpAsk {
   /** `abort` confirms aborting; `unresolved` lists conflicts; `blocked` explains a refusal. */
@@ -105,6 +108,15 @@ interface WorktreeAsk {
   /** `confirm` removes a clean worktree; `dirty` asks to force-remove one with changes. */
   phase: 'confirm' | 'dirty'
   record: RepoRecord
+}
+
+interface SubmoduleAsk {
+  /** `confirm` deinits a submodule left alone by its own repository; `dirty` warns about its files. */
+  phase: 'confirm' | 'dirty'
+  /** The superproject. */
+  record: RepoRecord
+  /** Repo-relative path of the submodule. */
+  path: string
 }
 
 function sanitizeBoolean(stored: unknown): boolean | null {
@@ -177,6 +189,7 @@ export function OperationsProvider({ children }: { children: ReactNode }): JSX.E
   const [pushAsk, setPushAsk] = useState<PushAsk | null>(null)
   const [worktreeAsk, setWorktreeAsk] = useState<WorktreeAsk | null>(null)
   const [worktreeFocus, setWorktreeFocus] = useState<string | null>(null)
+  const [submoduleAsk, setSubmoduleAsk] = useState<SubmoduleAsk | null>(null)
   const [output, setOutput] = useState<readonly OutputEntry[]>([])
   const [outputOpen, setOutputOpen] = useUiState<boolean>('output.open', false, sanitizeBoolean)
   const [prune, setPrune] = useUiState<boolean>('fetch.prune', true, sanitizeBoolean)
@@ -251,6 +264,10 @@ export function OperationsProvider({ children }: { children: ReactNode }): JSX.E
   )
   const openCreateWorktree = useCallback(
     (record: RepoRecord) => setDialog({ kind: 'worktreeCreate', record }),
+    []
+  )
+  const openAddSubmodule = useCallback(
+    (record: RepoRecord) => setDialog({ kind: 'submoduleAdd', record }),
     []
   )
   const closeDialog = useCallback(() => setDialog(null), [])
@@ -707,6 +724,37 @@ export function OperationsProvider({ children }: { children: ReactNode }): JSX.E
     [t]
   )
 
+  const runSubmoduleDeinit = useCallback(
+    (record: RepoRecord, path: string, force: boolean): void => {
+      if (!acquire(record)) return
+      void (async () => {
+        try {
+          await api.invoke('git:submoduleDeinit', {
+            gitDir: record.gitDir,
+            paths: [path],
+            ...(force ? { force: true } : {})
+          })
+          notify({ message: t('submodule.deinited', { name: path }) })
+        } catch (failure) {
+          if (!force && isSubmoduleDirtyRefusal(failure)) {
+            setSubmoduleAsk({ phase: 'dirty', record, path })
+          } else {
+            notifyServiceError(failure, t)
+          }
+        } finally {
+          release(record)
+          void refreshSubmodules(record.gitDir)
+        }
+      })()
+    },
+    [refreshSubmodules, t]
+  )
+
+  const deinitSubmodule = useCallback(
+    (record: RepoRecord, path: string) => setSubmoduleAsk({ phase: 'confirm', record, path }),
+    []
+  )
+
   const fetchRepos = useCallback(
     (records: readonly RepoRecord[]) => {
       const targets = dedupeRepositories(records)
@@ -899,6 +947,8 @@ export function OperationsProvider({ children }: { children: ReactNode }): JSX.E
       updateSubmodules,
       updateSubmodule,
       syncSubmoduleUrls,
+      openAddSubmodule,
+      deinitSubmodule,
       continueOperation,
       skipOperation,
       abortOperation,
@@ -938,6 +988,8 @@ export function OperationsProvider({ children }: { children: ReactNode }): JSX.E
       updateSubmodules,
       updateSubmodule,
       syncSubmoduleUrls,
+      openAddSubmodule,
+      deinitSubmodule,
       continueOperation,
       skipOperation,
       abortOperation,
@@ -1030,6 +1082,9 @@ export function OperationsProvider({ children }: { children: ReactNode }): JSX.E
           onClose={closeDialog}
           onCreated={(path) => setWorktreeFocus(path)}
         />
+      )}
+      {dialog?.kind === 'submoduleAdd' && (
+        <SubmoduleAddDialog record={dialog.record} onClose={closeDialog} />
       )}
 
       {rebaseAsk !== null && (
@@ -1232,6 +1287,34 @@ export function OperationsProvider({ children }: { children: ReactNode }): JSX.E
             runWorktreeRemove(ask.record, true)
           }}
           onClose={() => setWorktreeAsk(null)}
+        />
+      )}
+      {submoduleAsk?.phase === 'confirm' && (
+        <ConfirmDialog
+          title={t('submodule.deinitTitle', { name: submoduleAsk.path })}
+          body={t('submodule.deinitBody')}
+          confirmLabel={t('submodule.deinitAction')}
+          danger
+          onConfirm={() => {
+            const ask = submoduleAsk
+            setSubmoduleAsk(null)
+            runSubmoduleDeinit(ask.record, ask.path, false)
+          }}
+          onClose={() => setSubmoduleAsk(null)}
+        />
+      )}
+      {submoduleAsk?.phase === 'dirty' && (
+        <ConfirmDialog
+          title={t('submodule.deinitDirtyTitle', { name: submoduleAsk.path })}
+          body={t('submodule.deinitDirtyBody')}
+          confirmLabel={t('submodule.deinitAction')}
+          danger
+          onConfirm={() => {
+            const ask = submoduleAsk
+            setSubmoduleAsk(null)
+            runSubmoduleDeinit(ask.record, ask.path, true)
+          }}
+          onClose={() => setSubmoduleAsk(null)}
         />
       )}
     </OperationsContext.Provider>

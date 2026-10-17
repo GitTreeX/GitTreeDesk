@@ -84,7 +84,9 @@ const en = {
     pruneWorktrees: 'Prune Worktrees',
     updateSubmodules: 'Update All Submodules',
     syncSubmoduleUrls: 'Sync Submodule URLs',
+    addSubmodule: 'Add Submodule…',
     updateSubmodule: 'Update This Submodule',
+    deinitSubmodule: 'Deinit Submodule',
     checkoutRecordedCommit: 'Checkout Recorded Commit',
     openAsRepository: 'Open as Repository',
     openTerminal: 'Open Terminal Here'
@@ -613,7 +615,25 @@ const en = {
     alreadyInSync: '{{name}} already matches the recorded commit',
     notFound: '“{{name}}” is not a submodule of this repository',
     failed: 'Could not update {{name}}',
-    synced: 'Synced the submodule URLs of {{name}}'
+    synced: 'Synced the submodule URLs of {{name}}',
+    addTitle: 'Add a Submodule to {{name}}',
+    addAction: 'Add submodule',
+    urlLabel: 'Repository URL or path',
+    pathLabel: 'Folder',
+    pathHint: 'Leave empty to name the folder after the repository.',
+    branchLabel: 'Branch',
+    branchHint: 'Optional. Names the branch a later update should follow.',
+    forceLabel: 'Add even if the folder is ignored',
+    added: 'Added submodule {{name}}',
+    addedAt: 'Added submodule {{name}} at {{sha}}',
+    deinitTitle: 'Deinitialize {{name}}?',
+    deinitBody:
+      'Its folder is emptied and the repository stops tracking it. The entry stays listed, so it can be initialized again.',
+    deinitDirtyTitle: '{{name}} has changes of its own',
+    deinitDirtyBody:
+      'Deinitializing removes the files in its folder, including ones that are not committed anywhere.',
+    deinitAction: 'Deinitialize',
+    deinited: 'Deinitialized {{name}}'
   },
   graph: {
     loading: 'Loading commits…',
@@ -831,6 +851,7 @@ const en = {
     branchUnmerged: 'The branch holds commits that are not merged elsewhere',
     branchInUse: 'That branch is checked out in another worktree',
     worktreeDirty: 'The worktree has uncommitted changes',
+    submoduleDirty: 'The submodule has changes of its own',
     worktreeLocked: 'The worktree is locked and must be unlocked first',
     mergeToolMissing: 'No external merge tool is configured',
     nothingStaged: 'Nothing is staged to describe — stage changes first',
