@@ -377,7 +377,7 @@ Both views render with virtualization (TanStack Virtual) and keyboard navigation
 - Opened as a tab per repository (LRU-cached, ~5 alive) from the activity bar, the graph toolbar picker, the Source Control section header, the command palette, the repo row menu, or any Explorer row inside a repository. The toolbar switches the tab to another workspace repository through a repository picker (which also makes it the active checkout) and carries the shared repository action menu (without the graph entry). Data from `git log --all` (configurable default refs) streamed with a custom NUL-delimited format; lanes computed client-side; rendering = virtualized DOM rows + a canvas lane layer (targets 60 fps at 5 000+ loaded rows).
 - Row density: `compact` / `normal` / `comfortable` row heights, switchable from the toolbar and from the Appearance settings group (`appearance.graphDensity`, default `normal`).
 - Lane column: natural width while the lanes fit, compressed lane spacing rather than a gutter that swallows the commit text, user-resizable by dragging its edge, with the chosen width persisted in the UI state.
-- Paging: first page 1 000 commits; older history loads in 2 000-row chunks on scroll; the loaded window stops at 10 000 commits and the toolbar states the cap ("huge repo" mode — `--skip/--max-count` for the window, `rev-list --count` for the total).
+- Paging: first page 1 000 commits; older history loads in 2 000-row chunks on scroll; the loaded window stops at the configured `graph.windowSize` (1 000 – 200 000, default 10 000) and the toolbar states the cap ("huge repo" mode — `--skip/--max-count` for the window, `rev-list --count` for the total); raising the setting releases the cap and streaming continues where it stopped.
 - Row content: lane graph, refs (local/remote/tags/HEAD with distinct chips), subject, author, relative date, "incoming/outgoing" markers relative to upstream and current branch; the `comfortable` row height adds a second, smaller line with the first line of the commit body.
 - Filters: refs multi-select, author, path (with rename detection off in v1), date range, message text, and "only reachable from current branch".
 - Commit details side panel: full message, author + committer (name/email/date), file list with stats; clicking a file opens the commit diff in the editor area.
@@ -583,6 +583,7 @@ Budget failures are treated as bugs, not polish; the dev overlay (toggleable, sh
     "defaultPullStrategy": "ff-only",  // ff-only | merge | rebase
     "untrackedStrategy": "normal"      // normal | all (per-repo override)
   },
+  "graph": { "windowSize": 10000 },     // commits a graph loads before it stops
   "commitMessage": {
     "provider": "offline",             // offline | openai-compatible
     "baseUrl": null, "model": null, "temperature": 0.2

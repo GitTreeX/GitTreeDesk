@@ -31,6 +31,7 @@ Resolution order: **workspace > user** (per key); per-repo overrides live in the
     "defaultPullStrategy": "ff-only", // ff-only | merge | rebase
     "untrackedStrategy": "normal"    // normal | all (per-repo override supported)
   },
+  "graph": { "windowSize": 10000 },  // commits a graph loads before it stops (1 000 – 200 000)
   "commitMessage": {
     "provider": "offline",           // offline | openai-compatible
     "baseUrl": null, "model": null, "temperature": 0.2

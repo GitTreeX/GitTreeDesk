@@ -31,6 +31,7 @@
     "defaultPullStrategy": "ff-only", // ff-only | merge | rebase
     "untrackedStrategy": "normal"    // normal | all（支持按仓库覆盖）
   },
+  "graph": { "windowSize": 10000 },  // 提交图加载到多少提交后停止（1000 – 200000）
   "commitMessage": {
     "provider": "offline",           // offline | openai-compatible
     "baseUrl": null, "model": null, "temperature": 0.2
