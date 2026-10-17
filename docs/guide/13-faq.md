@@ -53,7 +53,7 @@ File watching is automatic for repositories and expanded folders. When a folder 
 Yes. Before every destructive operation — reset `--hard`, rebase (including interactive), history rewrite, stash drop, worktree force-remove — GitTreeDesk creates a **backup ref** under `refs/gitreedesk/backup/…` pointing at the state that is about to be replaced (page 06). A branch delete backs up the branch tip when the branch is **not merged into HEAD**; a merged branch is recoverable from the recorded tip instead.
 
 - The toast right after the operation offers **Undo**.
-- Later: repository context menu → **"Restore from backup…"** lists recent backups with operation, time, and target ref.
+- Any time later: repository context menu → **"Restore from Backup…"** lists the backups with the operation, the time, and the ref they restore, each with a **Restore** action. Restoring backs up the current state first, so a restore is itself undoable.
 - Backup refs are invisible in normal branch/tag lists (they never clutter the graph), but they are real refs in the repository — nothing is lost until the backups themselves are pruned.
 
 ### An operation stopped in the middle (merge, rebase, cherry-pick…)
