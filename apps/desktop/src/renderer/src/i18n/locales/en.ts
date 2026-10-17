@@ -156,6 +156,8 @@ const en = {
     ignoreWhitespace: 'Ignore Whitespace',
     history: 'History',
     historyTitle: 'Commits touching this file',
+    followRenames: 'Follow renames',
+    historyAsPath: 'as {{path}}',
     compareWith: 'Compare with…',
     copyPatch: 'Copy as Patch',
     patchCopied: 'Patch copied',

@@ -158,6 +158,8 @@ export const zhHansResource: TranslationResource = {
     ignoreWhitespace: '忽略空白',
     history: '历史',
     historyTitle: '修改过此文件的提交',
+    followRenames: '跟随重命名',
+    historyAsPath: '当时名为 {{path}}',
     compareWith: '对比目标…',
     copyPatch: '复制为补丁',
     patchCopied: '补丁已复制',

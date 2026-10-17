@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type MouseEvent as ReactMouseEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { CommitInfo, DiffSource, GitDiffResponse, GitRef } from '@gitreedesk/shared'
+import type { DiffSource, FileHistoryEntry, GitDiffResponse, GitRef } from '@gitreedesk/shared'
 import { api } from '../api'
 import { useEditor, EMPTY_TREE_SHA, type CommitTab, type DiffTab } from '../contexts/editor'
 import { useTerminal } from '../contexts/terminal'
@@ -23,7 +23,7 @@ type LoadState =
 
 interface HistoryState {
   status: 'loading' | 'error' | 'ready'
-  commits: CommitInfo[]
+  entries: FileHistoryEntry[]
   hasMore: boolean
   error?: string
 }
@@ -83,6 +83,7 @@ export function FileDiffView({ tab }: { tab: DiffTab | CommitTab }): JSX.Element
   const [compareMenu, setCompareMenu] = useState<{ x: number; y: number } | null>(null)
   const [compareRefs, setCompareRefs] = useState<readonly GitRef[] | null>(null)
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [followRenames, setFollowRenames] = useState(true)
   const [history, setHistory] = useState<HistoryState | null>(null)
 
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -287,24 +288,25 @@ export function FileDiffView({ tab }: { tab: DiffTab | CommitTab }): JSX.Element
   }, [compareRefs, editorCtx, sources, tab.id])
 
   const loadHistory = useCallback(
-    async (skip: number): Promise<void> => {
+    async (skip: number, follow: boolean): Promise<void> => {
       setHistory((current) =>
-        current === null || skip === 0 ? { status: 'loading', commits: [], hasMore: false } : { ...current, status: 'loading' }
+        current === null || skip === 0 ? { status: 'loading', entries: [], hasMore: false } : { ...current, status: 'loading' }
       )
       try {
-        const result = await api.invoke('git:fileLog', {
+        const result = await api.invoke('git:fileHistory', {
           gitDir: tab.repo.gitDir,
           path: tab.path,
           limit: HISTORY_PAGE,
-          skip
+          skip,
+          follow
         })
         setHistory((current) => ({
           status: 'ready',
-          commits: skip === 0 ? result.commits : [...(current?.commits ?? []), ...result.commits],
+          entries: skip === 0 ? result.entries : [...(current?.entries ?? []), ...result.entries],
           hasMore: result.hasMore
         }))
       } catch (error) {
-        setHistory({ status: 'error', commits: [], hasMore: false, error: errorText(error) })
+        setHistory({ status: 'error', entries: [], hasMore: false, error: errorText(error) })
       }
     },
     [tab.repo.gitDir, tab.path]
@@ -313,23 +315,29 @@ export function FileDiffView({ tab }: { tab: DiffTab | CommitTab }): JSX.Element
   const toggleHistory = useCallback((): void => {
     setHistoryOpen((current) => {
       const next = !current
-      if (next && history === null) void loadHistory(0)
+      if (next && history === null) void loadHistory(0, followRenames)
       return next
     })
-  }, [history, loadHistory])
+  }, [followRenames, history, loadHistory])
+
+  const toggleFollowRenames = useCallback((): void => {
+    const next = !followRenames
+    setFollowRenames(next)
+    if (historyOpen) void loadHistory(0, next)
+  }, [followRenames, historyOpen, loadHistory])
 
   const openCommit = useCallback(
-    (commit: CommitInfo): void => {
+    (entry: FileHistoryEntry): void => {
       editorCtx.openCommitDiff({
         repo: tab.repo,
-        sha: commit.sha,
-        parent: commit.parents[0] ?? null,
-        path: tab.path,
-        ...(tab.origPath === null ? {} : { origPath: tab.origPath }),
-        subject: commit.subject
+        sha: entry.sha,
+        parent: entry.parents[0] ?? null,
+        path: entry.path,
+        ...(entry.origPath === null ? {} : { origPath: entry.origPath }),
+        subject: entry.subject
       })
     },
-    [editorCtx, tab.origPath, tab.path, tab.repo]
+    [editorCtx, tab.repo]
   )
 
   const openExternal = useCallback((): void => {
@@ -513,6 +521,13 @@ export function FileDiffView({ tab }: { tab: DiffTab | CommitTab }): JSX.Element
               ✕
             </button>
           </div>
+          <div className="flex shrink-0 items-center gap-2 border-b border-line px-2 py-1.5">
+            <ToolbarChip
+              active={followRenames}
+              label={t('diff.followRenames')}
+              onClick={toggleFollowRenames}
+            />
+          </div>
           <div className="min-h-0 flex-1 overflow-y-auto">
             {history !== null && history.status === 'loading' && (
               <p className="px-3 py-3 text-xs text-muted">{t('diff.loading')}</p>
@@ -520,24 +535,29 @@ export function FileDiffView({ tab }: { tab: DiffTab | CommitTab }): JSX.Element
             {history !== null && history.status === 'error' && (
               <p className="px-3 py-3 text-xs text-muted">{history.error ?? ''}</p>
             )}
-            {history !== null && history.status === 'ready' && history.commits.length === 0 && (
+            {history !== null && history.status === 'ready' && history.entries.length === 0 && (
               <p className="px-3 py-3 text-xs text-muted">{t('diff.noHistory')}</p>
             )}
             {history !== null &&
-              history.commits.map((commit) => (
+              history.entries.map((entry) => (
                 <button
-                  key={commit.sha}
+                  key={entry.sha}
                   type="button"
                   className="block w-full px-3 py-1.5 text-left hover:bg-ink/5"
-                  onClick={() => openCommit(commit)}
+                  onClick={() => openCommit(entry)}
                 >
-                  <span className="block truncate text-xs text-ink" title={commit.subject}>
-                    {commit.subject}
+                  <span className="block truncate text-xs text-ink" title={entry.subject}>
+                    {entry.subject}
                   </span>
+                  {entry.path !== filePath && (
+                    <span className="block truncate font-mono text-xs text-muted" title={entry.path}>
+                      {t('diff.historyAsPath', { path: entry.path })}
+                    </span>
+                  )}
                   <span className="mt-0.5 flex items-baseline gap-2 text-xs text-muted">
-                    <span className="font-mono">{commit.sha.slice(0, 7)}</span>
-                    <span className="min-w-0 truncate">{commit.author.name}</span>
-                    <span className="ml-auto shrink-0">{new Date(commit.committer.date).toLocaleDateString()}</span>
+                    <span className="font-mono">{entry.sha.slice(0, 7)}</span>
+                    <span className="min-w-0 truncate">{entry.author.name}</span>
+                    <span className="ml-auto shrink-0">{new Date(entry.committer.date).toLocaleDateString()}</span>
                   </span>
                 </button>
               ))}
@@ -545,7 +565,7 @@ export function FileDiffView({ tab }: { tab: DiffTab | CommitTab }): JSX.Element
               <button
                 type="button"
                 className="block w-full px-3 py-2 text-left text-xs text-accent hover:underline"
-                onClick={() => void loadHistory(history.commits.length)}
+                onClick={() => void loadHistory(history.entries.length, followRenames)}
               >
                 {t('diff.showMore')}
               </button>
