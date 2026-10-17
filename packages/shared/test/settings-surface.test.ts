@@ -3,6 +3,9 @@ import {
   ACCENT_VALUES,
   DENSITY_VALUES,
   GRAPH_DENSITY_VALUES,
+  GRAPH_WINDOW_DEFAULT,
+  GRAPH_WINDOW_MAX,
+  GRAPH_WINDOW_MIN,
   LOG_LEVEL_VALUES,
   SETTINGS_SURFACE,
   THEME_VALUES,
@@ -63,6 +66,7 @@ describe('sanitizeSettingValue', () => {
   const fontSize = findSettingDescriptor(['editor', 'fontSize'])
   const insertSpaces = findSettingDescriptor(['editor', 'insertSpaces'])
   const gitPath = findSettingDescriptor(['git', 'path'])
+  const windowSize = findSettingDescriptor(['graph', 'windowSize'])
   const temperature = findSettingDescriptor(['commitMessage', 'temperature'])
 
   it('accepts only declared enum members', () => {
@@ -81,6 +85,14 @@ describe('sanitizeSettingValue', () => {
     expect(sanitizeSettingValue(fontSize!, '14')).toBeUndefined()
     expect(temperature).not.toBeNull()
     expect(sanitizeSettingValue(temperature!, 1.75)).toBe(1.75)
+  })
+
+  it('bounds the commit-graph window by its setting', () => {
+    expect(windowSize).not.toBeNull()
+    expect(sanitizeSettingValue(windowSize!, GRAPH_WINDOW_DEFAULT)).toBe(GRAPH_WINDOW_DEFAULT)
+    expect(sanitizeSettingValue(windowSize!, 250_000)).toBe(GRAPH_WINDOW_MAX)
+    expect(sanitizeSettingValue(windowSize!, 12)).toBe(GRAPH_WINDOW_MIN)
+    expect(sanitizeSettingValue(windowSize!, 3_000.7)).toBe(3_001)
   })
 
   it('keeps booleans and rejects everything else', () => {

@@ -66,6 +66,10 @@ export type LogLevelValue = (typeof LOG_LEVEL_VALUES)[number]
 export const TERMINAL_SCROLLBACK_DEFAULT = 5_000
 export const TERMINAL_SCROLLBACK_MAX = 200_000
 
+export const GRAPH_WINDOW_DEFAULT = 10_000
+export const GRAPH_WINDOW_MIN = 1_000
+export const GRAPH_WINDOW_MAX = 200_000
+
 export const SETTINGS_SURFACE: readonly SettingDescriptor[] = [
   {
     type: 'enum',
@@ -129,6 +133,15 @@ export const SETTINGS_SURFACE: readonly SettingDescriptor[] = [
     options: UNTRACKED_STRATEGY_VALUES
   },
   { type: 'string', keyPath: ['git', 'worktreeRoot'], group: 'git', default: null, nullable: true },
+  {
+    type: 'number',
+    keyPath: ['graph', 'windowSize'],
+    group: 'git',
+    default: GRAPH_WINDOW_DEFAULT,
+    min: GRAPH_WINDOW_MIN,
+    max: GRAPH_WINDOW_MAX,
+    integer: true
+  },
   { type: 'string', keyPath: ['merge', 'toolCommand'], group: 'git', default: null, nullable: true },
   { type: 'string', keyPath: ['terminal', 'defaultProfile'], group: 'terminal', default: null, nullable: true },
   {

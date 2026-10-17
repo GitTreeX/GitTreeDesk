@@ -43,6 +43,14 @@ describe('buildSettingsSchema', () => {
       enum: ['blue', 'green', 'violet', 'amber', 'rose'],
       default: 'blue'
     })
+    // keys of their own group nest beside the git settings they belong to
+    const graph = propertiesOf(properties['graph'] as JsonObject)
+    expect(graph['windowSize']).toEqual({
+      type: 'number',
+      minimum: 1_000,
+      maximum: 200_000,
+      default: 10_000
+    })
     // single-segment keys stay at the root
     expect(properties['locale']).toMatchObject({ type: 'string', default: 'en' })
   })
