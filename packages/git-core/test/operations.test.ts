@@ -170,7 +170,7 @@ describe('cherryPick and revert', () => {
       await write(repo, 'c.txt', 'main side\n')
       await commitAll(repo, 'main side')
 
-      const result = await cherryPick(repo, { rev: featureSha })
+      const result = await cherryPick(repo, { revs: [featureSha] })
       expect(result.stopped).toBe(false)
       expect(await readFile(join(repo, 'b.txt'), 'utf8')).toBe('feature\n')
       expect((await git(repo, ['log', '-1', '--format=%s'])).trim()).toBe('feature work')
@@ -189,7 +189,7 @@ describe('cherryPick and revert', () => {
       const secondSha = await commitAll(repo, 'feature add')
       await git(repo, ['checkout', '-q', 'main'])
 
-      const stopped = await cherryPick(repo, { rev: `${base}..${secondSha}` })
+      const stopped = await cherryPick(repo, { revs: [`${base}..${secondSha}`] })
       expect(stopped.stopped).toBe(true)
       expect(await porcelain(repo)).toContain('UU a.txt')
 
@@ -208,7 +208,7 @@ describe('cherryPick and revert', () => {
       const { repo, featureSha } = await initConflict()
       await git(repo, ['checkout', '-q', 'feature'])
 
-      const stopped = await cherryPick(repo, { rev: 'main' })
+      const stopped = await cherryPick(repo, { revs: ['main'] })
       expect(stopped.stopped).toBe(true)
       await cherryPickAction('abort', repo)
       expect(await headSha(repo)).toBe(featureSha)
@@ -224,12 +224,62 @@ describe('cherryPick and revert', () => {
       await write(repo, 'a.txt', 'one\ntwo\n')
       const second = await commitAll(repo, 'second')
 
-      const result = await revertCommit(repo, { rev: second })
+      const result = await revertCommit(repo, { revs: [second] })
       expect(result.stopped).toBe(false)
       expect(await readFile(join(repo, 'a.txt'), 'utf8')).toBe('one\n')
       expect((await git(repo, ['log', '-1', '--format=%s'])).trim()).toBe(
         `Revert "second"`
       )
+    },
+    30_000
+  )
+
+  it(
+    'applies a discrete list of revisions in the order given',
+    async () => {
+      const repo = await initRepo()
+      await git(repo, ['checkout', '-q', '-b', 'feature'])
+      await write(repo, 'b.txt', 'beta\n')
+      const beta = await commitAll(repo, 'beta')
+      await write(repo, 'c.txt', 'gamma\n')
+      const gamma = await commitAll(repo, 'gamma')
+      await git(repo, ['checkout', '-q', 'main'])
+
+      const result = await cherryPick(repo, { revs: [beta, gamma] })
+      expect(result.stopped).toBe(false)
+      expect(await readFile(join(repo, 'b.txt'), 'utf8')).toBe('beta\n')
+      expect(await readFile(join(repo, 'c.txt'), 'utf8')).toBe('gamma\n')
+      // Newest first in the log, so argv order shows up reversed here.
+      expect((await git(repo, ['log', '-2', '--format=%s'])).trim().split('\n')).toEqual([
+        'gamma',
+        'beta'
+      ])
+    },
+    30_000
+  )
+
+  it(
+    'keeps the rest of a batch queued when one revision stops it',
+    async () => {
+      const { repo, featureSha } = await initConflict()
+      await git(repo, ['checkout', '-q', '-b', 'side'])
+      await write(repo, 'b.txt', 'side file\n')
+      const side = await commitAll(repo, 'side file')
+      await git(repo, ['checkout', '-q', 'feature'])
+      await write(repo, 'd.txt', 'only on feature\n')
+      const extra = await commitAll(repo, 'feature extra')
+      await git(repo, ['checkout', '-q', 'main'])
+
+      // The conflicting revision sits between two clean ones.
+      const stopped = await cherryPick(repo, { revs: [side, featureSha, extra] })
+      expect(stopped.stopped).toBe(true)
+      expect(await porcelain(repo)).toContain('UU a.txt')
+
+      const skipped = await cherryPickAction('skip', repo)
+      expect(skipped.stopped).toBe(false)
+      expect(await readFile(join(repo, 'a.txt'), 'utf8')).toBe('main line\n')
+      expect(await readFile(join(repo, 'd.txt'), 'utf8')).toBe('only on feature\n')
+      expect(await porcelain(repo)).toBe('')
     },
     30_000
   )

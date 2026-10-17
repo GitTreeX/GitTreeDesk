@@ -285,17 +285,39 @@ describe('cherry-pick and revert', () => {
       await writeFile(join(repo, 'c.txt'), 'main side\n')
       await commitAll(repo, 'main side')
 
-      const picked = await instance.gitCherryPick({ gitDir, rev: featureSha })
+      const picked = await instance.gitCherryPick({ gitDir, revs: [featureSha] })
       expect(picked.stopped).toBe(false)
       expect(picked.undo).toBeNull()
       expect((await git(repo, ['log', '-1', '--format=%s'])).trim()).toBe('feature work')
 
-      const reverted = await instance.gitRevert({ gitDir, rev: 'HEAD' })
+      const reverted = await instance.gitRevert({ gitDir, revs: ['HEAD'] })
       expect(reverted.stopped).toBe(false)
       expect((await git(repo, ['log', '-1', '--format=%s'])).trim()).toBe(
         'Revert "feature work"'
       )
       await expect(readFile(join(repo, 'b.txt'), 'utf8')).rejects.toThrow()
+    },
+    60_000
+  )
+
+  it(
+    'applies a discrete batch of revisions in the order sent',
+    async () => {
+      const { instance, repo, gitDir } = await fixture('gtd-ops-pick-batch-')
+
+      await git(repo, ['checkout', '-q', '-b', 'feature'])
+      await writeFile(join(repo, 'b.txt'), 'one\n')
+      const first = await commitAll(repo, 'first work')
+      await writeFile(join(repo, 'c.txt'), 'two\n')
+      const second = await commitAll(repo, 'second work')
+      await git(repo, ['checkout', '-q', 'main'])
+
+      // Newest first, as the graph selection is; the dialog reverses it for a pick.
+      const result = await instance.gitCherryPick({ gitDir, revs: [second, first] })
+      expect(result.stopped).toBe(false)
+      expect(
+        (await git(repo, ['log', '-2', '--format=%s'])).trim().split(/\r?\n/)
+      ).toEqual(['first work', 'second work'])
     },
     60_000
   )

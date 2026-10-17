@@ -549,8 +549,8 @@ export interface GitOpRequest {
 
 export interface GitCherryPickRequest {
   gitDir: string
-  /** Commit or `A..B` range. */
-  rev: string
+  /** Commits to apply, oldest first; one element may itself be an `A..B` range. */
+  revs: readonly string[]
   /** Stages the changes and stops before committing. */
   noCommit?: boolean
   /** Parent number when picking a merge commit (1-based). */
@@ -559,7 +559,8 @@ export interface GitCherryPickRequest {
 
 export interface GitRevertRequest {
   gitDir: string
-  rev: string
+  /** Commits to undo, newest first; one element may itself be an `A..B` range. */
+  revs: readonly string[]
   noCommit?: boolean
   /** Parent number when reverting a merge commit (1-based). */
   mainline?: number

@@ -4,8 +4,11 @@ import { runGit } from './run'
 import { isOperationStopped } from './status'
 
 export interface PickOptions {
-  /** Commit or `A..B` range. */
-  rev: string
+  /**
+   * Commits to apply, in replay order — oldest first.
+   * A single element may itself be a range such as `A..B`.
+   */
+  revs: readonly string[]
   /** Stages the changes and stops before committing. */
   noCommit?: boolean
   /** Parent number when acting on a merge commit (1-based). */
@@ -49,13 +52,14 @@ async function runPickCommand(
 }
 
 function pickArgs(action: 'cherry-pick' | 'revert', options: PickOptions): string[] {
-  assertRev(options.rev)
+  if (options.revs.length === 0) throw new Error('No revision to apply')
+  for (const rev of options.revs) assertRev(rev)
   const args: string[] = [action]
   if (options.noCommit === true) args.push('--no-commit')
   if (options.mainline !== undefined) args.push('-m', String(options.mainline))
   // Revert writes a generated message; `--no-edit` keeps it without an editor.
   if (action === 'revert') args.push('--no-edit')
-  args.push(options.rev)
+  args.push(...options.revs)
   return args
 }
 

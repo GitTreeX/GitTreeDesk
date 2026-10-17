@@ -1078,13 +1078,13 @@ export class WorkspaceService {
     return null
   }
 
-  /** Applies a commit (or `A..B` range) onto the current branch. */
+  /** Applies commits onto the current branch, in the order given. */
   async gitCherryPick(request: GitCherryPickRequest): Promise<GitOperationResponse> {
     const record = this.#requireWriteCheckout(request.gitDir)
     await this.#assertNoOperation(record, 'Cherry-pick')
     return await this.#gitOperation(record, async (repoPath) => ({
       ...(await cherryPick(repoPath, {
-        rev: request.rev,
+        revs: request.revs,
         noCommit: request.noCommit,
         mainline: request.mainline
       })),
@@ -1092,13 +1092,13 @@ export class WorkspaceService {
     }))
   }
 
-  /** Reverts a commit (or range), staging the inverse change. */
+  /** Undoes commits by replaying their inverses, in the order given. */
   async gitRevert(request: GitRevertRequest): Promise<GitOperationResponse> {
     const record = this.#requireWriteCheckout(request.gitDir)
     await this.#assertNoOperation(record, 'Revert')
     return await this.#gitOperation(record, async (repoPath) => ({
       ...(await revertCommit(repoPath, {
-        rev: request.rev,
+        revs: request.revs,
         noCommit: request.noCommit,
         mainline: request.mainline
       })),

@@ -188,13 +188,13 @@ export const invokeSchemas = {
   'git:opAbort': z.object({ gitDir: pathString }),
   'git:cherryPick': z.object({
     gitDir: pathString,
-    rev: refString,
+    revs: z.array(refString).min(1).max(100),
     noCommit: z.boolean().optional(),
     mainline: z.number().int().min(1).max(100).optional()
   }),
   'git:revert': z.object({
     gitDir: pathString,
-    rev: refString,
+    revs: z.array(refString).min(1).max(100),
     noCommit: z.boolean().optional(),
     mainline: z.number().int().min(1).max(100).optional()
   }),
