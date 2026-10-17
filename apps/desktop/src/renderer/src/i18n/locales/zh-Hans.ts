@@ -554,21 +554,17 @@ export const zhHansResource: TranslationResource = {
     loadFiles: '无法读取该贮藏的文件列表'
   },
   backup: {
-    menu: '从备份恢复…',
     title: '从备份恢复 — {{name}}',
     empty: '暂无备份',
     ops: {
-      merge: '合并',
       rebase: '变基',
       'rebase-interactive': '交互式变基',
+      'edit-commit': '历史改写',
       'reset-hard': '硬重置',
-      'reset-soft': '软重置',
-      'reset-mixed': '混合重置',
       'stash-drop': '删除贮藏',
-      'branch-delete': '删除分支',
       restore: '恢复',
-      'commit-amend': '修订提交',
-      'edit-commit': '历史改写'
+      'worktree-remove': '删除工作树',
+      'branch-delete': '删除分支'
     },
     targetLabel: '恢复 {{target}}',
     restore: '恢复',

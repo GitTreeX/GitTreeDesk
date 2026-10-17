@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { GitPool, runGitOrThrow } from '@gitreedesk/git-core'
+import { createBackupRef, GitPool, runGitOrThrow } from '@gitreedesk/git-core'
 import { WorkspaceService, type WorkspaceServiceEvent } from '../src/main/services/workspace-service'
 
 const IDENTITY = ['-c', 'user.name=GitTreeDesk Test', '-c', 'user.email=test@gitreedesk.invalid']
@@ -347,6 +347,35 @@ describe('reset and backups', () => {
       await expect(
         instance.gitRestoreBackup({ gitDir, ref: 'refs/gitreedesk/backup/reset-hard/20990101-000000' })
       ).rejects.toMatchObject({ code: 'invalid-request' })
+    },
+    60_000
+  )
+
+  it(
+    'restores a backup ref that has no operation-log row',
+    async () => {
+      const { instance, repo, gitDir } = await fixture('gtd-ops-orphan-backup-')
+
+      await writeFile(join(repo, 't.txt'), 'tracked\n')
+      const second = await commitAll(repo, 'second')
+      const first = (await git(repo, ['rev-parse', 'HEAD~1'])).trim()
+      await instance.gitReset({ gitDir, target: first, mode: 'hard' })
+
+      // A backup ref on its own — the operation log never saw it.
+      const backup = await createBackupRef({ repoPath: repo, op: 'restore', target: second })
+      const backups = await instance.gitBackups({ gitDir })
+      const entry = backups.entries.find((row) => row.ref === backup.ref)
+      expect(entry).toMatchObject({ op: 'restore', sha: second, target: null })
+
+      await instance.gitRestoreBackup({ gitDir, ref: backup.ref })
+      expect(await headSha(repo)).toBe(second)
+      expect(await readFile(join(repo, 't.txt'), 'utf8')).toBe('tracked\n')
+
+      // Restoring from a foreign tip is destructive, so the previous state is guarded too.
+      const guard = (await instance.gitBackups({ gitDir })).entries.find(
+        (row) => row.op === 'restore' && row.sha === first
+      )
+      expect(guard).toBeDefined()
     },
     60_000
   )

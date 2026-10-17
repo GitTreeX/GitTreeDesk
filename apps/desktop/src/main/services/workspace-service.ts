@@ -2179,7 +2179,10 @@ export class WorkspaceService {
   #fallbackDescriptor(backupRef: string | null, backupSha: string | null): UndoDescriptor | null {
     if (backupRef === null || backupSha === null) return null
     const slug = parseBackupRefName(backupRef)?.op ?? ''
-    if (slug === 'reset-hard') return { kind: 'reset', mode: 'hard', before: backupSha }
+    // A `restore` ref is a guard snapshot of HEAD, so it unwinds like a hard reset.
+    if (slug === 'reset-hard' || slug === 'restore') {
+      return { kind: 'reset', mode: 'hard', before: backupSha }
+    }
     if (slug === 'rebase' || slug === 'rebase-interactive' || slug === 'edit-commit') {
       return { kind: 'rebase', before: backupSha }
     }

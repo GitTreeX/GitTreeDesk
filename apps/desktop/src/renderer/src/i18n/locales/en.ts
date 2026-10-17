@@ -561,21 +561,17 @@ const en = {
     loadFiles: 'Could not read the stash files'
   },
   backup: {
-    menu: 'Restore from Backup…',
     title: 'Restore from backup — {{name}}',
     empty: 'No backups yet',
     ops: {
-      merge: 'Merge',
       rebase: 'Rebase',
       'rebase-interactive': 'Interactive rebase',
+      'edit-commit': 'History rewrite',
       'reset-hard': 'Hard reset',
-      'reset-soft': 'Soft reset',
-      'reset-mixed': 'Mixed reset',
       'stash-drop': 'Stash drop',
-      'branch-delete': 'Branch delete',
       restore: 'Restore',
-      'commit-amend': 'Commit amend',
-      'edit-commit': 'History rewrite'
+      'worktree-remove': 'Worktree removal',
+      'branch-delete': 'Branch delete'
     },
     targetLabel: 'restores {{target}}',
     restore: 'Restore',
