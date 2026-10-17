@@ -249,6 +249,11 @@ export function useRepoMenu(): (
         onSelect: () => operations.removeWorktree(record)
       },
       {
+        label: t('menu.moveWorktree'),
+        disabled: !isWorktree || !canTarget || prunable,
+        onSelect: () => operations.moveWorktree(record)
+      },
+      {
         label: locked ? t('menu.unlockWorktree') : t('menu.lockWorktree'),
         disabled: !isWorktree || !canTarget || prunable,
         onSelect: () =>

@@ -79,6 +79,7 @@ const en = {
     restoreBackup: 'Restore from Backup…',
     newWorktree: 'New Worktree…',
     removeWorktree: 'Remove Worktree…',
+    moveWorktree: 'Move Worktree…',
     lockWorktree: 'Lock Worktree',
     unlockWorktree: 'Unlock Worktree',
     pruneWorktrees: 'Prune Worktrees',
@@ -107,6 +108,7 @@ const en = {
     cancel: 'Cancel',
     close: 'Close',
     create: 'Create',
+    move: 'Move',
     rename: 'Rename',
     save: 'Save',
     nameLabel: 'Name',
@@ -604,7 +606,14 @@ const en = {
     removed: 'Removed worktree {{name}}',
     pruned: 'Pruned stale worktree records',
     locked: 'Locked worktree {{name}}',
-    unlocked: 'Unlocked worktree {{name}}'
+    unlocked: 'Unlocked worktree {{name}}',
+    moveTitle: 'Move worktree “{{name}}”',
+    currentPath: 'Current path',
+    destinationLabel: 'New path',
+    moveHint:
+      'The folder is relocated or renamed, and uncommitted changes come along. Missing parent directories are created.',
+    samePath: 'The worktree is already there.',
+    moved: 'Moved worktree to {{path}}'
   },
   submodule: {
     none: 'This repository has no submodules',

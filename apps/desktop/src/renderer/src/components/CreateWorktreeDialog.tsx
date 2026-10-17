@@ -11,7 +11,7 @@ function toPosix(value: string): string {
 }
 
 /** Absolute when it carries a drive letter or a leading slash; otherwise relative to the root. */
-function resolveWorktreeRoot(root: string, stored: unknown): string {
+export function resolveWorktreeRoot(root: string, stored: unknown): string {
   const configured = typeof stored === 'string' && stored.trim().length > 0 ? toPosix(stored.trim()) : null
   if (configured !== null && /^([A-Za-z]:)?\//.test(configured)) return configured.replace(/\/+$/, '')
   const relative = configured ?? '__worktree__'

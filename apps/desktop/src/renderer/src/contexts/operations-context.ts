@@ -64,6 +64,8 @@ export interface OperationsValue {
   openBackupRestore: (record: RepoRecord) => void
   /** Opens the dialog that creates a linked worktree of `record`'s repository. */
   openCreateWorktree: (record: RepoRecord) => void
+  /** Opens the dialog that relocates the linked worktree row `record`. */
+  moveWorktree: (record: RepoRecord) => void
   /** Confirms, then removes the worktree row `record`; a dirty worktree asks for force. */
   removeWorktree: (record: RepoRecord) => void
   /** Runs `git worktree prune` for the repository `record` belongs to. */

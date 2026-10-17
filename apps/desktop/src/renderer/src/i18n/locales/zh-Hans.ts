@@ -81,6 +81,7 @@ export const zhHansResource: TranslationResource = {
     restoreBackup: '从备份恢复…',
     newWorktree: '新建工作树…',
     removeWorktree: '移除工作树…',
+    moveWorktree: '移动工作树…',
     lockWorktree: '锁定工作树',
     unlockWorktree: '解锁工作树',
     pruneWorktrees: '清理工作树',
@@ -109,6 +110,7 @@ export const zhHansResource: TranslationResource = {
     cancel: '取消',
     close: '关闭',
     create: '创建',
+    move: '移动',
     rename: '重命名',
     save: '保存',
     nameLabel: '名称',
@@ -594,7 +596,13 @@ export const zhHansResource: TranslationResource = {
     removed: '已移除工作树 {{name}}',
     pruned: '已清理失效的工作树记录',
     locked: '已锁定工作树 {{name}}',
-    unlocked: '已解锁工作树 {{name}}'
+    unlocked: '已解锁工作树 {{name}}',
+    moveTitle: '移动工作树“{{name}}”',
+    currentPath: '当前路径',
+    destinationLabel: '新路径',
+    moveHint: '移动或重命名工作树文件夹，未提交的更改会一起带走。缺失的上级目录会自动创建。',
+    samePath: '工作树已经在这个位置。',
+    moved: '已将工作树移动到 {{path}}'
   },
   submodule: {
     none: '此仓库没有子模块',

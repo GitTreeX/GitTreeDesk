@@ -19,6 +19,7 @@ import { CreateWorktreeDialog } from '../components/CreateWorktreeDialog'
 import { EditCommitsDialog } from '../components/EditCommitsDialog'
 import { InteractiveRebaseDialog } from '../components/InteractiveRebaseDialog'
 import { MergeDialog } from '../components/MergeDialog'
+import { MoveWorktreeDialog } from '../components/MoveWorktreeDialog'
 import { PushDialog } from '../components/PushDialog'
 import { RemotesDialog } from '../components/RemotesDialog'
 import { ResetDialog } from '../components/ResetDialog'
@@ -66,6 +67,7 @@ type DialogState =
   | { kind: 'stashes'; record: RepoRecord }
   | { kind: 'backups'; record: RepoRecord }
   | { kind: 'worktreeCreate'; record: RepoRecord }
+  | { kind: 'worktreeMove'; record: RepoRecord }
   | { kind: 'submoduleAdd'; record: RepoRecord }
 
 interface OpAsk {
@@ -266,6 +268,7 @@ export function OperationsProvider({ children }: { children: ReactNode }): JSX.E
     (record: RepoRecord) => setDialog({ kind: 'worktreeCreate', record }),
     []
   )
+  const moveWorktree = useCallback((record: RepoRecord) => setDialog({ kind: 'worktreeMove', record }), [])
   const openAddSubmodule = useCallback(
     (record: RepoRecord) => setDialog({ kind: 'submoduleAdd', record }),
     []
@@ -940,6 +943,7 @@ export function OperationsProvider({ children }: { children: ReactNode }): JSX.E
       openStashes,
       openBackupRestore,
       openCreateWorktree,
+      moveWorktree,
       removeWorktree,
       pruneWorktrees,
       lockWorktree,
@@ -981,6 +985,7 @@ export function OperationsProvider({ children }: { children: ReactNode }): JSX.E
       openStashes,
       openBackupRestore,
       openCreateWorktree,
+      moveWorktree,
       removeWorktree,
       pruneWorktrees,
       lockWorktree,
@@ -1081,6 +1086,13 @@ export function OperationsProvider({ children }: { children: ReactNode }): JSX.E
           record={dialog.record}
           onClose={closeDialog}
           onCreated={(path) => setWorktreeFocus(path)}
+        />
+      )}
+      {dialog?.kind === 'worktreeMove' && (
+        <MoveWorktreeDialog
+          record={dialog.record}
+          onClose={closeDialog}
+          onMoved={(path) => setWorktreeFocus(path)}
         />
       )}
       {dialog?.kind === 'submoduleAdd' && (
