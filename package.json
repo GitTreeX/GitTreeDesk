@@ -4,7 +4,7 @@
   "private": true,
   "description": "Workspace-first multi-repo Git workbench",
   "license": "MIT",
-  "packageManager": "pnpm@12.11.2",
+  "packageManager": "pnpm@12.14.0",
   "engines": {
     "node": ">=22"
   },

@@ -676,6 +676,7 @@ const en = {
       empty: 'No repositories match'
     },
     density: { label: 'Row height' },
+    curve: { label: 'Line style' },
     gutter: { resize: 'Resize the lane column' },
     activity: {
       mode: {
@@ -943,6 +944,7 @@ const en = {
       theme: 'Theme',
       density: 'Density',
       graphDensity: 'Commit graph density',
+      graphCurve: 'Commit graph line style',
       accent: 'Accent color',
       locale: 'Language',
       editorFontSize: 'Font size',
@@ -987,6 +989,7 @@ const en = {
       theme: { system: 'System', light: 'Light', dark: 'Dark' },
       density: { comfortable: 'Comfortable', compact: 'Compact' },
       graphDensity: { compact: 'Compact', normal: 'Normal', comfortable: 'Comfortable' },
+      graphCurve: { smooth: 'Smooth curves', straight: 'Straight lines' },
       accent: { blue: 'Blue', green: 'Green', violet: 'Violet', amber: 'Amber', rose: 'Rose' },
       locale: { en: 'English', 'zh-Hans': '中文' },
       pullStrategy: { 'ff-only': 'Fast-forward only', merge: 'Merge', rebase: 'Rebase' },

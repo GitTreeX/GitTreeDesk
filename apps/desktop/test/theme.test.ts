@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { nextTheme, normalizeTheme, resolveTheme } from '../src/renderer/src/theme'
+import {
+  nextTheme,
+  normalizeGraphCurve,
+  normalizeTheme,
+  resolveTheme
+} from '../src/renderer/src/theme'
 
 describe('resolveTheme', () => {
   it('follows the system when set to system', () => {
@@ -28,5 +33,14 @@ describe('normalizeTheme', () => {
     expect(normalizeTheme('system')).toBe('system')
     expect(normalizeTheme('solarized')).toBe('system')
     expect(normalizeTheme(undefined)).toBe('system')
+  })
+})
+
+describe('normalizeGraphCurve', () => {
+  it('accepts known values and rejects everything else', () => {
+    expect(normalizeGraphCurve('smooth')).toBe('smooth')
+    expect(normalizeGraphCurve('straight')).toBe('straight')
+    expect(normalizeGraphCurve('wavy')).toBeNull()
+    expect(normalizeGraphCurve(undefined)).toBeNull()
   })
 })

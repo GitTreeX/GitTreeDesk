@@ -11,12 +11,14 @@ import {
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useTranslation } from 'react-i18next'
 import {
+  GRAPH_CURVE_VALUES,
   GRAPH_DENSITY_VALUES,
   type ChangeKind,
   type CommitDetails,
   type CommitFileStat,
   type FileChange,
   type GitRef,
+  type GraphCurveValue,
   type GraphDensityValue,
   type RepoRecord
 } from '@gitreedesk/shared'
@@ -30,7 +32,7 @@ import { useWorkspace } from '../contexts/workspace'
 import { notify } from '../notify'
 import { errorText, notifyServiceError, stashNotice } from '../lib/reporting'
 import { relativeTime } from '../lib/relative-time'
-import { normalizeGraphDensity, rowHeightForGraph } from '../theme'
+import { normalizeGraphCurve, normalizeGraphDensity, rowHeightForGraph } from '../theme'
 import { useSettingValue } from '../use-setting-value'
 import { useRepoMenu } from '../use-repo-menu'
 import { useUiState } from '../use-ui-state'
@@ -153,6 +155,11 @@ function RepoGraphView({ tab }: { tab: GraphTab }): JSX.Element | null {
     normalizeGraphDensity
   )
   const rowHeight = rowHeightForGraph(rowDensity)
+  const [laneCurve, setLaneCurve] = useSettingValue<GraphCurveValue>(
+    ['appearance', 'graphCurve'],
+    'smooth',
+    normalizeGraphCurve
+  )
 
   const rootRef = useRef<HTMLDivElement | null>(null)
   const scrollRef = useRef<HTMLDivElement | null>(null)
@@ -878,6 +885,21 @@ function RepoGraphView({ tab }: { tab: GraphTab }): JSX.Element | null {
               {t('graph.capped', { count: slice.total ?? commits.length })}
             </span>
           )}
+          <label className="flex items-center gap-1 text-muted">
+            <span>{t('graph.curve.label')}</span>
+            <select
+              value={laneCurve}
+              aria-label={t('graph.curve.label')}
+              onChange={(event) => setLaneCurve(event.target.value as GraphCurveValue)}
+              className={inputClass}
+            >
+              {GRAPH_CURVE_VALUES.map((value) => (
+                <option key={value} value={value}>
+                  {t(`settings.options.graphCurve.${value}`)}
+                </option>
+              ))}
+            </select>
+          </label>
           <label className={`${slice.capped ? '' : 'ml-auto'} flex items-center gap-1 text-muted`}>
             <span>{t('graph.density.label')}</span>
             <select
@@ -999,6 +1021,7 @@ function RepoGraphView({ tab }: { tab: GraphTab }): JSX.Element | null {
                       width={gutter.width}
                       spacing={gutter.spacing}
                       height={rowHeight}
+                      curve={laneCurve}
                     />
                     <span className="flex w-4 shrink-0 items-center justify-center">
                       {outgoing && (
@@ -1252,7 +1275,8 @@ function LaneSvg({
   tip,
   width,
   spacing,
-  height
+  height,
+  curve
 }: {
   row: GraphRow
   laneCount: number
@@ -1260,22 +1284,43 @@ function LaneSvg({
   width: number
   spacing: number
   height: number
+  curve: GraphCurveValue
 }): JSX.Element {
   const half = height / 2
   const x = (lane: number): number => lane * spacing + spacing / 2
   return (
     <svg width={width} height={height} className="shrink-0" aria-hidden="true">
-      {row.edges.map((edge, index) => (
-        <line
-          key={index}
-          x1={edge.fromLane >= 0 ? x(edge.fromLane) : x(row.lane)}
-          y1={edge.fromLane >= 0 ? 0 : half}
-          x2={edge.toLane >= 0 ? x(edge.toLane) : x(row.lane)}
-          y2={edge.toLane >= 0 ? height : half}
-          stroke={laneColor(edge.colorLane)}
-          strokeWidth={1.5}
-        />
-      ))}
+      {row.edges.map((edge, index) => {
+        const x1 = edge.fromLane >= 0 ? x(edge.fromLane) : x(row.lane)
+        const y1 = edge.fromLane >= 0 ? 0 : half
+        const x2 = edge.toLane >= 0 ? x(edge.toLane) : x(row.lane)
+        const y2 = edge.toLane >= 0 ? height : half
+        const stroke = laneColor(edge.colorLane)
+        // A lane change bends into an S-curve; same-lane segments stay straight.
+        if (curve === 'smooth' && x1 !== x2) {
+          const midY = (y1 + y2) / 2
+          return (
+            <path
+              key={index}
+              d={`M ${x1} ${y1} C ${x1} ${midY} ${x2} ${midY} ${x2} ${y2}`}
+              fill="none"
+              stroke={stroke}
+              strokeWidth={1.5}
+            />
+          )
+        }
+        return (
+          <line
+            key={index}
+            x1={x1}
+            y1={y1}
+            x2={x2}
+            y2={y2}
+            stroke={stroke}
+            strokeWidth={1.5}
+          />
+        )
+      })}
       <circle
         cx={x(row.lane)}
         cy={half}

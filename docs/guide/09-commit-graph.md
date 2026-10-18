@@ -23,6 +23,7 @@
 - The **lane column sizes itself**: a handful of lanes gets the natural width, and a branching-heavy repository compresses the lane spacing instead of pushing the commit text off-screen (the commit text keeps its column).
 - **Resizable**: drag the right edge of the lane column to set your own width; the width is remembered across sessions. Filters that reduce the lane count (e.g. "current branch only") free the space again.
 - **Row height**: `compact` / `normal` / `comfortable`, switchable from the graph toolbar or Settings → Appearance ("Commit graph density"); `normal` is the default.
+- **Line style**: `smooth` / `straight` for the lane connectors — a lane change either bends into a smooth S-curve or stays a straight polyline — switchable from the graph toolbar or Settings → Appearance ("Commit graph line style"); `smooth` is the default.
 - Performance target: smooth scrolling (60 fps) with 5 000+ loaded rows, and the first page of a 10 000-commit repository painting within 1.5 s.
 
 ## Filters

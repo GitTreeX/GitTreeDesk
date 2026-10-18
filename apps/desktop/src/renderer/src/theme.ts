@@ -1,9 +1,11 @@
 import {
   ACCENT_VALUES,
   DENSITY_VALUES,
+  GRAPH_CURVE_VALUES,
   GRAPH_DENSITY_VALUES,
   type AccentValue,
   type DensityValue,
+  type GraphCurveValue,
   type GraphDensityValue
 } from '@gitreedesk/shared'
 
@@ -38,6 +40,12 @@ export function rowHeightFor(density: DensityValue): number {
 export function normalizeGraphDensity(value: unknown): GraphDensityValue | null {
   return typeof value === 'string' && (GRAPH_DENSITY_VALUES as readonly string[]).includes(value)
     ? (value as GraphDensityValue)
+    : null
+}
+
+export function normalizeGraphCurve(value: unknown): GraphCurveValue | null {
+  return typeof value === 'string' && (GRAPH_CURVE_VALUES as readonly string[]).includes(value)
+    ? (value as GraphCurveValue)
     : null
 }
 
