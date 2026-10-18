@@ -7,6 +7,7 @@ import { useTreeUi } from '../contexts/tree'
 import { loadMonaco } from '../editor/monaco'
 import { notifyError } from '../notify'
 import { resolveTheme } from '../theme'
+import { CompareFilesView } from './CompareFilesView'
 import { ContextMenu, type ContextMenuItem } from './ContextMenu'
 import { FileDiffView } from './FileDiffView'
 import { FileEditor } from './FileEditor'
@@ -80,6 +81,8 @@ export function EditorArea(): JSX.Element {
               <SettingsView />
             ) : tab.kind === 'shortcuts' ? (
               <KeyboardShortcutsView />
+            ) : tab.kind === 'compare' ? (
+              <CompareFilesView tab={tab} />
             ) : (
               <FileDiffView tab={tab} />
             )}
@@ -106,7 +109,7 @@ function TabStrip(): JSX.Element {
   const absolutePath = useCallback((tab: EditorTab): string | null => {
     if (tab.kind === 'file') return tab.path
     if (tab.kind === 'graph') return tab.repo.repoPath
-    if (tab.kind === 'settings' || tab.kind === 'shortcuts') return null
+    if (tab.kind === 'settings' || tab.kind === 'shortcuts' || tab.kind === 'compare') return null
     return `${tab.repo.repoPath}/${tab.path}`
   }, [])
 

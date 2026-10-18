@@ -25,6 +25,8 @@ export const COMMAND_IDS = {
   revealEntry: 'explorer.reveal',
   copyPath: 'explorer.copyPath',
   openInEditor: 'explorer.openInEditor',
+  selectForCompare: 'explorer.selectForCompare',
+  compareWithSelected: 'explorer.compareWithSelected',
   saveFile: 'editor.save',
   closeTab: 'editor.closeTab',
   quickOpen: 'editor.quickOpen',
@@ -91,6 +93,9 @@ export interface BuiltinContext {
   explorerReveal: () => void
   explorerCopyPath: () => void
   explorerOpenInEditor: () => void
+  explorerSelectForCompare: () => void
+  explorerCanCompare: () => boolean
+  explorerCompareWithSelected: () => void
   scmCanStage: () => boolean
   scmCanUnstage: () => boolean
   scmCanDiscard: () => boolean
@@ -294,6 +299,20 @@ export function createBuiltinCommands(get: () => BuiltinContext): CommandDefinit
       categoryKey: 'commands.categories.explorer',
       enabled: () => get().hasExplorerActions() && get().explorerHasCursor(),
       run: () => get().explorerOpenInEditor()
+    },
+    {
+      id: COMMAND_IDS.selectForCompare,
+      titleKey: 'commands.selectForCompare',
+      categoryKey: 'commands.categories.explorer',
+      enabled: () => get().hasExplorerActions() && get().explorerHasCursor(),
+      run: () => get().explorerSelectForCompare()
+    },
+    {
+      id: COMMAND_IDS.compareWithSelected,
+      titleKey: 'commands.compareWithSelected',
+      categoryKey: 'commands.categories.explorer',
+      enabled: () => get().hasExplorerActions() && get().explorerCanCompare(),
+      run: () => get().explorerCompareWithSelected()
     },
     {
       id: COMMAND_IDS.saveFile,

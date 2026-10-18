@@ -92,7 +92,9 @@ export const zhHansResource: TranslationResource = {
     deinitSubmodule: '注销此子模块',
     checkoutRecordedCommit: '检出记录的提交',
     openAsRepository: '作为仓库打开',
-    openTerminal: '在此处打开终端'
+    openTerminal: '在此处打开终端',
+    selectForCompare: '选作对比基准',
+    compareWithSelected: '与所选对比'
   },
   about: {
     title: '关于 GitTreeDesk',
@@ -169,6 +171,11 @@ export const zhHansResource: TranslationResource = {
     tooLarge: '差异过大，无法渲染（{{old}} → {{new}}）。',
     loadFull: '加载完整差异',
     missingSide: '此侧不存在',
+    openLeft: '打开左侧文件',
+    openRight: '打开右侧文件',
+    compareMissing: '这些文件已不存在：{{names}}。',
+    compareTooLarge: '这些文件太大，无法比较（{{left}} · {{right}}）。',
+    compareNotText: '比较需要两侧都是文本文件，或都是图片。',
     noHistory: '尚无提交修改过此文件',
     showMore: '显示更早的提交…',
     hunk: {
@@ -1016,6 +1023,8 @@ export const zhHansResource: TranslationResource = {
     reveal: '在文件管理器中显示',
     copyPath: '复制路径',
     openInEditor: '在 VS Code 中打开',
+    selectForCompare: '选作对比基准',
+    compareWithSelected: '与所选对比',
     cycleTheme: '切换主题',
     toggleLocale: '切换语言',
     openSettings: '打开设置',

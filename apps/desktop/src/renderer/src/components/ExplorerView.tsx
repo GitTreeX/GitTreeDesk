@@ -60,6 +60,7 @@ export function ExplorerView(): JSX.Element {
   const [children, setChildren] = useState<ReadonlyMap<string, readonly FsEntry[]>>(EMPTY_CHILDREN)
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set())
   const [cursorPath, setCursorPath] = useState<string | null>(null)
+  const [compareBase, setCompareBase] = useState<string | null>(null)
   const [rootError, setRootError] = useState<string | null>(null)
   const [menu, setMenu] = useState<{ x: number; y: number; row: ExplorerRow } | null>(null)
   const [newEntry, setNewEntry] = useState<NewEntryState | null>(null)
@@ -141,6 +142,7 @@ export function ExplorerView(): JSX.Element {
     setChildren(EMPTY_CHILDREN)
     setExpanded(new Set())
     setCursorPath(null)
+    setCompareBase(null)
     setRootError(null)
     void load(root, false)
   }, [root, load])
@@ -353,6 +355,12 @@ export function ExplorerView(): JSX.Element {
     [load, t]
   )
 
+  /** A second file can be compared against the row marked for comparison. */
+  const canCompareWithSelection = useCallback((): boolean => {
+    const row = cursorRow(rowsRef.current, cursorRef.current)
+    return row !== null && row.kind !== 'dir' && compareBase !== null && compareBase !== row.path
+  }, [compareBase])
+
   // Imperative surface used by toolbar buttons, context menus, and commands.
   const actions = useMemo(
     () => ({
@@ -378,9 +386,20 @@ export function ExplorerView(): JSX.Element {
       openInEditor: () => {
         const row = cursorRow(rowsRef.current, cursorRef.current)
         if (row !== null) openInEditor(row.path)
+      },
+      selectForCompare: () => {
+        const row = cursorRow(rowsRef.current, cursorRef.current)
+        if (row !== null && row.kind !== 'dir') setCompareBase(row.path)
+      },
+      canCompareWithSelection: () => canCompareWithSelection(),
+      compareWithSelection: () => {
+        const row = cursorRow(rowsRef.current, cursorRef.current)
+        if (row === null || row.kind === 'dir' || compareBase === null || compareBase === row.path) return
+        editor.openCompare(compareBase, row.path)
+        setCompareBase(null)
       }
     }),
-    [root, reveal, copyPath, openInEditor]
+    [root, reveal, copyPath, openInEditor, compareBase, canCompareWithSelection, editor]
   )
 
   useEffect(() => {
@@ -484,6 +503,27 @@ export function ExplorerView(): JSX.Element {
       { label: t('menu.reveal'), divider: true, onSelect: () => reveal(row.path) },
       { label: t('menu.openInEditor'), onSelect: () => openInEditor(row.path) },
       { label: t('menu.openTerminal'), onSelect: () => terminal.open(target) },
+      ...(row.kind === 'dir'
+        ? []
+        : [
+            {
+              label: t('menu.selectForCompare'),
+              divider: true,
+              disabled: compareBase === row.path,
+              onSelect: () => setCompareBase(row.path)
+            },
+            ...(compareBase === null || compareBase === row.path
+              ? []
+              : [
+                  {
+                    label: t('menu.compareWithSelected'),
+                    onSelect: () => {
+                      editor.openCompare(compareBase, row.path)
+                      setCompareBase(null)
+                    }
+                  }
+                ])
+          ]),
       {
         label: t('menu.copyPath'),
         divider: true,
@@ -550,6 +590,7 @@ export function ExplorerView(): JSX.Element {
             const record = recordByPath.get(row.path)
             const status = record === undefined ? null : (statuses.get(record.gitDir)?.status ?? null)
             const isCursor = item.index === cursorIndex
+            const isCompareBase = compareBase === row.path
             return (
               <div
                 key={row.path}
@@ -557,7 +598,7 @@ export function ExplorerView(): JSX.Element {
                 aria-level={row.depth + 1}
                 aria-expanded={row.expandable ? row.expanded : undefined}
                 className={`flex cursor-default items-center gap-1.5 pr-2 text-sm ${
-                  isCursor && cursorVisible ? 'bg-accent/10' : 'hover:bg-ink/5'
+                  isCompareBase ? 'bg-accent/20' : isCursor && cursorVisible ? 'bg-accent/10' : 'hover:bg-ink/5'
                 }`}
                 style={{
                   position: 'absolute',

@@ -55,6 +55,10 @@ export interface ExplorerActions {
   reveal: () => void
   copyPath: () => void
   openInEditor: () => void
+  /** Marks the cursor's file as the left side of a two-file comparison. */
+  selectForCompare: () => void
+  canCompareWithSelection: () => boolean
+  compareWithSelection: () => void
 }
 
 /** Imperative surface the Source Control view advertises for commands. */

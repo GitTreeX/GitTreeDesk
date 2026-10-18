@@ -90,7 +90,9 @@ const en = {
     deinitSubmodule: 'Deinit Submodule',
     checkoutRecordedCommit: 'Checkout Recorded Commit',
     openAsRepository: 'Open as Repository',
-    openTerminal: 'Open Terminal Here'
+    openTerminal: 'Open Terminal Here',
+    selectForCompare: 'Select for Compare',
+    compareWithSelected: 'Compare with Selected'
   },
   about: {
     title: 'About GitTreeDesk',
@@ -167,6 +169,11 @@ const en = {
     tooLarge: 'This diff is too large to render ({{old}} → {{new}}).',
     loadFull: 'Load Full Diff',
     missingSide: 'Not present on this side',
+    openLeft: 'Open Left File',
+    openRight: 'Open Right File',
+    compareMissing: 'These files no longer exist: {{names}}.',
+    compareTooLarge: 'These files are too large to compare ({{left}} · {{right}}).',
+    compareNotText: 'Two text files, or two images, are what a comparison can show.',
     noHistory: 'No commits touch this file yet',
     showMore: 'Show older commits…',
     hunk: {
@@ -1034,6 +1041,8 @@ const en = {
     reveal: 'Reveal in File Manager',
     copyPath: 'Copy Path',
     openInEditor: 'Open in VS Code',
+    selectForCompare: 'Select for Compare',
+    compareWithSelected: 'Compare with Selected',
     cycleTheme: 'Change Theme',
     toggleLocale: 'Switch Language',
     openSettings: 'Open Settings',

@@ -11,6 +11,7 @@ import {
   type ReactNode
 } from 'react'
 import type { DiffSource, RepoRecord } from '@gitreedesk/shared'
+import { compareOrder, compareTabId } from '../editor/compare'
 import { useEditorSettings, type EditorSettings } from '../editor/settings'
 import type { ScmRow } from '../tree/scm-model'
 import { useWorkspace } from './workspace'
@@ -59,6 +60,14 @@ export interface CommitTab {
   subject: string
 }
 
+export interface CompareTab {
+  kind: 'compare'
+  id: string
+  /** Absolute paths of the two sides, forward slashes; the alphabetically earlier one is left. */
+  leftPath: string
+  rightPath: string
+}
+
 export interface GraphTab {
   kind: 'graph'
   id: string
@@ -75,7 +84,7 @@ export interface ShortcutsTab {
   id: string
 }
 
-export type EditorTab = FileTab | DiffTab | CommitTab | GraphTab | SettingsTab | ShortcutsTab
+export type EditorTab = FileTab | DiffTab | CommitTab | CompareTab | GraphTab | SettingsTab | ShortcutsTab
 
 export const SETTINGS_TAB_ID = 'settings'
 export const SHORTCUTS_TAB_ID = 'shortcuts'
@@ -155,6 +164,7 @@ export function tabLabel(tab: EditorTab): string {
   if (tab.kind === 'settings') return 'Settings'
   if (tab.kind === 'shortcuts') return 'Shortcuts'
   if (tab.kind === 'diff') return baseName(tab.path)
+  if (tab.kind === 'compare') return `${baseName(tab.leftPath)} ⇄ ${baseName(tab.rightPath)}`
   return `${baseName(tab.path)} @ ${tab.sha.slice(0, 7)}`
 }
 
@@ -186,6 +196,8 @@ interface EditorContextValue {
   openFile: (path: string, options?: { preview?: boolean; line?: number }) => void
   openDiff: (repo: RepoTabInfo, spec: ScmDiffSpec, options?: { preview?: boolean }) => void
   openCommitDiff: (input: OpenCommitInput) => void
+  /** Opens (or activates) the tab comparing two workspace files. */
+  openCompare: (firstPath: string, secondPath: string) => void
   /** Opens (or activates) the one graph tab of a repository. */
   openGraph: (repo: RepoTabInfo) => void
   /** Opens (or activates) the singleton settings tab. */
@@ -404,6 +416,21 @@ export function EditorProvider({ children }: { children: ReactNode }): JSX.Eleme
     })
   }, [])
 
+  const openCompare = useCallback((firstPath: string, secondPath: string) => {
+    const [leftPath, rightPath] = compareOrder(firstPath, secondPath)
+    const id = compareTabId(firstPath, secondPath)
+    setState((current) => {
+      const index = current.tabs.findIndex((tab) => tab.id === id)
+      if (index >= 0) {
+        const tabs = [...current.tabs]
+        tabs[index] = { kind: 'compare', id, leftPath, rightPath }
+        const promote = current.previewId === id
+        return { tabs, activeId: id, previewId: promote ? null : current.previewId, dirty: current.dirty }
+      }
+      return insertTab(current, { kind: 'compare', id, leftPath, rightPath }, false)
+    })
+  }, [])
+
   const touchGraph = useCallback((gitDir: string): void => {
     graphOrder.current = [gitDir, ...graphOrder.current.filter((entry) => entry !== gitDir)]
   }, [])
@@ -570,6 +597,7 @@ export function EditorProvider({ children }: { children: ReactNode }): JSX.Eleme
       openFile,
       openDiff,
       openCommitDiff,
+      openCompare,
       openGraph,
       openSettings,
       openShortcuts,
@@ -601,6 +629,7 @@ export function EditorProvider({ children }: { children: ReactNode }): JSX.Eleme
       openFile,
       openDiff,
       openCommitDiff,
+      openCompare,
       openGraph,
       openSettings,
       openShortcuts,
