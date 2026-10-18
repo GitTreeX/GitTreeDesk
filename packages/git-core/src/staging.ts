@@ -85,6 +85,11 @@ export async function discardWorktreePaths(
 
 export type PatchApplyMode = 'stage' | 'unstage' | 'revert'
 
+export interface ApplyPatchOptions extends MutateOptions {
+  /** The patch shares no line between its two sides, so git needs `--unidiff-zero`. */
+  zeroContext?: boolean
+}
+
 /**
  * Applies a unified patch produced by the diff reader:
  * `stage` moves a worktree hunk into the index, `unstage` moves a staged hunk back,
@@ -94,9 +99,10 @@ export async function applyPatch(
   repoPath: string,
   patch: string,
   mode: PatchApplyMode,
-  options: MutateOptions = {}
+  options: ApplyPatchOptions = {}
 ): Promise<void> {
   const args = ['apply', '--whitespace=nowarn']
+  if (options.zeroContext === true) args.push('--unidiff-zero')
   if (mode === 'stage') args.push('--cached')
   else if (mode === 'unstage') args.push('--cached', '-R')
   else args.push('-R')
