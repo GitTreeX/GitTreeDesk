@@ -25,7 +25,7 @@ The first release packaged for all three platforms — everything below ships in
 
 **Editing and terminals**
 
-- Monaco editor with syntax highlighting, TypeScript hints, and a split diff view with per-file history that follows the file across renames.
+- Monaco editor with syntax highlighting, TypeScript hints, and a split diff view with per-file history that follows the file across renames. Any two workspace files can be marked (Select for Compare / Compare with Selected) and opened side by side in that same diff viewer.
 - Integrated terminals bound to a repository or worktree, with profiles, quick commands, and scrollback.
 
 **Shell and settings**
