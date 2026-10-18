@@ -21,20 +21,21 @@ export function SnapshotDiffView({
 }): JSX.Element {
   const settings = useEditor().settings
   const containerRef = useRef<HTMLDivElement | null>(null)
+  const diffRef = useRef<DiffEditor | null>(null)
+  const modelsRef = useRef<{ original: TextModel; modified: TextModel } | null>(null)
+  const readyRef = useRef<Promise<void> | null>(null)
 
+  // The buffer side changes as the user types, so the instance is built once and only refilled.
   useEffect(() => {
-    let disposed = false
-    let diff: DiffEditor | null = null
-    let originalModel: TextModel | null = null
-    let modifiedModel: TextModel | null = null
-    void (async () => {
+    let cancelled = false
+    readyRef.current = (async () => {
       const monaco = await loadMonaco()
-      if (disposed || containerRef.current === null) return
+      if (cancelled || containerRef.current === null) return
       await ensureLanguage(monaco, language)
-      if (disposed || containerRef.current === null) return
-      originalModel = monaco.editor.createModel(original, language)
-      modifiedModel = monaco.editor.createModel(modified, language)
-      diff = monaco.editor.createDiffEditor(containerRef.current, {
+      if (cancelled || containerRef.current === null) return
+      const originalModel = monaco.editor.createModel('', language)
+      const modifiedModel = monaco.editor.createModel('', language)
+      const instance = monaco.editor.createDiffEditor(containerRef.current, {
         readOnly: true,
         automaticLayout: true,
         renderSideBySide: true,
@@ -44,15 +45,41 @@ export function SnapshotDiffView({
         minimap: { enabled: false },
         scrollBeyondLastLine: false
       })
-      diff.setModel({ original: originalModel, modified: modifiedModel })
+      instance.setModel({ original: originalModel, modified: modifiedModel })
+      modelsRef.current = { original: originalModel, modified: modifiedModel }
+      diffRef.current = instance
     })()
     return () => {
-      disposed = true
-      diff?.dispose()
-      originalModel?.dispose()
-      modifiedModel?.dispose()
+      cancelled = true
+      const instance = diffRef.current
+      const models = modelsRef.current
+      modelsRef.current = null
+      diffRef.current = null
+      readyRef.current = null
+      // Detaching the pair first keeps Monaco's diff gutters from reading the editor it is tearing down.
+      instance?.setModel(null)
+      instance?.dispose()
+      models?.original.dispose()
+      models?.modified.dispose()
     }
-  }, [original, modified, language, settings])
+  }, [language])
+
+  useEffect(() => {
+    void (async () => {
+      await readyRef.current
+      const models = modelsRef.current
+      if (models === null) return
+      if (models.original.getValue() !== original) models.original.setValue(original)
+      if (models.modified.getValue() !== modified) models.modified.setValue(modified)
+    })()
+  }, [original, modified])
+
+  useEffect(() => {
+    diffRef.current?.updateOptions({
+      fontSize: settings.fontSize,
+      fontFamily: settings.fontFamily !== '' ? settings.fontFamily : DEFAULT_FONT_FAMILY
+    })
+  }, [settings])
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">

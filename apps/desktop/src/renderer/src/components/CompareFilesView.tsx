@@ -13,7 +13,7 @@ const DEFAULT_FONT_FAMILY = "Menlo, Monaco, 'Courier New', monospace"
 type LoadState =
   | { status: 'loading' }
   | { status: 'error'; message: string }
-  | { status: 'ready'; sides: readonly [FsReadFileResponse, FsReadFileResponse] }
+  | { status: 'ready'; paths: readonly [string, string]; sides: readonly [FsReadFileResponse, FsReadFileResponse] }
 
 function errorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
@@ -32,11 +32,18 @@ export function CompareFilesView({ tab }: { tab: CompareTab }): JSX.Element {
 
   const containerRef = useRef<HTMLDivElement | null>(null)
   const diffRef = useRef<DiffEditor | null>(null)
+  const modelsRef = useRef<{ original: TextModel; modified: TextModel } | null>(null)
+  const readyRef = useRef<Promise<void> | null>(null)
   const paths = useMemo((): readonly [string, string] => [tab.leftPath, tab.rightPath], [tab.leftPath, tab.rightPath])
 
   useEffect(() => {
     let live = true
-    setLoad({ status: 'loading' })
+    // Refetching keeps the text already on screen; only switching files blanks the view.
+    setLoad((current) =>
+      current.status === 'ready' && current.paths[0] === tab.leftPath && current.paths[1] === tab.rightPath
+        ? current
+        : { status: 'loading' }
+    )
     const options = allowLarge ? { allowLarge: true } : {}
     void (async () => {
       try {
@@ -45,7 +52,7 @@ export function CompareFilesView({ tab }: { tab: CompareTab }): JSX.Element {
           api.invoke('fs:readFile', { path: tab.rightPath, ...options })
         ])
         if (!live) return
-        setLoad({ status: 'ready', sides: [left, right] })
+        setLoad({ status: 'ready', paths: [tab.leftPath, tab.rightPath], sides: [left, right] })
       } catch (error) {
         if (live) setLoad({ status: 'error', message: errorText(error) })
       }
@@ -55,25 +62,24 @@ export function CompareFilesView({ tab }: { tab: CompareTab }): JSX.Element {
     }
   }, [tab.leftPath, tab.rightPath, allowLarge, reloadKey])
 
-  const view = load.status === 'ready' ? compareViewFor(paths, load.sides) : null
-  const texts = view?.kind === 'text' && load.status === 'ready' ? load.sides : null
+  /** Sides are only usable while they still belong to the pair this tab compares. */
+  const sides =
+    load.status === 'ready' && load.paths[0] === tab.leftPath && load.paths[1] === tab.rightPath ? load.sides : null
+  const view = sides === null ? null : compareViewFor(paths, sides)
+  const textReady = view !== null && view.kind === 'text'
 
-  // Diff editor lifecycle for the text view.
+  // The Monaco instance lives as long as the pair it shows: reloading only refills the two models.
   useEffect(() => {
-    if (texts === null || containerRef.current === null) return
-    const [left, right] = texts
-    let disposed = false
-    let diff: DiffEditor | null = null
-    let originalModel: TextModel | null = null
-    let modifiedModel: TextModel | null = null
-    void (async () => {
+    if (!textReady || containerRef.current === null) return
+    let cancelled = false
+    readyRef.current = (async () => {
       const monaco = await loadMonaco()
-      if (disposed || containerRef.current === null) return
+      if (cancelled || containerRef.current === null) return
       const languages = [languageIdForPath(tab.leftPath), languageIdForPath(tab.rightPath)]
       await Promise.all(languages.map((language) => ensureLanguage(monaco, language)))
-      if (disposed || containerRef.current === null) return
-      originalModel = monaco.editor.createModel(left.text ?? '', languages[0] ?? 'plaintext')
-      modifiedModel = monaco.editor.createModel(right.text ?? '', languages[1] ?? 'plaintext')
+      if (cancelled || containerRef.current === null) return
+      const original = monaco.editor.createModel('', languages[0] ?? 'plaintext')
+      const modified = monaco.editor.createModel('', languages[1] ?? 'plaintext')
       const instance = monaco.editor.createDiffEditor(containerRef.current, {
         readOnly: true,
         originalEditable: false,
@@ -87,19 +93,37 @@ export function CompareFilesView({ tab }: { tab: CompareTab }): JSX.Element {
         scrollBeyondLastLine: false,
         fixedOverflowWidgets: true
       })
-      instance.setModel({ original: originalModel, modified: modifiedModel })
-      diff = instance
+      instance.setModel({ original, modified })
+      modelsRef.current = { original, modified }
       diffRef.current = instance
     })()
     return () => {
-      disposed = true
+      cancelled = true
+      const instance = diffRef.current
+      const models = modelsRef.current
+      modelsRef.current = null
       diffRef.current = null
-      diff?.dispose()
-      originalModel?.dispose()
-      modifiedModel?.dispose()
+      readyRef.current = null
+      // Detaching the pair first keeps Monaco's diff gutters from reading the editor it is tearing down.
+      instance?.setModel(null)
+      instance?.dispose()
+      models?.original.dispose()
+      models?.modified.dispose()
     }
-    // The comparison is rebuilt when the files change; the toggles update the live editor.
-  }, [texts, tab.leftPath, tab.rightPath])
+  }, [textReady, tab.leftPath, tab.rightPath])
+
+  // A fresh read of the same pair lands in the editors that are already on screen.
+  useEffect(() => {
+    if (sides === null || !textReady) return
+    void (async () => {
+      await readyRef.current
+      const models = modelsRef.current
+      if (models === null) return
+      const [left, right] = sides
+      if (models.original.getValue() !== (left.text ?? '')) models.original.setValue(left.text ?? '')
+      if (models.modified.getValue() !== (right.text ?? '')) models.modified.setValue(right.text ?? '')
+    })()
+  }, [sides, textReady])
 
   useEffect(() => {
     diffRef.current?.updateOptions({ renderSideBySide: sideBySide, ignoreTrimWhitespace: ignoreWhitespace })
@@ -173,8 +197,8 @@ export function CompareFilesView({ tab }: { tab: CompareTab }): JSX.Element {
       {view !== null && view.kind === 'tooLarge' && (
         <EmptyPanel
           message={t('diff.compareTooLarge', {
-            left: formatSize(load.status === 'ready' ? load.sides[0].size : 0),
-            right: formatSize(load.status === 'ready' ? load.sides[1].size : 0)
+            left: formatSize(sides?.[0].size ?? 0),
+            right: formatSize(sides?.[1].size ?? 0)
           })}
           action={{ label: t('diff.loadFull'), onClick: () => setAllowLarge(true) }}
         />
@@ -183,36 +207,36 @@ export function CompareFilesView({ tab }: { tab: CompareTab }): JSX.Element {
         <EmptyPanel message={t('diff.compareNotText')} />
       )}
 
-      {texts !== null && (
+      {sides !== null && view?.kind === 'text' && (
         <div className="flex min-h-0 flex-1 flex-col">
           {sideBySide && (
             <div className="flex shrink-0 border-b border-line">
               <SideLabel
                 label={baseName(tab.leftPath)}
                 exists
-                size={texts[0].size}
+                size={sides[0].size}
                 title={tab.leftPath}
               />
-              <SideLabel label={baseName(tab.rightPath)} exists size={texts[1].size} border title={tab.rightPath} />
+              <SideLabel label={baseName(tab.rightPath)} exists size={sides[1].size} border title={tab.rightPath} />
             </div>
           )}
           <div ref={containerRef} className="min-h-0 flex-1" />
         </div>
       )}
 
-      {view !== null && view.kind === 'images' && load.status === 'ready' && (
+      {view !== null && view.kind === 'images' && sides !== null && (
         <div className="flex min-h-0 flex-1">
           <ImageSide
             label={baseName(tab.leftPath)}
-            dataUrl={load.sides[0].dataUrl}
-            size={load.sides[0].size}
+            dataUrl={sides[0].dataUrl}
+            size={sides[0].size}
             missing={t('diff.missingSide')}
           />
           <div className="w-px shrink-0 bg-line" />
           <ImageSide
             label={baseName(tab.rightPath)}
-            dataUrl={load.sides[1].dataUrl}
-            size={load.sides[1].size}
+            dataUrl={sides[1].dataUrl}
+            size={sides[1].size}
             missing={t('diff.missingSide')}
           />
         </div>
