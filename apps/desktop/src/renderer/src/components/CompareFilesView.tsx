@@ -6,7 +6,7 @@ import { baseName, useEditor, type CompareTab } from '../contexts/editor'
 import { compareViewFor } from '../editor/compare'
 import { ensureLanguage, languageIdForPath } from '../editor/languages'
 import { loadMonaco, type DiffEditor, type TextModel } from '../editor/monaco'
-import { EmptyPanel, ImageSide, SideLabel, ToolbarChip, formatSize } from './DiffParts'
+import { EmptyPanel, ImagePairView, SideLabel, ToolbarChip, formatSize } from './DiffParts'
 
 const DEFAULT_FONT_FAMILY = "Menlo, Monaco, 'Courier New', monospace"
 
@@ -225,21 +225,14 @@ export function CompareFilesView({ tab }: { tab: CompareTab }): JSX.Element {
       )}
 
       {view !== null && view.kind === 'images' && sides !== null && (
-        <div className="flex min-h-0 flex-1">
-          <ImageSide
-            label={baseName(tab.leftPath)}
-            dataUrl={sides[0].dataUrl}
-            size={sides[0].size}
-            missing={t('diff.missingSide')}
-          />
-          <div className="w-px shrink-0 bg-line" />
-          <ImageSide
-            label={baseName(tab.rightPath)}
-            dataUrl={sides[1].dataUrl}
-            size={sides[1].size}
-            missing={t('diff.missingSide')}
-          />
-        </div>
+        <ImagePairView
+          left={{ label: baseName(tab.leftPath), dataUrl: sides[0].dataUrl, size: sides[0].size }}
+          right={{ label: baseName(tab.rightPath), dataUrl: sides[1].dataUrl, size: sides[1].size }}
+          missing={t('diff.missingSide')}
+          twoUpLabel={t('diff.image.twoUp')}
+          onionLabel={t('diff.image.onion')}
+          revealLabel={t('diff.image.reveal')}
+        />
       )}
     </div>
   )

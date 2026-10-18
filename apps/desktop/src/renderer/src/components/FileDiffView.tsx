@@ -24,7 +24,7 @@ import {
 } from '../editor/patch'
 import { notify, notifyError } from '../notify'
 import { ContextMenu, type ContextMenuItem } from './ContextMenu'
-import { EmptyPanel, ImageSide, SideLabel, ToolbarChip, formatSize } from './DiffParts'
+import { EmptyPanel, ImagePairView, SideLabel, ToolbarChip, formatSize } from './DiffParts'
 
 type ApplyMode = 'stage' | 'unstage' | 'revert'
 
@@ -609,11 +609,14 @@ export function FileDiffView({ tab }: { tab: DiffTab | CommitTab }): JSX.Element
         )}
 
         {response !== null && response.kind === 'image' && (
-          <div className="flex min-h-0 flex-1">
-            <ImageSide label={response.old.label} dataUrl={response.old.dataUrl} size={response.old.size} missing={t('diff.missingSide')} />
-            <div className="w-px shrink-0 bg-line" />
-            <ImageSide label={response.new.label} dataUrl={response.new.dataUrl} size={response.new.size} missing={t('diff.missingSide')} />
-          </div>
+          <ImagePairView
+            left={response.old}
+            right={response.new}
+            missing={t('diff.missingSide')}
+            twoUpLabel={t('diff.image.twoUp')}
+            onionLabel={t('diff.image.onion')}
+            revealLabel={t('diff.image.reveal')}
+          />
         )}
 
         {response !== null && response.kind === 'binary' && (

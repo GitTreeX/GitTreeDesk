@@ -107,6 +107,11 @@ textarea,
   background-image: radial-gradient(circle at center, var(--gtd-accent) 2px, transparent 2.5px);
 }
 
+/* The onion wipe slider keeps the theme accent instead of the platform default. */
+.gtd-range {
+  accent-color: var(--gtd-accent);
+}
+
 /* Conflict markers in the editor; the glyph opens the resolution menu. */
 .gtd-conflict-glyph {
   cursor: pointer;

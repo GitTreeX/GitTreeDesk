@@ -178,6 +178,11 @@ export const zhHansResource: TranslationResource = {
     compareNotText: '比较需要两侧都是文本文件，或都是图片。',
     noHistory: '尚无提交修改过此文件',
     showMore: '显示更早的提交…',
+    image: {
+      twoUp: '双联',
+      onion: '洋葱皮',
+      reveal: '揭示位置'
+    },
     line: {
       stage: '暂存此行',
       unstage: '取消暂存此行',
