@@ -242,24 +242,64 @@ export function parseNameStatusZ(stdout: string): FileChange[] {
 }
 
 export interface ListChangedFilesOptions {
-  /** Revision or ref of the old side. */
-  from: string
-  /** Revision or ref of the new side. */
-  to: string
+  from: DiffSource
+  to: DiffSource
+  /** Repo-relative file or directory; only changes under it are listed. */
+  path?: string
   signal?: AbortSignal
 }
 
-/** Files that differ between two revisions, with rename detection on. */
+function assertUsableRev(rev: string): string {
+  if (rev.length === 0 || rev.startsWith('-')) throw new Error(`Invalid revision: ${JSON.stringify(rev)}`)
+  return rev
+}
+
+/**
+ * The revision arguments of `git diff --name-status`, empty when the two sides
+ * describe the same content by definition. The working tree only ever sits on
+ * the new side and the index only beside the working tree, because git has no
+ * argument form that reads the working tree as the older side.
+ */
+async function nameStatusRevs(
+  repoPath: string,
+  from: DiffSource,
+  to: DiffSource,
+  signal?: AbortSignal
+): Promise<string[] | null> {
+  if (from.kind === 'rev') {
+    const rev = assertUsableRev(await resolveEffectiveRev(repoPath, from.rev ?? 'HEAD', signal))
+    if (to.kind === 'worktree') return [rev]
+    if (to.kind === 'index') return ['--cached', rev]
+    const other = assertUsableRev(await resolveEffectiveRev(repoPath, to.rev ?? 'HEAD', signal))
+    return rev === other ? null : [rev, other]
+  }
+  if (from.kind === 'index') {
+    if (to.kind === 'index') return null
+    if (to.kind === 'worktree') return []
+    throw new Error('The index is only comparable with the working tree')
+  }
+  if (from.kind === 'worktree') {
+    if (to.kind === 'worktree') return null
+    throw new Error('The working tree can only be the newer side of a comparison')
+  }
+  throw new Error(`Unknown comparison side: ${JSON.stringify(from)}`)
+}
+
+/**
+ * Files that differ between two sides, with rename detection on. A `path`
+ * narrows the listing to one file or directory.
+ */
 export async function listChangedFiles(
   repoPath: string,
   options: ListChangedFilesOptions
 ): Promise<FileChange[]> {
-  const { from, to } = options
-  for (const rev of [from, to]) {
-    if (rev.length === 0 || rev.startsWith('-')) throw new Error(`Invalid revision: ${JSON.stringify(rev)}`)
-  }
-  const result = await runGitOrThrow(['diff', '--name-status', '-z', '-M', from, to], {
+  const revs = await nameStatusRevs(repoPath, options.from, options.to, options.signal)
+  if (revs === null) return []
+  const args = ['diff', '--name-status', '-z', '-M', ...revs]
+  if (options.path !== undefined) args.push('--', options.path)
+  const result = await runGitOrThrow(args, {
     cwd: repoPath,
+    env: LITERAL_PATHS_ENV,
     signal: options.signal
   })
   return parseNameStatusZ(result.stdout)

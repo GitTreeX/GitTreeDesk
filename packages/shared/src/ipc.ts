@@ -479,8 +479,10 @@ export interface GitRemoteTagsResponse {
 
 export interface GitDiffFilesRequest {
   gitDir: string
-  from: string
-  to: string
+  from: DiffSource
+  to: DiffSource
+  /** Repo-relative file or directory; only changes under it are listed. */
+  path?: string
 }
 
 export interface GitDiffFilesResponse {

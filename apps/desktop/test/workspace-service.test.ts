@@ -930,9 +930,20 @@ describe('sync operations', () => {
       await instance.gitTagDelete({ gitDir, name: 'light' })
       expect((await git(repo, ['tag', '--list'])).trim()).toBe('v1.0.0')
 
-      // Comparing revisions uses rename-aware listing.
-      const compared = await instance.gitDiffFiles({ gitDir, from: 'main', to: 'feat' })
+      // Comparing revisions uses rename-aware listing, and a path scopes it to one folder.
+      const compared = await instance.gitDiffFiles({
+        gitDir,
+        from: { kind: 'rev', rev: 'main' },
+        to: { kind: 'rev', rev: 'feat' }
+      })
       expect(compared.files).toEqual([{ path: 'feat.txt', kind: 'added' }])
+      const scoped = await instance.gitDiffFiles({
+        gitDir,
+        from: { kind: 'rev', rev: 'main' },
+        to: { kind: 'rev', rev: 'feat' },
+        path: 'src'
+      })
+      expect(scoped.files).toEqual([])
 
       // Batch calls report per repository, including failures.
       const batch = await instance.gitFetchMany({ gitDirs: [gitDir, siteGitDir, '/nowhere/.git'] })

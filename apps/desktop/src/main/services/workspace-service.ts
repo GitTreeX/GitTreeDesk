@@ -883,11 +883,17 @@ export class WorkspaceService {
     return { refs: await listRefs({ repoPath: record.path }) }
   }
 
-  /** Files that differ between two revisions, rename-aware (branch comparison). */
+  /** Files that differ between two sides, rename-aware, optionally under one path. */
   async gitDiffFiles(request: GitDiffFilesRequest): Promise<{ files: FileChange[] }> {
     const record = this.#requireCheckout(this.#requireSession(), request.gitDir)
     try {
-      return { files: await listChangedFiles(record.path, { from: request.from, to: request.to }) }
+      return {
+        files: await listChangedFiles(record.path, {
+          from: request.from,
+          to: request.to,
+          ...(request.path === undefined ? {} : { path: request.path })
+        })
+      }
     } catch (error) {
       throw toGitServiceError(error)
     }

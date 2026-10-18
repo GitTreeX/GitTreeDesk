@@ -416,44 +416,112 @@ describe('name-status parsing', () => {
   })
 })
 
-describe('changed files between revisions', () => {
+describe('changed files between two sides', () => {
+  /**
+   * `main` holds the base tree, `feat` (checked out) renames, deletes and adds,
+   * and the working tree carries one further unstaged edit under `src`.
+   */
+  async function branchRepo(): Promise<string> {
+    const repo = await initRepo()
+    await write(repo, 'keep.txt', 'same\n')
+    await write(repo, 'src/a.txt', 'before\n')
+    await write(repo, 'src/nested/b.txt', 'deep\n')
+    await write(repo, 'docs/guide.md', 'rename payload that stays identical\n')
+    await git(repo, ['add', '.'])
+    await commit(repo, 'base')
+    await git(repo, ['switch', '-q', '-c', 'feat'])
+
+    await write(repo, 'src/a.txt', 'after\n')
+    await rm(join(repo, 'src/nested/b.txt'))
+    await git(repo, ['mv', 'docs/guide.md', 'docs/readme.md'])
+    await write(repo, 'src/c.txt', 'new\n')
+    await write(repo, 'top.txt', 'new top\n')
+    await git(repo, ['add', '-A'])
+    await commit(repo, 'feat work')
+    await write(repo, 'src/a.txt', 'still warming up\n')
+    return repo
+  }
+
+  const rev = (name: string) => ({ kind: 'rev' as const, rev: name })
+
   it(
     'lists added, modified, deleted and renamed files with rename detection',
     async () => {
-      const repo = await initRepo()
-      await write(repo, 'keep.txt', 'same\n')
-      await write(repo, 'modify.txt', 'before\n')
-      await write(repo, 'remove.txt', 'bye\n')
-      await write(repo, 'old-name.txt', 'rename payload that stays identical\n')
-      await git(repo, ['add', '.'])
-      await commit(repo, 'base')
-      await git(repo, ['switch', '-q', '-c', 'feat'])
-
-      await write(repo, 'modify.txt', 'after\n')
-      await rm(join(repo, 'remove.txt'))
-      await git(repo, ['mv', 'old-name.txt', 'new-name.txt'])
-      await write(repo, 'fresh.txt', 'new\n')
-      await git(repo, ['add', '-A'])
-      await commit(repo, 'feat work')
-
-      const files = await listChangedFiles(repo, { from: 'main', to: 'feat' })
+      const repo = await branchRepo()
+      const files = await listChangedFiles(repo, { from: rev('main'), to: rev('feat') })
       const byPath = new Map(files.map((file) => [file.path, file]))
-      expect([...byPath.keys()].sort()).toEqual(['fresh.txt', 'modify.txt', 'new-name.txt', 'remove.txt'])
-      expect(byPath.get('fresh.txt')).toMatchObject({ kind: 'added' })
-      expect(byPath.get('modify.txt')).toMatchObject({ kind: 'modified' })
-      expect(byPath.get('remove.txt')).toMatchObject({ kind: 'deleted' })
-      expect(byPath.get('new-name.txt')).toMatchObject({ kind: 'renamed', origPath: 'old-name.txt' })
+      expect([...byPath.keys()].sort()).toEqual([
+        'docs/readme.md',
+        'src/a.txt',
+        'src/c.txt',
+        'src/nested/b.txt',
+        'top.txt'
+      ])
+      expect(byPath.get('src/c.txt')).toMatchObject({ kind: 'added' })
+      expect(byPath.get('src/a.txt')).toMatchObject({ kind: 'modified' })
+      expect(byPath.get('src/nested/b.txt')).toMatchObject({ kind: 'deleted' })
+      expect(byPath.get('docs/readme.md')).toMatchObject({ kind: 'renamed', origPath: 'docs/guide.md' })
 
-      expect(await listChangedFiles(repo, { from: 'feat', to: 'feat' })).toEqual([])
+      expect(await listChangedFiles(repo, { from: rev('feat'), to: rev('feat') })).toEqual([])
     },
     30_000
   )
 
+  it(
+    'keeps a directory-scoped listing inside that directory',
+    async () => {
+      const repo = await branchRepo()
+      const files = await listChangedFiles(repo, { from: rev('main'), to: rev('feat'), path: 'src' })
+      expect(files.map((file) => file.path).sort()).toEqual(['src/a.txt', 'src/c.txt', 'src/nested/b.txt'])
+
+      const docs = await listChangedFiles(repo, { from: rev('main'), to: rev('feat'), path: 'docs' })
+      expect(docs.map((file) => file.path)).toEqual(['docs/readme.md'])
+
+      const untouched = await listChangedFiles(repo, { from: rev('main'), to: rev('feat'), path: 'keep.txt' })
+      expect(untouched).toEqual([])
+    },
+    30_000
+  )
+
+  it(
+    'compares a revision against the working tree',
+    async () => {
+      const repo = await branchRepo()
+      const files = await listChangedFiles(repo, { from: rev('feat'), to: { kind: 'worktree' }, path: 'src' })
+      expect(files).toEqual([{ path: 'src/a.txt', kind: 'modified' }])
+    },
+    30_000
+  )
+
+  it(
+    'compares the index against the working tree, and a revision against the index',
+    async () => {
+      const repo = await branchRepo()
+      expect(await listChangedFiles(repo, { from: { kind: 'index' }, to: { kind: 'worktree' } })).toEqual([
+        { path: 'src/a.txt', kind: 'modified' }
+      ])
+      const staged = await listChangedFiles(repo, { from: rev('main'), to: { kind: 'index' }, path: 'docs' })
+      expect(staged.map((file) => file.path)).toEqual(['docs/readme.md'])
+    },
+    30_000
+  )
+
+  it('rejects sides git has no argument form for', async () => {
+    const repo = await initRepo()
+    await commit(repo, 'base')
+    await expect(
+      listChangedFiles(repo, { from: { kind: 'worktree' }, to: { kind: 'index' } })
+    ).rejects.toThrow('working tree can only be the newer side')
+    await expect(
+      listChangedFiles(repo, { from: { kind: 'index' }, to: rev('main') })
+    ).rejects.toThrow('only comparable with the working tree')
+  })
+
   it('rejects revisions that could be read as options', async () => {
     const repo = await initRepo()
-    await expect(listChangedFiles(repo, { from: '--exit-code', to: 'main' })).rejects.toThrow(
+    await expect(listChangedFiles(repo, { from: rev('--exit-code'), to: rev('main') })).rejects.toThrow(
       'Invalid revision'
     )
-    await expect(listChangedFiles(repo, { from: 'main', to: '' })).rejects.toThrow('Invalid revision')
+    await expect(listChangedFiles(repo, { from: rev('main'), to: rev('') })).rejects.toThrow('Invalid revision')
   })
 })

@@ -31,6 +31,15 @@ const repoRelPath = z
     { message: 'must be a repo-relative path without traversal segments' }
   )
 
+const diffSource = z.object({
+  kind: z.enum(['worktree', 'index', 'rev']),
+  rev: refString.optional()
+})
+
+/** A `rev` side is meaningless without the revision it names. */
+const revSideComplete = (side: { kind: string; rev?: string }): boolean =>
+  side.kind !== 'rev' || (side.rev !== undefined && side.rev.length > 0)
+
 /**
  * Request schemas for every invoke channel, validated on the main side before a
  * handler runs. Responses are trusted (main authors them) and only typed.
@@ -57,16 +66,13 @@ export const invokeSchemas = {
       gitDir: pathString,
       path: repoRelPath,
       origPath: repoRelPath.optional(),
-      from: z.object({ kind: z.enum(['worktree', 'index', 'rev']), rev: z.string().max(1024).optional() }),
-      to: z.object({ kind: z.enum(['worktree', 'index', 'rev']), rev: z.string().max(1024).optional() }),
+      from: diffSource,
+      to: diffSource,
       allowLarge: z.boolean().optional()
     })
-    .refine(
-      (value) =>
-        (value.from.kind !== 'rev' || (value.from.rev !== undefined && value.from.rev.length > 0)) &&
-        (value.to.kind !== 'rev' || (value.to.rev !== undefined && value.to.rev.length > 0)),
-      { message: 'rev source requires a revision' }
-    ),
+    .refine((value) => revSideComplete(value.from) && revSideComplete(value.to), {
+      message: 'rev source requires a revision'
+    }),
   'git:applyHunk': z.object({
     gitDir: pathString,
     patch: z.string().min(1).max(5_000_000),
@@ -163,7 +169,16 @@ export const invokeSchemas = {
     remote: remoteName.optional()
   }),
   'git:remoteTags': z.object({ gitDir: pathString, remote: remoteName.optional() }),
-  'git:diffFiles': z.object({ gitDir: pathString, from: refString, to: refString }),
+  'git:diffFiles': z
+    .object({
+      gitDir: pathString,
+      from: diffSource,
+      to: diffSource,
+      path: repoRelPath.optional()
+    })
+    .refine((value) => revSideComplete(value.from) && revSideComplete(value.to), {
+      message: 'rev source requires a revision'
+    }),
   'git:merge': z.object({
     gitDir: pathString,
     rev: refString,
