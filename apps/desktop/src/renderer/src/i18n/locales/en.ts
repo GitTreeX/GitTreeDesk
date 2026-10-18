@@ -176,6 +176,11 @@ const en = {
     compareNotText: 'Two text files, or two images, are what a comparison can show.',
     noHistory: 'No commits touch this file yet',
     showMore: 'Show older commits…',
+    line: {
+      stage: 'Stage Line',
+      unstage: 'Unstage Line',
+      revert: 'Revert Line'
+    },
     hunk: {
       stage: 'Stage Hunk',
       unstage: 'Unstage Hunk',

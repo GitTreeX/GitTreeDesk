@@ -101,6 +101,12 @@ textarea,
   background-image: radial-gradient(circle at center, var(--gtd-accent) 3.5px, transparent 4px);
 }
 
+/* A changed line carries the smaller dot and acts on that single line. */
+.gtd-diff-line-glyph {
+  cursor: pointer;
+  background-image: radial-gradient(circle at center, var(--gtd-accent) 2px, transparent 2.5px);
+}
+
 /* Conflict markers in the editor; the glyph opens the resolution menu. */
 .gtd-conflict-glyph {
   cursor: pointer;

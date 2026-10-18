@@ -5,8 +5,23 @@ import { api } from '../api'
 import { useEditor, EMPTY_TREE_SHA, type CommitTab, type DiffTab } from '../contexts/editor'
 import { useTerminal } from '../contexts/terminal'
 import { ensureLanguage, languageIdForPath } from '../editor/languages'
-import { loadMonaco, type DiffEditor, type Monaco, type TextModel } from '../editor/monaco'
-import { parsePatch, singleHunkPatch, type ParsedPatch } from '../editor/patch'
+import {
+  loadMonaco,
+  type DecorationCollection,
+  type DiffEditor,
+  type Monaco,
+  type TextModel
+} from '../editor/monaco'
+import {
+  changedLines,
+  parsePatch,
+  singleHunkPatch,
+  singleLinePatch,
+  type LineTarget,
+  type ParsedPatch,
+  type PatchHunk,
+  type PatchSide
+} from '../editor/patch'
 import { notify, notifyError } from '../notify'
 import { ContextMenu, type ContextMenuItem } from './ContextMenu'
 import { EmptyPanel, ImageSide, SideLabel, ToolbarChip, formatSize } from './DiffParts'
@@ -39,12 +54,29 @@ function sameSource(a: DiffSource, b: DiffSource): boolean {
   return (a.rev ?? 'HEAD') === (b.rev ?? 'HEAD')
 }
 
+/** What the gutter markers of the live editor do right now, read at click time. */
+interface GlyphState {
+  hunks: PatchHunk[]
+  /** Additions, keyed by their line on the to side; clickable in the modified pane. */
+  additions: Map<number, LineTarget>
+  /** Deletions, keyed by their line on the from side; clickable in the original pane. */
+  deletions: Map<number, LineTarget>
+  primary: ApplyMode
+  runLine: (target: LineTarget, mode: ApplyMode) => Promise<void>
+  runHunk: (index: number, mode: ApplyMode) => Promise<void>
+}
+
 /** Hunk margin actions a comparison can honestly offer. */
 function hunkActionsFor(from: DiffSource, to: DiffSource): { primary: ApplyMode; menu: ApplyMode[] } | null {
   if (to.kind === 'worktree' && from.kind === 'index') return { primary: 'stage', menu: ['stage', 'revert'] }
   if (to.kind === 'worktree' && from.kind === 'rev') return { primary: 'stage', menu: ['stage'] }
   if (to.kind === 'index' && from.kind === 'rev') return { primary: 'unstage', menu: ['unstage'] }
   return null
+}
+
+/** `stage` edits the from side; `unstage` and `revert` edit the side that already carries the change. */
+function sideFor(mode: ApplyMode): PatchSide {
+  return mode === 'stage' ? 'old' : 'new'
 }
 
 /** Effective comparison sources; a commit tab compares the commit against its parent. */
@@ -71,6 +103,7 @@ export function FileDiffView({ tab }: { tab: DiffTab | CommitTab }): JSX.Element
   const [sideBySide, setSideBySide] = useState(true)
   const [ignoreWhitespace, setIgnoreWhitespace] = useState(true)
   const [hunkMenu, setHunkMenu] = useState<{ x: number; y: number; index: number } | null>(null)
+  const [lineMenu, setLineMenu] = useState<{ x: number; y: number; target: LineTarget } | null>(null)
   const [compareMenu, setCompareMenu] = useState<{ x: number; y: number } | null>(null)
   const [compareRefs, setCompareRefs] = useState<readonly GitRef[] | null>(null)
   const [historyOpen, setHistoryOpen] = useState(false)
@@ -79,6 +112,11 @@ export function FileDiffView({ tab }: { tab: DiffTab | CommitTab }): JSX.Element
 
   const containerRef = useRef<HTMLDivElement | null>(null)
   const diffRef = useRef<DiffEditor | null>(null)
+  const monacoRef = useRef<Monaco | null>(null)
+  const modelsRef = useRef<{ original: TextModel; modified: TextModel } | null>(null)
+  const marksRef = useRef<{ hunk: DecorationCollection; added: DecorationCollection; deleted: DecorationCollection } | null>(null)
+  const glyphRef = useRef<GlyphState | null>(null)
+  const readyRef = useRef<Promise<void> | null>(null)
   const ignoreStaleUntilRef = useRef(0)
   const parsedRef = useRef<ParsedPatch>(parsePatch(''))
   const sources = useMemo(() => sourcesOf(tab), [tab])
@@ -89,7 +127,12 @@ export function FileDiffView({ tab }: { tab: DiffTab | CommitTab }): JSX.Element
 
   useEffect(() => {
     let live = true
-    setLoad({ status: 'loading' })
+    // Refetching keeps the text already on screen; only switching files blanks the view.
+    setLoad((current) =>
+      current.status === 'ready' && current.response.path === filePath && current.response.origPath === origPath
+        ? current
+        : { status: 'loading' }
+    )
     void (async () => {
       try {
         const response = await api.invoke('git:diff', {
@@ -123,27 +166,31 @@ export function FileDiffView({ tab }: { tab: DiffTab | CommitTab }): JSX.Element
     })
   }, [tab.kind, tab.repo.gitDir])
 
-  const hunks = useMemo(() => {
-    if (load.status !== 'ready' || hunkActions === null) return []
-    return parsedRef.current.hunks
-  }, [load, hunkActions])
+  /** A response is only usable while it still describes the file this tab shows. */
+  const response =
+    load.status === 'ready' && load.response.path === filePath && load.response.origPath === origPath
+      ? load.response
+      : null
+  const textReady = response !== null && response.kind === 'text'
 
-  // Diff editor lifecycle for the text view.
+  const hunks = useMemo(() => {
+    if (response === null || hunkActions === null) return []
+    return parsedRef.current.hunks
+  }, [response, hunkActions])
+
+  // The Monaco instance lives as long as the file it shows: a reload only swaps the model contents,
+  // which keeps the viewport and spares the reader a rebuild of the diff.
   useEffect(() => {
-    if (load.status !== 'ready' || load.response.kind !== 'text' || containerRef.current === null) return
-    const response = load.response
-    let disposed = false
-    let diff: DiffEditor | null = null
-    let originalModel: TextModel | null = null
-    let modifiedModel: TextModel | null = null
-    void (async () => {
+    if (!textReady || containerRef.current === null) return
+    let cancelled = false
+    readyRef.current = (async () => {
       const monaco = await loadMonaco()
-      if (disposed || containerRef.current === null) return
+      if (cancelled || containerRef.current === null) return
       const language = languageIdForPath(tab.path)
       await ensureLanguage(monaco, language)
-      if (disposed || containerRef.current === null) return
-      originalModel = monaco.editor.createModel(response.old.text ?? '', language)
-      modifiedModel = monaco.editor.createModel(response.new.text ?? '', language)
+      if (cancelled || containerRef.current === null) return
+      const original = monaco.editor.createModel('', language)
+      const modified = monaco.editor.createModel('', language)
       const instance = monaco.editor.createDiffEditor(containerRef.current, {
         readOnly: true,
         originalEditable: false,
@@ -158,30 +205,39 @@ export function FileDiffView({ tab }: { tab: DiffTab | CommitTab }): JSX.Element
         scrollBeyondLastLine: false,
         fixedOverflowWidgets: true
       })
-      instance.setModel({ original: originalModel, modified: modifiedModel })
-      diff = instance
+      instance.setModel({ original, modified })
+      const modifiedEditor = instance.getModifiedEditor()
+      monacoRef.current = monaco
+      modelsRef.current = { original, modified }
       diffRef.current = instance
-      if (hunks.length > 0) {
-        const modified = instance.getModifiedEditor()
-        modified.createDecorationsCollection(
-          hunks.map((hunk) => ({
-            range: new monaco.Range(
-              hunk.newStart,
-              1,
-              hunk.newStart + Math.max(hunk.newCount, 1) - 1,
-              1
-            ),
-            options: {
-              glyphMarginClassName: 'gtd-diff-hunk-glyph',
-              glyphMarginHoverMessage: { value: hunk.header }
-            }
-          }))
-        )
-        modified.onMouseDown((event) => {
+      marksRef.current = {
+        hunk: modifiedEditor.createDecorationsCollection([]),
+        added: modifiedEditor.createDecorationsCollection([]),
+        deleted: instance.getOriginalEditor().createDecorationsCollection([])
+      }
+      const watch = (
+        editor: ReturnType<DiffEditor['getModifiedEditor']>,
+        side: 'additions' | 'deletions',
+        withHunks: boolean
+      ): void => {
+        editor.onMouseDown((event) => {
+          const state = glyphRef.current
+          if (state === null) return
           if (event.target.type !== monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN) return
           const line = event.target.position?.lineNumber
           if (line === undefined) return
-          const index = hunks.findIndex(
+          const target = state[side].get(line)
+          if (target !== undefined) {
+            if (event.event.rightButton) {
+              event.event.preventDefault()
+              setLineMenu({ x: event.event.posx, y: event.event.posy, target })
+              return
+            }
+            void state.runLine(target, state.primary)
+            return
+          }
+          if (!withHunks) return
+          const index = state.hunks.findIndex(
             (hunk) => line >= hunk.newStart && line <= hunk.newStart + Math.max(hunk.newCount, 1) - 1
           )
           if (index === -1) return
@@ -190,18 +246,29 @@ export function FileDiffView({ tab }: { tab: DiffTab | CommitTab }): JSX.Element
             setHunkMenu({ x: event.event.posx, y: event.event.posy, index })
             return
           }
-          void runHunk(index, hunkActions?.primary ?? 'stage')
+          void state.runHunk(index, state.primary)
         })
       }
+      watch(instance.getModifiedEditor(), 'additions', true)
+      watch(instance.getOriginalEditor(), 'deletions', false)
     })()
     return () => {
-      disposed = true
+      cancelled = true
+      const instance = diffRef.current
+      const models = modelsRef.current
+      monacoRef.current = null
+      marksRef.current = null
+      glyphRef.current = null
+      modelsRef.current = null
       diffRef.current = null
-      diff?.dispose()
-      originalModel?.dispose()
-      modifiedModel?.dispose()
+      readyRef.current = null
+      // Detaching the pair first keeps Monaco's diff gutters from reading the editor it is tearing down.
+      instance?.setModel(null)
+      instance?.dispose()
+      models?.original.dispose()
+      models?.modified.dispose()
     }
-  }, [load, tab.path, hunks, hunkActions])
+  }, [textReady, tab.path])
 
   useEffect(() => {
     diffRef.current?.updateOptions({ renderSideBySide: sideBySide, ignoreTrimWhitespace: ignoreWhitespace })
@@ -229,6 +296,78 @@ export function FileDiffView({ tab }: { tab: DiffTab | CommitTab }): JSX.Element
     },
     [tab.repo.gitDir]
   )
+
+  const runLine = useCallback(
+    async (target: LineTarget, mode: ApplyMode): Promise<void> => {
+      const built = singleLinePatch(parsedRef.current, target.hunkIndex, target.lineIndex, sideFor(mode))
+      if (built === null) return
+      try {
+        await api.invoke('git:applyHunk', {
+          gitDir: tab.repo.gitDir,
+          patch: built.patch,
+          mode,
+          zeroContext: built.zeroContext
+        })
+        ignoreStaleUntilRef.current = Date.now() + 2000
+        setReloadKey((current) => current + 1)
+      } catch (error) {
+        notifyError(errorText(error))
+      }
+    },
+    [tab.repo.gitDir]
+  )
+
+  // Each response refills the models and redraws the margin markers of the instance that already lives here.
+  useEffect(() => {
+    if (response === null || response.kind !== 'text') return
+    void (async () => {
+      await readyRef.current
+      const monaco = monacoRef.current
+      const models = modelsRef.current
+      const marks = marksRef.current
+      if (monaco === null || models === null || marks === null) return
+      const before = response.old.text ?? ''
+      const after = response.new.text ?? ''
+      if (models.original.getValue() !== before) models.original.setValue(before)
+      if (models.modified.getValue() !== after) models.modified.setValue(after)
+      if (hunkActions === null) {
+        marks.hunk.set([])
+        marks.added.set([])
+        marks.deleted.set([])
+        glyphRef.current = null
+        return
+      }
+      const additions = changedLines(parsedRef.current, 'new')
+      const deletions = changedLines(parsedRef.current, 'old')
+      glyphRef.current = {
+        hunks,
+        additions,
+        deletions,
+        primary: hunkActions.primary,
+        runLine,
+        runHunk
+      }
+      marks.hunk.set(
+        hunks.map((hunk) => ({
+          range: new monaco.Range(hunk.newStart, 1, hunk.newStart + Math.max(hunk.newCount, 1) - 1, 1),
+          options: {
+            glyphMarginClassName: 'gtd-diff-hunk-glyph',
+            glyphMarginHoverMessage: { value: hunk.header }
+          }
+        }))
+      )
+      const dots = (map: Map<number, LineTarget>) =>
+        [...map.keys()].map((line) => ({
+          range: new monaco.Range(line, 1, line, 1),
+          options: {
+            glyphMarginClassName: 'gtd-diff-line-glyph',
+            glyphMarginHoverMessage: { value: t(`diff.line.${hunkActions.primary}`) }
+          }
+        }))
+      marks.added.set(dots(additions))
+      marks.deleted.set(dots(deletions))
+    })()
+  }, [response, hunks, hunkActions, runLine, runHunk, t])
 
   const copyPatch = useCallback(
     (patch: string): void => {
@@ -351,7 +490,6 @@ export function FileDiffView({ tab }: { tab: DiffTab | CommitTab }): JSX.Element
         onSelect: () => void runHunk(hunkMenu.index, mode)
       })
     }
-    const response = load.status === 'ready' ? load.response : null
     if (response !== null && response.patch !== '') {
       items.push({
         label: t('diff.hunk.copyPatch'),
@@ -363,9 +501,24 @@ export function FileDiffView({ tab }: { tab: DiffTab | CommitTab }): JSX.Element
       })
     }
     return items
-  }, [hunkMenu, hunkActions, t, runHunk, load, copyPatch])
+  }, [hunkMenu, hunkActions, t, runHunk, response, copyPatch])
 
-  const response = load.status === 'ready' ? load.response : null
+  const lineMenuItems = useMemo((): ContextMenuItem[] => {
+    if (lineMenu === null) return []
+    const items: ContextMenuItem[] = []
+    for (const mode of hunkActions?.menu ?? []) {
+      const built = singleLinePatch(
+        parsedRef.current,
+        lineMenu.target.hunkIndex,
+        lineMenu.target.lineIndex,
+        sideFor(mode)
+      )
+      if (built === null) continue
+      items.push({ label: t(`diff.line.${mode}`), onSelect: () => void runLine(lineMenu.target, mode) })
+    }
+    return items
+  }, [lineMenu, hunkActions, t, runLine])
+
   const headerPath =
     response !== null && response.origPath !== null ? `${response.origPath} → ${response.path}` : tab.path
   const pathSlash = tab.path.lastIndexOf('/')
@@ -567,6 +720,9 @@ export function FileDiffView({ tab }: { tab: DiffTab | CommitTab }): JSX.Element
 
       {hunkMenu !== null && hunkMenuItems.length > 0 && (
         <ContextMenu x={hunkMenu.x} y={hunkMenu.y} items={hunkMenuItems} onClose={() => setHunkMenu(null)} />
+      )}
+      {lineMenu !== null && lineMenuItems.length > 0 && (
+        <ContextMenu x={lineMenu.x} y={lineMenu.y} items={lineMenuItems} onClose={() => setLineMenu(null)} />
       )}
       {compareMenu !== null && (
         <ContextMenu x={compareMenu.x} y={compareMenu.y} items={compareItems} onClose={() => setCompareMenu(null)} />
