@@ -41,7 +41,7 @@ Three principles drive design trade-offs:
 - Complete Git workflow comparable to SourceTree: stage, commit, stash, branch, merge, rebase (incl. interactive), cherry-pick, revert, reset, tags, remotes, fetch/pull/push, submodule update, worktree CRUD, commit metadata editing, all with safety nets
 - Native commit graph (Git Graph equivalent) per repository, with actions on commits, plus a workspace-wide activity timeline over the checked repositories
 - Code viewing and light editing: syntax highlighting, best-effort TypeScript hints, and a one-click "Open in VSCode" escape hatch
-- Changes list and diff view: staged/unstaged/untracked/conflicted, text and image diffs, hunk-level staging
+- Changes list and diff view: staged/unstaged/untracked/conflicted, text and image diffs, hunk- and line-level staging
 - Integrated terminal: multiple shell profiles, per-directory cascading configuration, quick commands
 - One-click commit message generation from the staged diff (offline heuristics, optional LLM)
 - Modern, themeable UI; dark mode is first-class (follow system or manual); keyboard-friendly
@@ -335,7 +335,7 @@ Both views render with virtualization (TanStack Virtual) and keyboard navigation
 | Op | Notes |
 |---|---|
 | Stage / unstage file | also directory granularity |
-| Stage / unstage **hunk** | patch application to the index; from the diff view margin and SCM rows |
+| Stage / unstage / revert **hunk or single line** | a rebuilt single-hunk patch applied to the index or the worktree (`git apply`, with `--unidiff-zero` when it keeps no context line); from the diff view margin and SCM rows |
 | Discard changes | modified/renamed: `restore` from index (confirm — irreversible, dialog explains); untracked: **moves file to OS trash** (reversible) |
 | Stage all / unstage all | per repository |
 | Add to `.gitignore` | from untracked row context menu (append pattern, staged immediately) |
@@ -399,7 +399,7 @@ Both views render with virtualization (TanStack Virtual) and keyboard navigation
 
 - **SCM view** (activity bar): repository sections — which repositories appear is governed by the per-repo checkboxes in the Repos view; each section shows staged / unstaged / untracked / conflicted groups (each group's visibility individually toggleable), a commit box (message + generate + commit/amend/stage-all), and its in-progress operation banner.
 - File rows: status icon (M/A/D/R/U/!/C), staged vs unstaged, hover actions (stage/unstage/discard), multi-select, click → diff.
-- **Diff view**: Monaco diff editor (side-by-side ⇄ inline toggle), whitespace-ignore toggle, word-wrap; rename-aware; binary files show size info; images get a 2-up before/after preview (onion slider *Later*); hunk actions from the diff margin: stage hunk / revert hunk; "Compare with…" picker (INDEX / HEAD / any ref / another branch) for a file or a whole repository scope.
+- **Diff view**: Monaco diff editor (side-by-side ⇄ inline toggle), whitespace-ignore toggle, word-wrap; rename-aware; binary files show size info; images get a 2-up before/after preview (onion slider *Later*); margin actions: stage / unstage / revert one hunk, or one changed line (a replaced line and its new text are one action, since git keeps no context between them) — deletions get their marker in the left pane, so they are reachable in side-by-side mode; "Compare with…" picker (INDEX / HEAD / any ref / another branch) for a file or a whole repository scope.
 - **File history**: per-file `git log` list, rename-following on by default (a togglable "Follow renames" chip); every entry carries the path the file had in that commit, so clicking a revision opens that revision's diff even across a rename.
 - Empty states and skeleton loaders follow the UX blueprint.
 
@@ -514,7 +514,7 @@ Each milestone ends in a demo-able outcome. Sizes are relative (S ≪ L), not ca
 |-----------|------|----------|------|
 | Skeleton | S | pnpm workspace, Electron shell, IPC contract + zod, settings, theming (system/light/dark), i18n wiring (en/zh-Hans), trust prompt, CI matrix stub | App opens, switches theme/locale live |
 | Workspace & trees | M | Discovery + registry (SQLite), Explorer + Repos views (virtualized), badges + view options, watcher skeleton (git-dir watching), status model + warm-up scheduler | A 50+ repo workspace opens; full tree ≤ budget; statuses stream in; CJK paths correct |
-| Changes & diff & commit | M | SCM view (multi-repo, toggles), hunk/file staging, discard (trash for untracked), Monaco diff (side-by-side/inline), commit box, file history | Complete local commit flow inside the app |
+| Changes & diff & commit | M | SCM view (multi-repo, toggles), hunk/line/file staging, discard (trash for untracked), Monaco diff (side-by-side/inline), commit box, file history | Complete local commit flow inside the app |
 | Core Git operations | L | Branches, remotes, fetch/pull/push, merge/rebase(interactive), cherry-pick, revert, reset, stash, tags, conflict flow, op-in-progress banner, backup refs + undo | SourceTree-parity for everyday flows; conflict resolution end-to-end |
 | Worktrees & submodules | M | Worktree CRUD + grouping + templates; submodule status + "Update all" (streamed); external worktree support | Create a worktree from the UI; fix the workspace's submodules in one click |
 | Commit graph | L | Graph tab (lanes, virtualization, paging), filters, commit details, commit actions, **history editing** (message/author/date) with backup + undo | Edit an old commit's message/author/date and undo it |

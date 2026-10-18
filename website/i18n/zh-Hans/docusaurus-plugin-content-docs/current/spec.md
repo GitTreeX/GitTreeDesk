@@ -39,7 +39,7 @@ GitTreeDesk 把这些有用的部分合进一个工具，并且把**工作区**�
 - 完整的 Git 操作流，对标 SourceTree：stage、commit、stash、branch、merge、rebase（含交互式）、cherry-pick、revert、reset、tag、remote、fetch/pull/push、submodule 更新、worktree 增删、提交元信息改写，都带安全网
 - 原生提交图（Git Graph 等价物），逐仓库展示，可在提交上直接操作；另有一条覆盖勾选仓库的工作区活动时间线
 - 代码查看与轻编辑：语法高亮、尽力而为的 TypeScript 提示、一键"在 VSCode 中打开"逃生口
-- 变更列表与 diff：已暂存/未暂存/未跟踪/冲突，文本与图片 diff，hunk 级暂存
+- 变更列表与 diff：已暂存/未暂存/未跟踪/冲突，文本与图片 diff，hunk 级与行级暂存
 - 集成终端：多 Shell 配置、按目录级联配置、快捷命令
 - 一键根据暂存区生成 commit message（离线启发式 + 可选 LLM）
 - 现代化、可切换主题的 UI；深色模式一等公民（跟随系统或手动）；键盘友好
@@ -333,7 +333,7 @@ CREATE TABLE oplog        (id INTEGER PRIMARY KEY, repo_id INT, op TEXT, backup_
 | 操作 | 说明 |
 |---|---|
 | Stage / unstage 文件 | 支持目录粒度 |
-| Stage / unstage **hunk** | 以补丁方式作用于 index；入口在 diff 边栏与 SCM 行 |
+| Stage / unstage / revert **hunk 或单行** | 重建单 hunk 补丁后作用于 index 或工作区（`git apply`，重建后没有上下文行时加 `--unidiff-zero`）；入口在 diff 边栏与 SCM 行 |
 | Discard 变更 | 已修改/重命名：从 index `restore`（确认——不可逆，对话框说明）；未跟踪文件：**移入系统回收站**（可逆） |
 | Stage all / unstage all | 按仓库 |
 | 加入 `.gitignore` | 未跟踪行右键菜单（追加规则并立即 stage） |
@@ -397,7 +397,7 @@ CREATE TABLE oplog        (id INTEGER PRIMARY KEY, repo_id INT, op TEXT, backup_
 
 - **SCM 视图**（活动栏）：按仓库分节——哪些仓库出现由 Repos 视图的逐仓库勾选决定；每节展示 已暂存 / 未暂存 / 未跟踪 / 冲突 分组（每组可见性可单独开关）、提交框（消息 + 生成 + commit/amend/stage-all），以及该仓库的进行中操作横幅。
 - 文件行：状态图标（M/A/D/R/U/!/C）、已暂存与未暂存区分、悬停操作（stage/unstage/discard）、多选、点击 → diff。
-- **Diff 视图**：Monaco diff 编辑器（并排 ⇄ 内联切换）、忽略空白开关、自动换行；rename 感知；二进制显示体积信息；图片给 2-up 前后对比预览（洋葱皮滑块属*后续*）；diff 边栏提供 hunk 操作：stage hunk / revert hunk；"与…对比"选择器（INDEX / HEAD / 任意 ref / 另一分支），可作用于单个文件或整个仓库范围。
+- **Diff 视图**：Monaco diff 编辑器（并排 ⇄ 内联切换）、忽略空白开关、自动换行；rename 感知；二进制显示体积信息；图片给 2-up 前后对比预览（洋葱皮滑块属*后续*）；边栏操作：暂存 / 取消暂存 / 还原一个 hunk，或一个变更行（被改写的一行与它替换掉的行算作一个操作，因为两者之间 git 不记上下文）——被删除行的标记在左侧面板，因此只在并排模式下可点；"与…对比"选择器（INDEX / HEAD / 任意 ref / 另一分支），可作用于单个文件或整个仓库范围。
 - **文件历史**：单文件 `git log` 列表，默认跟随重命名（"跟随重命名"开关可切换）；每条记录带上该提交中文件当时的路径，因此点某版本时即便跨过重命名也能打开该文件在该版本的 diff。
 - 空态与骨架屏遵循 UX 蓝图。
 
@@ -512,7 +512,7 @@ CREATE TABLE oplog        (id INTEGER PRIMARY KEY, repo_id INT, op TEXT, backup_
 |--------|------|------|------|
 | 骨架 | S | pnpm workspace、Electron 外壳、IPC 契约 + zod、设置、主题（system/light/dark）、i18n 接线（en/zh-Hans）、信任提示、CI 矩阵桩 | 应用可打开，主题/语言实时切换 |
 | 工作区与树 | M | 发现 + 注册表（SQLite）、Explorer + Repos 视图（虚拟化）、徽标 + 视图选项、watcher 骨架（git dir 监听）、状态模型 + 预热调度 | 50+ 仓库的工作区打开；完整树 ≤ 预算；状态流式上屏；中文路径正确 |
-| 变更 & diff & 提交 | M | SCM 视图（多仓库、开关项）、hunk/文件级 stage、discard（未跟踪进回收站）、Monaco diff（并排/内联）、提交框、文件历史 | 在应用内完成完整的本地提交流程 |
+| 变更 & diff & 提交 | M | SCM 视图（多仓库、开关项）、hunk/单行/文件级 stage、discard（未跟踪进回收站）、Monaco diff（并排/内联）、提交框、文件历史 | 在应用内完成完整的本地提交流程 |
 | 核心 Git 操作 | L | 分支、远端、fetch/pull/push、merge/rebase（交互式）、cherry-pick、revert、reset、stash、tag、冲突流程、操作横幅、backup ref + 撤销 | 日常流程对标 SourceTree；端到端冲突解决 |
 | Worktree 与 submodule | M | worktree 增删改查 + 归组 + 模板；submodule 状态 + 一键 "Update all"（流式）；工作区外 worktree 支持 | 从 UI 创建 worktree；一键修复工作区 submodule |
 | 提交图 | L | 图 tab（泳道、虚拟化、分页）、过滤、提交详情、提交操作、**历史改写**（消息/作者/时间）带备份 + 撤销 | 修改旧提交的消息/作者/时间并撤销 |

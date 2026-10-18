@@ -22,7 +22,7 @@ Status letters: `M` modified · `A` added · `D` deleted · `R` renamed · `C` c
 
 - Hover actions: **Stage** / **Unstage** / **Discard**. Multi-select works (Shift/Ctrl-click); actions apply to the selection.
 - **Directory granularity**: untracked folders appear as a single collapsed row and staging that row stages everything inside it. Tracked changes are listed per file, so there is no folder row for them.
-- **Hunk-level staging** — in the diff view, each hunk has margin actions: stage this hunk (unstaged files) or unstage this hunk (staged files). Line-level staging is [Later].
+- **Hunk-level staging** — in the diff view, each hunk has margin actions: stage this hunk (unstaged files) or unstage this hunk (staged files). Each changed line carries a smaller marker that does the same for that line alone (see *Diff view*).
 - **Add to .gitignore** — available on untracked rows; the pattern is appended to `.gitignore` and staged immediately.
 - `Space` stages/unstages the selected rows; `Enter` opens the diff.
 
@@ -40,7 +40,7 @@ Clicking a changed file opens a diff tab in the editor area.
 
 - **Layout**: side-by-side ⇄ inline toggle. **Whitespace-ignore** toggle. Word wrap respects editor settings.
 - Renames show old → new path plus the content diff. Binary files show size information; images show a **2-up before/after preview** (onion-slider mode is [Later]).
-- Margin actions: **stage hunk / revert hunk**; copy-patch is available from the context menu. They appear only where they make sense — a diff between two commits, or a rename diff, is read-only and offers no hunk actions.
+- Margin actions: one click on the marker beside a hunk stages it (unstaged files) or unstages it (staged files); right-clicking the same marker also offers **revert hunk** and **copy patch**. A smaller dot beside each changed line does the same for **that line alone** — stage, unstage or revert it. Where git records a line as replaced, the old line and the new one have no context between them, so the dot applies both together; that pair is git's own smallest splittable unit. Markers appear only where they make sense — a diff between two commits, or a rename diff, is read-only — and the dot of a deleted line sits in the left pane, which inline mode does not show.
 - **Compare with…** — change the comparison base for a file: `INDEX`, `HEAD`, any ref / branch. At **repository scope** the same idea is reached from the branch picker: it compares the repository's `HEAD` against the ref you choose (the picker lists up to 40 refs). Directory-scoped compare within one repo is [Later].
 
 ## File history
