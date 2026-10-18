@@ -211,6 +211,8 @@ export interface GitApplyHunkRequest {
   /** A single-hunk unified patch, exactly as produced from the diff payload. */
   patch: string
   mode: 'stage' | 'unstage' | 'revert'
+  /** Set when the patch describes one line and carries no shared context. */
+  zeroContext?: boolean
 }
 
 export interface GitCommitRequest {

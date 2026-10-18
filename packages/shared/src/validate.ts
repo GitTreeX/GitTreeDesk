@@ -70,7 +70,8 @@ export const invokeSchemas = {
   'git:applyHunk': z.object({
     gitDir: pathString,
     patch: z.string().min(1).max(5_000_000),
-    mode: z.enum(['stage', 'unstage', 'revert'])
+    mode: z.enum(['stage', 'unstage', 'revert']),
+    zeroContext: z.boolean().optional()
   }),
   'git:commit': z.object({
     gitDir: pathString,

@@ -729,7 +729,9 @@ export class WorkspaceService {
   /** Applies one hunk patch to the index (`stage`/`unstage`) or the working tree (`revert`). */
   async gitApplyHunk(request: GitApplyHunkRequest): Promise<null> {
     const record = this.#requireWriteCheckout(request.gitDir)
-    await this.#gitOperation(record, (repoPath) => applyPatch(repoPath, request.patch, request.mode))
+    await this.#gitOperation(record, (repoPath) =>
+      applyPatch(repoPath, request.patch, request.mode, { zeroContext: request.zeroContext })
+    )
     return null
   }
 
