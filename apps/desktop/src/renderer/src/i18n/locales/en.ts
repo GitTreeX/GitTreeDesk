@@ -48,6 +48,11 @@ const en = {
     openFolder: 'Open another folder',
     loadFailed: 'Could not read this folder',
     retry: 'Retry',
+    folderCompare: {
+      title: 'Changes under {{path}} since {{base}}',
+      files: '{{count}} files',
+      empty: 'Nothing changed under {{path}} since {{base}}.'
+    },
     errors: {
       invalidName: 'Enter a name without slashes'
     }
@@ -92,7 +97,8 @@ const en = {
     openAsRepository: 'Open as Repository',
     openTerminal: 'Open Terminal Here',
     selectForCompare: 'Select for Compare',
-    compareWithSelected: 'Compare with Selected'
+    compareWithSelected: 'Compare with Selected',
+    compareFolder: 'Compare Folder with…'
   },
   about: {
     title: 'About GitTreeDesk',

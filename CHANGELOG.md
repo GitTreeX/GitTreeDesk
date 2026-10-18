@@ -25,7 +25,7 @@ The first release packaged for all three platforms — everything below ships in
 
 **Editing and terminals**
 
-- Monaco editor with syntax highlighting, TypeScript hints, and a split diff view with per-file history that follows the file across renames. Any two workspace files can be marked (Select for Compare / Compare with Selected) and opened side by side in that same diff viewer; image diffs switch between 2-up and an onion mode whose divider wipes across both versions.
+- Monaco editor with syntax highlighting, TypeScript hints, and a split diff view with per-file history that follows the file across renames. Any two workspace files can be marked (Select for Compare / Compare with Selected) and opened side by side in that same diff viewer; image diffs switch between 2-up and an onion mode whose divider wipes across both versions. A folder — or the whole repository — can instead be compared with INDEX, HEAD or any ref (Compare Folder with…): its changed files are listed and each row opens that file's diff.
 - Integrated terminals bound to a repository or worktree, with profiles, quick commands, and scrollback.
 
 **Shell and settings**

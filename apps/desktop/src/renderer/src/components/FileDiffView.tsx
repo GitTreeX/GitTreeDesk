@@ -23,6 +23,7 @@ import {
   type PatchSide
 } from '../editor/patch'
 import { notify, notifyError } from '../notify'
+import { compareSourceItems, sameSource } from '../lib/compare-sources'
 import { ContextMenu, type ContextMenuItem } from './ContextMenu'
 import { EmptyPanel, ImagePairView, SideLabel, ToolbarChip, formatSize } from './DiffParts'
 
@@ -30,7 +31,6 @@ type ApplyMode = 'stage' | 'unstage' | 'revert'
 
 const DEFAULT_FONT_FAMILY = "Menlo, Monaco, 'Courier New', monospace"
 const HISTORY_PAGE = 100
-const MAX_COMPARE_REFS = 40
 
 type LoadState =
   | { status: 'loading' }
@@ -46,12 +46,6 @@ interface HistoryState {
 
 function errorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
-}
-
-function sameSource(a: DiffSource, b: DiffSource): boolean {
-  if (a.kind !== b.kind) return false
-  if (a.kind !== 'rev') return true
-  return (a.rev ?? 'HEAD') === (b.rev ?? 'HEAD')
 }
 
 /** What the gutter markers of the live editor do right now, read at click time. */
@@ -398,24 +392,15 @@ export function FileDiffView({ tab }: { tab: DiffTab | CommitTab }): JSX.Element
     [compareRefs, tab.repo.gitDir]
   )
 
-  const compareItems = useMemo((): ContextMenuItem[] => {
-    const base: DiffSource = { kind: 'index' }
-    const head: DiffSource = { kind: 'rev', rev: 'HEAD' }
-    const items: ContextMenuItem[] = [
-      { label: 'INDEX', disabled: sameSource(sources.from, base) || sameSource(sources.to, base), onSelect: () => editorCtx.setDiffSource(tab.id, base) },
-      { label: 'HEAD', disabled: sameSource(sources.from, head) || sameSource(sources.to, head), onSelect: () => editorCtx.setDiffSource(tab.id, head) }
-    ]
-    for (const ref of compareRefs ?? []) {
-      if (items.length >= MAX_COMPARE_REFS) break
-      const source: DiffSource = { kind: 'rev', rev: ref.name }
-      items.push({
-        label: ref.name,
-        disabled: sameSource(sources.from, source) || sameSource(sources.to, source),
-        onSelect: () => editorCtx.setDiffSource(tab.id, source)
-      })
-    }
-    return items
-  }, [compareRefs, editorCtx, sources, tab.id])
+  const compareItems = useMemo(
+    (): ContextMenuItem[] =>
+      compareSourceItems({
+        refs: compareRefs,
+        isCurrent: (source) => sameSource(sources.from, source) || sameSource(sources.to, source),
+        onPick: (source) => editorCtx.setDiffSource(tab.id, source)
+      }),
+    [compareRefs, editorCtx, sources, tab.id]
+  )
 
   const loadHistory = useCallback(
     async (skip: number, follow: boolean): Promise<void> => {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { GtdIpcError, type ChangeKind, type FileChange, type GitRef, type RepoRecord } from '@gitreedesk/shared'
+import { GtdIpcError, type FileChange, type GitRef, type RepoRecord } from '@gitreedesk/shared'
 import { api } from '../api'
 import { repoInfoOf, useEditor } from '../contexts/editor'
 import { useOperations } from '../contexts/operations-context'
@@ -10,20 +10,12 @@ import { fuzzyFilter } from '../lib/fuzzy'
 import { errorText, notifyServiceError, stashNotice } from '../lib/reporting'
 import { relativeTime } from '../lib/relative-time'
 import { notify } from '../notify'
+import { CompareFilesDialog } from './CompareFilesDialog'
 import { ConfirmDialog } from './ConfirmDialog'
 import { ContextMenu, type ContextMenuItem } from './ContextMenu'
 import { CreateBranchDialog } from './CreateBranchDialog'
 import { PromptDialog } from './PromptDialog'
 import { SearchIcon, UploadIcon, XIcon } from './icons'
-
-const CHANGE_LETTER: Record<ChangeKind, string> = {
-  added: 'A',
-  modified: 'M',
-  deleted: 'D',
-  renamed: 'R',
-  copied: 'C',
-  typeChanged: 'T'
-}
 
 export function BranchPicker({
   record,
@@ -167,8 +159,8 @@ export function BranchPicker({
       void run('compare', async () => {
         const { files } = await api.invoke('git:diffFiles', {
           gitDir: record.gitDir,
-          from: 'HEAD',
-          to: ref.name
+          from: { kind: 'rev', rev: 'HEAD' },
+          to: { kind: 'rev', rev: ref.name }
         })
         if (files.length === 0) {
           notify({ message: t('branches.noDiff', { branch: ref.name }) })
@@ -511,56 +503,16 @@ export function BranchPicker({
       )}
 
       {compare !== null && (
-        <div
-          className="fixed inset-0 z-50 flex justify-center bg-black/40 pt-24"
-          onMouseDown={() => setCompare(null)}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            className="h-fit w-full max-w-lg overflow-hidden rounded-lg border border-line bg-panel shadow-2xl"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <header className="flex items-center gap-2 border-b border-line px-3 py-2">
-              <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">
-                {t('branches.compareTitle', { branch: compare.branch })}
-              </span>
-              <button
-                type="button"
-                aria-label={t('dialogs.close')}
-                className="shrink-0 rounded p-0.5 text-muted hover:bg-ink/5 hover:text-ink"
-                onClick={() => setCompare(null)}
-              >
-                <XIcon className="size-3.5" />
-              </button>
-            </header>
-            <ul className="max-h-96 overflow-y-auto py-1">
-              {compare.files.map((file) => (
-                <li key={`${file.origPath ?? ''}\u0000${file.path}`}>
-                  <button
-                    type="button"
-                    className="flex w-full items-baseline gap-2 px-3 py-1.5 text-left text-sm hover:bg-ink/5"
-                    onClick={() => {
-                      openCompareFile(compare.branch, file)
-                      setCompare(null)
-                      onClose()
-                    }}
-                  >
-                    <span className="w-3 shrink-0 text-center font-mono text-xs text-muted">
-                      {CHANGE_LETTER[file.kind]}
-                    </span>
-                    <span className="min-w-0 flex-1 truncate text-ink">{file.path}</span>
-                    {file.origPath !== undefined && (
-                      <span className="min-w-0 shrink-0 truncate font-mono text-xs text-muted">
-                        ← {file.origPath}
-                      </span>
-                    )}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
+        <CompareFilesDialog
+          title={t('branches.compareTitle', { branch: compare.branch })}
+          files={compare.files}
+          onClose={() => setCompare(null)}
+          onPick={(file) => {
+            openCompareFile(compare.branch, file)
+            setCompare(null)
+            onClose()
+          }}
+        />
       )}
     </div>
   )

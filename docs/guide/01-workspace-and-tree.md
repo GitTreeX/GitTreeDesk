@@ -61,6 +61,7 @@ The sidebar's Tree activity hosts two coordinated views over the same repositori
 - Directories load lazily; only expanded folders are watched.
 - File and folder operations (context menu): new file, new folder, reveal in OS file manager, **Open in VS Code**, **Open Terminal Here**, copy path (absolute), copy relative path, rename (F2), **Move to Trash** — grouped with dividers, and any row inside a repository also offers **Open Commit Graph**. Delete moves items to the **OS trash** (reversible).
 - **Compare two files** — right-click a file and choose **Select for Compare** (the row is highlighted), then choose **Compare with Selected** on a second file. The pair opens side by side in the diff viewer: the alphabetically earlier path is always on the left, and the same pair reuses one tab however you pick it. Two images open as a 2-up preview, with the same **Onion** toggle the diff view has; anything else shows why it cannot be compared. Both entries are also command-palette commands acting on the row under the cursor.
+- **Compare a folder** — right-click a folder (or the repository row itself) and choose **Compare Folder with…**, then pick a base from the same list a file diff uses: `INDEX`, `HEAD`, or any branch / ref. It lists the changes under that path since the base, read against the working tree, and picking a row opens that file's diff. See page 03.
 - JS/TS/JSON etc. open in the built-in editor (page 10).
 
 ### Repos view — the logical tree

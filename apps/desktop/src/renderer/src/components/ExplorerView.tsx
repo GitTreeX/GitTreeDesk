@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent, type MouseEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import type { FsEntry, RepoRecord } from '@gitreedesk/shared'
+import type { DiffSource, FileChange, FsEntry, GitRef, RepoRecord } from '@gitreedesk/shared'
 import { api } from '../api'
 import { isEditableTarget } from '../commands/keybinding'
-import { useEditor } from '../contexts/editor'
+import { repoInfoOf, useEditor, baseName } from '../contexts/editor'
 import { useGraph } from '../contexts/graph'
 import { useReposUi } from '../contexts/repos'
 import { useSettings } from '../contexts/settings'
@@ -12,8 +12,10 @@ import { useTerminal } from '../contexts/terminal'
 import { useTreeUi } from '../contexts/tree'
 import { useWorkspace } from '../contexts/workspace'
 import { notify, notifyError } from '../notify'
+import { WORKTREE_SOURCE, compareSourceItems, sourceLabel } from '../lib/compare-sources'
 import { rowHeightFor } from '../theme'
 import { ancestorsWithin, visibleRows, type ExplorerRow } from '../tree/explorer-model'
+import { CompareFilesDialog } from './CompareFilesDialog'
 import { ContextMenu, type ContextMenuItem } from './ContextMenu'
 import { ConfirmDialog } from './ConfirmDialog'
 import { PromptDialog } from './PromptDialog'
@@ -45,6 +47,26 @@ interface NewEntryState {
   kind: 'file' | 'dir'
 }
 
+/** The base picker of a folder row, opened once its refs are known. */
+interface FolderBaseMenu {
+  x: number
+  y: number
+  repo: RepoRecord
+  /** Tree path of the row the compare was asked for. */
+  path: string
+  refs: readonly GitRef[]
+}
+
+/** Files changed under one folder path since the base picked from the menu. */
+interface FolderCompare {
+  repo: RepoRecord
+  /** What the title shows: the checkout folder plus the compared path. */
+  path: string
+  base: DiffSource
+  label: string
+  files: readonly FileChange[]
+}
+
 export function ExplorerView(): JSX.Element {
   const { t } = useTranslation()
   const { descriptor, statuses, open: openWorkspace } = useWorkspace()
@@ -63,6 +85,8 @@ export function ExplorerView(): JSX.Element {
   const [compareBase, setCompareBase] = useState<string | null>(null)
   const [rootError, setRootError] = useState<string | null>(null)
   const [menu, setMenu] = useState<{ x: number; y: number; row: ExplorerRow } | null>(null)
+  const [folderMenu, setFolderMenu] = useState<FolderBaseMenu | null>(null)
+  const [folderCompare, setFolderCompare] = useState<FolderCompare | null>(null)
   const [newEntry, setNewEntry] = useState<NewEntryState | null>(null)
   const [renaming, setRenaming] = useState<ExplorerRow | null>(null)
   const [trashing, setTrashing] = useState<ExplorerRow | null>(null)
@@ -361,6 +385,63 @@ export function ExplorerView(): JSX.Element {
     return row !== null && row.kind !== 'dir' && compareBase !== null && compareBase !== row.path
   }, [compareBase])
 
+  /** A folder row compares the tree against a base picked from its own refs. */
+  const openFolderBaseMenu = useCallback(
+    async (anchor: { x: number; y: number }, repo: RepoRecord, path: string): Promise<void> => {
+      try {
+        const { refs } = await api.invoke('git:refs', { gitDir: repo.gitDir })
+        setFolderMenu({ ...anchor, repo, path, refs })
+      } catch (error) {
+        const { message, details } = errorText(error)
+        notifyError(message, details)
+      }
+    },
+    []
+  )
+
+  const openFolderFile = useCallback(
+    (repo: RepoRecord, base: DiffSource, file: FileChange): void => {
+      editor.openDiff(repoInfoOf(repo), {
+        path: file.path,
+        origPath: file.origPath,
+        from: base,
+        to: WORKTREE_SOURCE
+      })
+    },
+    [editor]
+  )
+
+  const runFolderCompare = useCallback(
+    async (target: FolderBaseMenu, base: DiffSource): Promise<void> => {
+      const scope = target.path === target.repo.path ? '' : target.path.slice(target.repo.path.length + 1)
+      const shown = scope.length > 0 ? `${baseName(target.repo.path)}/${scope}` : baseName(target.repo.path)
+      const label = sourceLabel(base)
+      try {
+        const { files } = await api.invoke('git:diffFiles', {
+          gitDir: target.repo.gitDir,
+          from: base,
+          to: WORKTREE_SOURCE,
+          ...(scope.length > 0 ? { path: scope } : {})
+        })
+        setFolderMenu(null)
+        const first = files[0]
+        if (files.length === 0) {
+          notify({ message: t('explorer.folderCompare.empty', { path: shown, base: label }) })
+          return
+        }
+        if (files.length === 1 && first !== undefined) {
+          openFolderFile(target.repo, base, first)
+          return
+        }
+        setFolderCompare({ repo: target.repo, path: shown, base, label, files })
+      } catch (error) {
+        const { message, details } = errorText(error)
+        notifyError(message, details)
+      }
+    },
+    [openFolderFile, t]
+  )
+
   // Imperative surface used by toolbar buttons, context menus, and commands.
   const actions = useMemo(
     () => ({
@@ -475,7 +556,7 @@ export function ExplorerView(): JSX.Element {
     }
   }
 
-  const menuItems = (row: ExplorerRow): ContextMenuItem[] => {
+  const menuItems = (row: ExplorerRow, anchor: { x: number; y: number }): ContextMenuItem[] => {
     const target = row.kind === 'dir' ? row.path : (parentOf(row.path) ?? root)
     const repo = repoForPath(row.path)
     const items: ContextMenuItem[] = []
@@ -504,7 +585,15 @@ export function ExplorerView(): JSX.Element {
       { label: t('menu.openInEditor'), onSelect: () => openInEditor(row.path) },
       { label: t('menu.openTerminal'), onSelect: () => terminal.open(target) },
       ...(row.kind === 'dir'
-        ? []
+        ? repo === null
+          ? []
+          : [
+              {
+                label: t('menu.compareFolder'),
+                divider: true,
+                onSelect: () => void openFolderBaseMenu(anchor, repo, row.path)
+              }
+            ]
         : [
             {
               label: t('menu.selectForCompare'),
@@ -658,7 +747,38 @@ export function ExplorerView(): JSX.Element {
       </div>
 
       {menu !== null && (
-        <ContextMenu x={menu.x} y={menu.y} items={menuItems(menu.row)} onClose={() => setMenu(null)} />
+        <ContextMenu
+          x={menu.x}
+          y={menu.y}
+          items={menuItems(menu.row, { x: menu.x, y: menu.y })}
+          onClose={() => setMenu(null)}
+        />
+      )}
+
+      {folderMenu !== null && (
+        <ContextMenu
+          x={folderMenu.x}
+          y={folderMenu.y}
+          items={compareSourceItems({
+            refs: folderMenu.refs,
+            isCurrent: () => false,
+            onPick: (source) => void runFolderCompare(folderMenu, source)
+          })}
+          onClose={() => setFolderMenu(null)}
+        />
+      )}
+
+      {folderCompare !== null && (
+        <CompareFilesDialog
+          title={t('explorer.folderCompare.title', { path: folderCompare.path, base: folderCompare.label })}
+          summary={t('explorer.folderCompare.files', { count: folderCompare.files.length })}
+          files={folderCompare.files}
+          onClose={() => setFolderCompare(null)}
+          onPick={(file) => {
+            openFolderFile(folderCompare.repo, folderCompare.base, file)
+            setFolderCompare(null)
+          }}
+        />
       )}
 
       {newEntry !== null && (

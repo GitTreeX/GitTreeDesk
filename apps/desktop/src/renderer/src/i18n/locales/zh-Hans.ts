@@ -50,6 +50,11 @@ export const zhHansResource: TranslationResource = {
     openFolder: '打开其他文件夹',
     loadFailed: '无法读取此文件夹',
     retry: '重试',
+    folderCompare: {
+      title: '{{path}} 相对于 {{base}} 的改动',
+      files: '{{count}} 个文件',
+      empty: '{{path}} 相对于 {{base}} 没有改动。'
+    },
     errors: {
       invalidName: '名称不能包含斜杠'
     }
@@ -94,7 +99,8 @@ export const zhHansResource: TranslationResource = {
     openAsRepository: '作为仓库打开',
     openTerminal: '在此处打开终端',
     selectForCompare: '选作对比基准',
-    compareWithSelected: '与所选对比'
+    compareWithSelected: '与所选对比',
+    compareFolder: '文件夹与…对比'
   },
   about: {
     title: '关于 GitTreeDesk',
