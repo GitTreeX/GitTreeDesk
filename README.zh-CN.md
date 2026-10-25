@@ -17,6 +17,10 @@
   <em>面向 monorepo 与 worktree 的工作区优先多仓库 Git 工作台，基于 Electron 构建。</em>
 </p>
 
+<p align="center">
+  <img src="docs/images/gitreedesk-workspace.png" alt="GitTreeDesk 工作区界面：多仓库列表显示分支与同步状态，右侧为并排 diff" width="100%">
+</p>
+
 GitTreeDesk 让你将**任意文件夹作为工作区打开**，自动发现其中的所有 Git 仓库与 worktree，并在同一棵树中统一管理。
 
 ## 为什么选择 GitTreeDesk

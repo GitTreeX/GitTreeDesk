@@ -13,6 +13,7 @@
     "build": "pnpm --filter @gitreedesk/desktop build",
     "brand": "node scripts/generate-brand-assets.mjs",
     "fixture": "node scripts/generate-fixture-workspace.mjs",
+    "screenshot:readme": "node examples/readme-screenshot/capture.mjs",
     "package": "pnpm --filter @gitreedesk/desktop package",
     "package:win": "pnpm --filter @gitreedesk/desktop package:win",
     "package:mac": "pnpm --filter @gitreedesk/desktop package:mac",
