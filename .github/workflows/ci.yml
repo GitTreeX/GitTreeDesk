@@ -3,6 +3,9 @@ name: CI
 on:
   push:
     branches: [main]
+    # A `vX.Y.Z` tag cuts a release: the same matrix build runs, then the
+    # `release` job publishes everything it produced.
+    tags: ['v*']
   pull_request:
   workflow_dispatch:
 
@@ -101,7 +104,7 @@ jobs:
             .fixtures/graph-profile/graph-report.json
           if-no-files-found: ignore
       - name: Upload installers
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
         uses: actions/upload-artifact@v7
         with:
           name: installers-${{ matrix.name }}
@@ -111,4 +114,86 @@ jobs:
             release/*.dmg
             release/*.AppImage
             release/*.deb
-          if-no-files-found: ignore
+          # On a tag push these are the release assets, so a platform that
+          # packaged nothing must fail the run instead of shipping a partial set.
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    # Only a version tag publishes; a branch push or a manual run just builds.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      # The artifact names carry the version out of the manifests, so a tag that
+      # disagrees with them would publish mislabeled installers.
+      - name: Check the tag against the app version
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          app=$(node -p "require('./apps/desktop/package.json').version")
+          if [ "$version" != "$app" ]; then
+            echo "Tag ${GITHUB_REF_NAME} is not version ${app}; bump the manifests and re-tag." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+      - name: Download installers
+        uses: actions/download-artifact@v7
+        with:
+          pattern: installers-*
+          path: assets
+      - name: Collect release assets
+        run: |
+          mkdir -p bundle
+          find assets -mindepth 2 -type f -exec mv -t bundle {} +
+          for pattern in '*-setup.exe' '*-win.zip' '*-arm64.dmg' '*-x64.dmg' '*.AppImage' '*.deb'; do
+            if [ -z "$(find bundle -maxdepth 1 -type f -name "$pattern" -print -quit)" ]; then
+              echo "No asset matches ${pattern}" | tee -a "$GITHUB_STEP_SUMMARY"
+              exit 1
+            fi
+          done
+      - name: Write release notes
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          section() {
+            awk -v ver="$version" '
+              !found && $0 ~ ("^## (v)?" ver "[ \t\r]*$") { found = 1; next }
+              found && /^## / { exit }
+              found { print }
+            ' "$1" > "$2"
+          }
+          section CHANGELOG.md en.md
+          section CHANGELOG.zh-CN.md zh.md
+          if [ ! -s en.md ]; then
+            printf 'No `%s` entry in CHANGELOG.md yet.\n' "$version" > en.md
+          fi
+
+          base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}"
+          asset() { find bundle -maxdepth 1 -type f -name "$1" -printf '%f\n' -quit; }
+          win_setup=$(asset '*-setup.exe')
+          win_portable=$(asset '*-win.zip')
+          mac_arm=$(asset '*-arm64.dmg')
+          mac_intel=$(asset '*-x64.dmg')
+          linux_appimage=$(asset '*.AppImage')
+          linux_deb=$(asset '*.deb')
+
+          {
+            cat en.md
+            printf '\n### 下载 · Downloads\n\n'
+            printf -- '- **Windows (x64)**: [Installer · 安装程序](%s/%s) · [Portable · 便携版](%s/%s)\n' "$base" "$win_setup" "$base" "$win_portable"
+            printf -- '- **macOS (Apple Silicon)**: [DMG](%s/%s) · **macOS (Intel)**: [DMG](%s/%s)\n' "$base" "$mac_arm" "$base" "$mac_intel"
+            printf -- '- **Linux (x64)**: [AppImage](%s/%s) · [deb](%s/%s)\n' "$base" "$linux_appimage" "$base" "$linux_deb"
+            if [ -s zh.md ]; then
+              printf -- '\n---\n\n## 简体中文\n\n'
+              cat zh.md
+            fi
+          } > notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body_path: notes.md
+          files: bundle/*

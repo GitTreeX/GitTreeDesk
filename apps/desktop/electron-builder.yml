@@ -33,9 +33,12 @@ nsis:
 # v1 ships unsigned (notarization is deferred), so never look for a signing
 # identity: CI runners and contributors without certificates still produce
 # complete artifacts. Which architectures are built follows the host.
+# The two macOS architectures are built on separate hosts, so the arch has to be
+# in the file name or the release would receive two identical names.
 mac:
   icon: build/icon.icns
   category: public.app-category.developer-tools
+  artifactName: ${productName}-${version}-${arch}.${ext}
   target:
     - dmg
     - zip
