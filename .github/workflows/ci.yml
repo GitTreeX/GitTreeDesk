@@ -2,11 +2,11 @@ name: CI
 
 on:
   push:
-    branches: [main]
     # A `vX.Y.Z` tag cuts a release: the same matrix build runs, then the
     # `release` job publishes everything it produced.
     tags: ['v*']
-  pull_request:
+    # branches: [main]
+  # pull_request:
   workflow_dispatch:
 
 permissions:
