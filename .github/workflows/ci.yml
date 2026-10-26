@@ -189,7 +189,9 @@ jobs:
           fi
 
           base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}"
+          mirror="https://v6.gh-proxy.org/${base}"
           asset() { find bundle -maxdepth 1 -type f -name "$1" -printf '%f\n' -quit; }
+          link() { printf '[%s](%s/%s) ([国内镜像](%s/%s))' "$1" "$base" "$2" "$mirror" "$2"; }
           win_setup=$(asset '*-setup.exe')
           win_portable=$(asset '*-win.zip')
           mac_arm=$(asset '*-arm64.dmg')
@@ -200,9 +202,19 @@ jobs:
           {
             cat en.md
             printf '\n### 下载 · Downloads\n\n'
-            printf -- '- **Windows (x64)**: [Installer · 安装程序](%s/%s) · [Portable · 便携版](%s/%s)\n' "$base" "$win_setup" "$base" "$win_portable"
-            printf -- '- **macOS (Apple Silicon)**: [DMG](%s/%s) · **macOS (Intel)**: [DMG](%s/%s)\n' "$base" "$mac_arm" "$base" "$mac_intel"
-            printf -- '- **Linux (x64)**: [AppImage](%s/%s) · [deb](%s/%s)\n' "$base" "$linux_appimage" "$base" "$linux_deb"
+            printf -- '- **Windows (x64)**: '
+            link 'Installer · 安装程序' "$win_setup"
+            printf ' · '
+            link 'Portable · 便携版' "$win_portable"
+            printf '\n- **macOS (Apple Silicon)**: '
+            link 'DMG' "$mac_arm"
+            printf ' · **macOS (Intel)**: '
+            link 'DMG' "$mac_intel"
+            printf '\n- **Linux (x64)**: '
+            link 'AppImage' "$linux_appimage"
+            printf ' · '
+            link 'deb' "$linux_deb"
+            printf '\n'
             if [ -s zh.md ]; then
               printf -- '\n---\n\n## 简体中文\n\n'
               cat zh.md
