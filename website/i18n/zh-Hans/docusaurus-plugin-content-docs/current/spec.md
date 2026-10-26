@@ -469,6 +469,7 @@ CREATE TABLE oplog        (id INTEGER PRIMARY KEY, repo_id INT, op TEXT, backup_
 
 - 目标：electron-builder——Windows（NSIS 安装包 + 便携 zip）、macOS（dmg + zip，arm64 + x64；公证需 Apple 账号——暂缓，未签名构建写入文档）、Linux（AppImage + deb）。
 - CI：GitHub Actions 三平台矩阵；原生依赖（better-sqlite3、node-pty、@parcel/watcher）都是 N-API 且自带预编译产物，因此不强制 `electron-rebuild`（`npmRebuild: false`），仅 Linux 上的 node-pty 没有预编译产物需要从源码编译；预编译产物与 Electron 下载包均有缓存；打包产物冒烟测试：启动应用并打开 fixture 工作区。
+- 预发布：版本号带连字符后缀的 tag（`v1.2.3-beta.1`、`v1.2.3-rc.1`）会把 GitHub Release 发布为预发布版；不带后缀的 `v1.2.3` 发布为正式版。根 `package.json` 写同一串值，后缀一并带上。
 - 发布：推送 `vX.Y.Z` tag 会触发同一套矩阵构建，各平台完成打包与冒烟后自动为该 tag 创建 GitHub Release，并附上安装包与便携归档；发布说明取自 `CHANGELOG.md` 对应小节（下方附简体中文镜像）。应用版本号只在根 `package.json` 维护——`apps/desktop/electron-builder.mjs` 在打包时把它注入应用元数据，前置校验任务会在 tag 与该版本不一致时终止运行。手动触发（`workflow_dispatch`）的工作流仍只上传 `installers-*` 产物，不发布。本地只能打包当前宿主平台：Linux 目标所需工具链在 Windows 宿主上不可用，macOS 目标则必须有 macOS 宿主。
 - 平台集成：macOS 原生菜单栏（应用菜单 + 编辑菜单标准剪贴板 role——macOS 上没有它 Cmd+C/V 根本不工作）；Windows/Linux 无边框窗口 + 自绘标题栏（可切换回原生边框）；macOS 上所有快捷键统一使用 Cmd。
 - 数据目录：`%APPDATA%/GitTreeDesk`、`~/Library/Application Support/GitTreeDesk`、`~/.config/GitTreeDesk`（内含 `settings.json`、`keybindings.json`、`cache.db`、`logs/`）。
