@@ -269,19 +269,21 @@ function isInsidePath(path: string, base: string): boolean {
 }
 
 /**
- * Real path of `path`, or of its nearest existing ancestor plus the remaining
- * segments when the leaf is missing. Without the fallback a path spelled through a
- * symlink or a Windows 8.3 short name would look like it sits outside the workspace.
+ * Absolute real path of `path` in posix form, or of its nearest existing ancestor
+ * plus the remaining segments when the leaf is missing. Without the fallback a path
+ * spelled through a symlink or a Windows 8.3 short name would look like it sits
+ * outside the workspace.
  */
 async function realPathPosix(path: string): Promise<string> {
-  const direct = await realpath(path).then(toPosix).catch(() => null)
+  const absolute = resolve(path)
+  const direct = await realpath(absolute).then(toPosix).catch(() => null)
   if (direct !== null) return direct
 
   const tail: string[] = []
-  let current = path
+  let current = absolute
   for (;;) {
     const parent = dirname(current)
-    if (parent === current) return toPosix(path)
+    if (parent === current) return toPosix(absolute)
     tail.unshift(basename(current))
     const base = await realpath(parent).then(toPosix).catch(() => null)
     if (base !== null) return tail.reduce((acc, segment) => posix.join(acc, segment), base)
@@ -1366,7 +1368,7 @@ export class WorkspaceService {
       const worktrees = await listWorktrees({ repoPath: record.path })
       return {
         worktrees: await Promise.all(
-          worktrees.map(async (worktree) => ({ ...worktree, path: await this.#absPosix(worktree.path) }))
+          worktrees.map(async (worktree) => ({ ...worktree, path: await realPathPosix(worktree.path) }))
         )
       }
     } catch (error) {
@@ -1382,7 +1384,7 @@ export class WorkspaceService {
       if (mode.kind === 'branch') await this.#assertBranchFree(repoPath, mode.branch)
       await addWorktree({ repoPath, path: request.path, mode })
     })
-    const created = await this.#absPosix(request.path)
+    const created = await realPathPosix(request.path)
     await this.#refreshAfterWorktreeAdd(record, created)
     return { path: created }
   }
@@ -1406,10 +1408,10 @@ export class WorkspaceService {
     // Run from the main checkout, and refuse there: the main tree is the repository itself.
     const main = session.registry.all.find((row) => row.gitDir === row.id && row.id === record.id)
     const repoPath = main?.path ?? record.path
-    if (this.#pathKey(await this.#absPosix(repoPath)) === this.#pathKey(target.path)) {
+    if (this.#pathKey(await realPathPosix(repoPath)) === this.#pathKey(target.path)) {
       throw new ServiceError('invalid-request', 'The main working tree is not a linked worktree to move')
     }
-    const destination = await this.#absPosix(request.target)
+    const destination = await realPathPosix(request.target)
     if (this.#pathKey(destination) === this.#pathKey(target.path)) {
       throw new ServiceError('invalid-request', `Worktree "${target.path}" is already at that path`)
     }
@@ -1783,10 +1785,10 @@ export class WorkspaceService {
 
   /** Worktree list entry matching an absolute path, carrying its canonical path. */
   async #findWorktree(record: RepoRecord, path: string): Promise<RepoWorktree | null> {
-    const target = this.#pathKey(await this.#absPosix(path))
+    const target = this.#pathKey(await realPathPosix(path))
     const worktrees = await listWorktrees({ repoPath: record.path })
     for (const worktree of worktrees) {
-      const normalized = await this.#absPosix(worktree.path)
+      const normalized = await realPathPosix(worktree.path)
       if (this.#pathKey(normalized) === target) return { ...worktree, path: normalized }
     }
     return null
@@ -1801,17 +1803,10 @@ export class WorkspaceService {
     const candidates = [destination, `${destination}/${name}`].map((path) => this.#pathKey(path))
     const worktrees = await listWorktrees({ repoPath })
     for (const worktree of worktrees) {
-      const normalized = await this.#absPosix(worktree.path)
+      const normalized = await realPathPosix(worktree.path)
       if (candidates.includes(this.#pathKey(normalized))) return normalized
     }
     return destination
-  }
-
-  #absPosix(path: string): Promise<string> {
-    const absolute = resolve(path)
-    return realpath(absolute)
-      .then(toPosix)
-      .catch(() => toPosix(absolute))
   }
 
   /** Windows compares paths case-insensitively. */
@@ -2397,7 +2392,7 @@ export class WorkspaceService {
    */
   async resolveInside(input: string): Promise<string> {
     const session = this.#requireSession()
-    const absolute = await realPathPosix(resolve(input))
+    const absolute = await realPathPosix(input)
     return this.#assertInsideWorkspace(session, absolute, input)
   }
 
