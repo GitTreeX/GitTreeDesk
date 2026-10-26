@@ -389,6 +389,7 @@ export const invokeSchemas = {
   'workspace:listFiles': z.object({ limit: z.number().int().min(1).max(200_000).optional() }),
   'fs:create': z.object({ parent: pathString, name: entryName, kind: z.enum(['file', 'dir']) }),
   'fs:rename': z.object({ path: pathString, newName: entryName }),
+  'fs:duplicate': z.object({ path: pathString, suffix: z.string().min(1).max(64) }),
   'fs:trash': z.object({ path: pathString }),
   'fs:reveal': z.object({ path: pathString }),
   'fs:openExternal': z.object({ path: pathString }),

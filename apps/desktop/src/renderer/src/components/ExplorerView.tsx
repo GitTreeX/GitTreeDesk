@@ -78,6 +78,8 @@ export function ExplorerView(): JSX.Element {
   const repoUi = useReposUi()
   const rowHeight = rowHeightFor(settings.density)
   const root = descriptor?.root ?? ''
+  /** Finder-style rename key on macOS; F2 elsewhere. */
+  const renameKey = api.platform === 'darwin' ? 'Enter' : 'F2'
 
   const [children, setChildren] = useState<ReadonlyMap<string, readonly FsEntry[]>>(EMPTY_CHILDREN)
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set())
@@ -359,6 +361,24 @@ export function ExplorerView(): JSX.Element {
     [load]
   )
 
+  const duplicateEntry = useCallback(
+    async (row: ExplorerRow): Promise<void> => {
+      try {
+        const { path } = await api.invoke('fs:duplicate', {
+          path: row.path,
+          suffix: t('menu.duplicateSuffix')
+        })
+        const parent = parentOf(row.path)
+        if (parent !== null) await load(parent, false)
+        setCursorPath(path)
+      } catch (error) {
+        const { message, details } = errorText(error)
+        notifyError(message, details)
+      }
+    },
+    [load, t]
+  )
+
   const trashEntry = useCallback(
     async (row: ExplorerRow): Promise<void> => {
       try {
@@ -547,6 +567,11 @@ export function ExplorerView(): JSX.Element {
       case 'Enter': {
         event.preventDefault()
         if (row === undefined) return
+        // macOS file managers rename on Return; Windows/Linux keep Return for opening.
+        if (renameKey === 'Enter') {
+          setRenaming(row)
+          break
+        }
         if (row.expandable) toggleExpand(row)
         else openFile(row.path, false)
         break
@@ -619,7 +644,8 @@ export function ExplorerView(): JSX.Element {
         onSelect: () => copyPath(absolutePathFor(row.path))
       },
       { label: t('menu.copyRelativePath'), onSelect: () => copyPath(row.path) },
-      { label: t('menu.rename'), divider: true, onSelect: () => setRenaming(row) },
+      { label: t('menu.rename'), divider: true, shortcut: renameKey, onSelect: () => setRenaming(row) },
+      { label: t('menu.duplicate'), onSelect: () => void duplicateEntry(row) },
       { label: t('menu.delete'), onSelect: () => setTrashing(row) }
     )
     return items

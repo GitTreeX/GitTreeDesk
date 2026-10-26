@@ -263,6 +263,7 @@ function createHandlers(
     'workspace:listFiles': (request) => service.listFiles(request.limit),
     'fs:create': (request) => service.createEntry(request.parent, request.name, request.kind),
     'fs:rename': (request) => service.renameEntry(request.path, request.newName),
+    'fs:duplicate': (request) => service.duplicateEntry(request.path, request.suffix),
     'fs:trash': (request) => trashEntry(service, request.path),
     'fs:reveal': (request) => revealEntry(service, request.path),
     'fs:openExternal': (request) => openExternalEntry(service, request.path),

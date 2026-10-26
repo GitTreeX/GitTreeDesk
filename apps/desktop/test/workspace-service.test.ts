@@ -475,6 +475,20 @@ describe('WorkspaceService', () => {
       code: 'outside-workspace'
     })
 
+    const copy = await instance.duplicateEntry(`${base}/README.md`, 'copy')
+    expect(copy.path).toBe(`${base}/README-copy.md`)
+    expect(await readFile(copy.path, 'utf8')).toBe('# hello')
+    const copyAgain = await instance.duplicateEntry(`${base}/README.md`, 'copy')
+    expect(copyAgain.path).toBe(`${base}/README-copy2.md`)
+    const folderCopy = await instance.duplicateEntry(`${base}/notes`, 'copy')
+    expect(folderCopy.path).toBe(`${base}/notes-copy`)
+    await expect(instance.duplicateEntry(`${base}/README.md`, 'bad/name')).rejects.toMatchObject({
+      code: 'invalid-name'
+    })
+    await expect(instance.duplicateEntry(join(root, '..'), 'copy')).rejects.toMatchObject({
+      code: 'outside-workspace'
+    })
+
     await expect(instance.readDir(join(root, '..'))).rejects.toMatchObject({
       code: 'outside-workspace'
     })

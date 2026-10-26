@@ -122,6 +122,12 @@ export interface FsRenameRequest {
   newName: string
 }
 
+export interface FsDuplicateRequest {
+  path: string
+  /** Appended to the base name: `notes.md` → `notes-<suffix>.md`. */
+  suffix: string
+}
+
 export interface FsPathRequest {
   path: string
 }
@@ -1337,6 +1343,7 @@ export interface InvokeMap {
   'workspace:listFiles': { request: WorkspaceListFilesRequest; response: WorkspaceListFilesResponse }
   'fs:create': { request: FsCreateRequest; response: { path: string } }
   'fs:rename': { request: FsRenameRequest; response: { path: string } }
+  'fs:duplicate': { request: FsDuplicateRequest; response: { path: string } }
   'fs:trash': { request: FsPathRequest; response: null }
   'fs:reveal': { request: FsPathRequest; response: null }
   'fs:openExternal': { request: FsPathRequest; response: null }
@@ -1493,6 +1500,7 @@ export const INVOKE_CHANNELS = [
   'workspace:listFiles',
   'fs:create',
   'fs:rename',
+  'fs:duplicate',
   'fs:trash',
   'fs:reveal',
   'fs:openExternal',

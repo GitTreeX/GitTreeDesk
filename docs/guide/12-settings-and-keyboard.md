@@ -66,9 +66,9 @@ Everything is reachable in the **command palette** (`Ctrl/Cmd+Shift+P`) — typi
 | Ctrl+Enter | ⌘⏎ | Commit staged |
 | Space | Space | Stage/unstage the selected file (contextual in Source Control; not a remappable binding) |
 | Ctrl+Shift+F | ⇧⌘F | Fetch current repository (in Repos view: selected repositories) |
-| F2 | F2 | Rename the focused file or folder in Explorer |
+| F2 | F2 (or Enter in Explorer) | Rename the focused file or folder in Explorer |
 | Delete | Delete | Move the focused file or folder in Explorer to the trash |
-| Enter | Enter | Open a file / toggle a tree row; in the graph: commit details (contextual, not remappable) |
+| Enter | Enter (macOS Explorer renames instead) | Open a file / toggle a tree row; in the graph: commit details (contextual, not remappable) |
 | Alt+← / Alt+→ | ⌥← / ⌥→ | Editor navigation history |
 | Esc | Esc | Close the topmost transient UI (never closes an editor tab) |
 

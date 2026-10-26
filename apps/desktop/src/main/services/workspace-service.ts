@@ -1,4 +1,4 @@
-import { mkdir, open, readdir, readFile, realpath, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { cp, mkdir, open, readdir, readFile, realpath, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import { basename, dirname, join, posix, resolve } from 'node:path'
 import type {
@@ -2546,6 +2546,38 @@ export class WorkspaceService {
     }
     try {
       await rename(source, target)
+    } catch (error) {
+      throw this.#fsError(error, target)
+    }
+    return { path: target }
+  }
+
+  /** Copies an entry beside itself: `notes.md` → `notes-<suffix>.md`, then `2`, `3`, … on collisions. */
+  async duplicateEntry(path: string, suffix: string): Promise<{ path: string }> {
+    const source = await this.resolveEntry(path)
+    if (source === this.#requireSession().root) {
+      throw new ServiceError('invalid-name', 'The workspace root cannot be duplicated')
+    }
+    assertEntryName(suffix)
+    let info
+    try {
+      info = await stat(source)
+    } catch (error) {
+      throw this.#fsError(error, source)
+    }
+    const name = posix.basename(source)
+    const dot = info.isFile() ? name.lastIndexOf('.') : -1
+    const stem = dot > 0 ? name.slice(0, dot) : name
+    const extension = dot > 0 ? name.slice(dot) : ''
+    const dir = posix.dirname(source)
+    let index = 1
+    let target = posix.join(dir, `${stem}-${suffix}${extension}`)
+    while (await pathExists(target)) {
+      index += 1
+      target = posix.join(dir, `${stem}-${suffix}${index}${extension}`)
+    }
+    try {
+      await cp(source, target, { recursive: true, errorOnExist: true, force: false })
     } catch (error) {
       throw this.#fsError(error, target)
     }
