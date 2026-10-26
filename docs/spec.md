@@ -141,7 +141,7 @@ GitTreeDesk/
 │       ├── src/pty-host/        # utilityProcess entry for node-pty
 │       ├── src/preload/         # contextBridge API surface
 │       ├── src/renderer/        # React app (Vite)
-│       └── electron-builder.yml
+│       └── electron-builder.mjs
 ├── packages/
 │   ├── shared/                  # cross-process types, IPC contract, zod schemas, i18n key types
 │   ├── git-core/                # git runner, porcelain parsers, op models, backup refs (pure Node, no Electron imports; unit-testable against real temp repos)
@@ -471,7 +471,7 @@ Both views render with virtualization (TanStack Virtual) and keyboard navigation
 
 - Targets: electron-builder — Windows (NSIS installer + portable zip), macOS (dmg + zip, arm64 + x64; notarization requires an Apple account — deferred, unsigned builds documented), Linux (AppImage + deb).
 - CI: GitHub Actions matrix builds all three platforms; native deps (better-sqlite3, node-pty, @parcel/watcher) ship N-API prebuilds, so no rebuild is forced (`npmRebuild: false`) except node-pty compiled from source on Linux; prebuilt binaries and the Electron downloads are cached; a smoke test boots the packaged app and opens a fixture workspace.
-- Publishing: pushing a `vX.Y.Z` tag runs the same matrix build and, once every platform has packaged and smoke-tested, opens a GitHub Release for that tag with the installers and portable archives attached; the notes come from the matching `CHANGELOG.md` section (with the 简体中文 mirror below) and the job fails when the tag does not match the app version. A manually run (`workflow_dispatch`) workflow still uploads `installers-*` artifacts without publishing. Only the host platform can be packaged locally: the Linux targets need tooling that is unavailable on a Windows host, and macOS targets need a macOS host.
+- Publishing: pushing a `vX.Y.Z` tag runs the same matrix build and, once every platform has packaged and smoke-tested, opens a GitHub Release for that tag with the installers and portable archives attached; the notes come from the matching `CHANGELOG.md` section (with the 简体中文 mirror below). The app version is maintained only in the root `package.json` — `apps/desktop/electron-builder.mjs` injects it into the app metadata at packaging time, and a pre-flight job fails the run when the tag does not match it. A manually run (`workflow_dispatch`) workflow still uploads `installers-*` artifacts without publishing. Only the host platform can be packaged locally: the Linux targets need tooling that is unavailable on a Windows host, and macOS targets need a macOS host.
 - Platform integration: native menu bar on macOS (app menu + edit menu with standard clipboard roles — required for Cmd+C/V to work at all on macOS), frameless window with custom titlebar on Windows/Linux (native frame fallback setting); keyboard shortcuts use Cmd on macOS everywhere.
 - Data locations: `%APPDATA%/GitTreeDesk`, `~/Library/Application Support/GitTreeDesk`, `~/.config/GitTreeDesk` (`settings.json`, `keybindings.json`, `cache.db`, `logs/`).
 - Auto-update (electron-updater) is *Later*; v1 ships a manual download link in the About dialog.

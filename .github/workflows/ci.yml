@@ -8,6 +8,11 @@ on:
     # branches: [main]
   # pull_request:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to verify the root version against (leave empty for a branch build)
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -17,8 +22,32 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  validate:
+    name: Verify the tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # The artifact names carry the version out of the root manifest, so a tag
+      # that disagrees with it would publish mislabeled installers. Checking here
+      # keeps a mistyped tag from costing a full three-platform build.
+      - name: Check the tag against the app version
+        env:
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          if [ "${TAG#v}" = "$TAG" ]; then
+            echo "Not a v* tag (${TAG}); skipping version verification."
+            exit 0
+          fi
+          version=$(node -p "require('./package.json').version")
+          if [ "${TAG#v}" != "$version" ]; then
+            echo "Tag ${TAG} is not version ${version}; bump the root package.json and re-tag." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "Verified ${TAG} against the root package.json version ${version}."
+
   build:
     name: ${{ matrix.name }}
+    needs: validate
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     strategy:
@@ -128,16 +157,6 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v7
-      # The artifact names carry the version out of the manifests, so a tag that
-      # disagrees with them would publish mislabeled installers.
-      - name: Check the tag against the app version
-        run: |
-          version="${GITHUB_REF_NAME#v}"
-          app=$(node -p "require('./apps/desktop/package.json').version")
-          if [ "$version" != "$app" ]; then
-            echo "Tag ${GITHUB_REF_NAME} is not version ${app}; bump the manifests and re-tag." | tee -a "$GITHUB_STEP_SUMMARY"
-            exit 1
-          fi
       - name: Download installers
         uses: actions/download-artifact@v7
         with:

@@ -1,6 +1,5 @@
 {
   "name": "gitreedesk-docs",
-  "version": "0.2.0",
   "private": true,
   "description": "GitTreeDesk documentation site (Docusaurus) built from ../docs",
   "license": "MIT",

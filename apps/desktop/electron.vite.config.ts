@@ -5,7 +5,8 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import type { Plugin } from 'vite'
 
-const desktopVersion = (JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf8')) as { version: string })
+// The app version is maintained once, in the repo root package.json.
+const appVersion = (JSON.parse(readFileSync(resolve(__dirname, '../../package.json'), 'utf8')) as { version: string })
   .version
 
 const devCsp = [
@@ -90,7 +91,7 @@ const workspacePackages = [
 
 export default defineConfig({
   main: {
-    define: { __APP_VERSION__: JSON.stringify(desktopVersion) },
+    define: { __APP_VERSION__: JSON.stringify(appVersion) },
     plugins: [externalizeDepsPlugin({ exclude: workspacePackages })],
     build: {
       rollupOptions: {
