@@ -2,10 +2,15 @@ import { useEffect, useRef, useState, type JSX } from 'react'
 
 export interface ContextMenuItem {
   label: string
-  onSelect: () => void
+  /** Omitted for separator-only entries. */
+  onSelect?: () => void
   disabled?: boolean
+  /** Right-aligned accelerator hint, e.g. `F2`. */
+  shortcut?: string
   /** Draws a divider above this item. */
   divider?: boolean
+  /** Renders as a divider only, with no clickable item. */
+  separator?: boolean
 }
 
 export function ContextMenu({
@@ -60,19 +65,26 @@ export function ContextMenu({
     >
       {items.map((item, index) => (
         <div key={index}>
-          {item.divider === true && <div className="my-1 border-t border-line" />}
-          <button
-            role="menuitem"
-            type="button"
-            disabled={item.disabled === true}
-            className="block w-full px-3 py-1.5 text-left text-sm text-ink hover:bg-ink/5 disabled:opacity-40"
-            onClick={() => {
-              onClose()
-              item.onSelect()
-            }}
-          >
-            {item.label}
-          </button>
+          {(item.divider === true || item.separator === true) && (
+            <div className="my-1 border-t border-line" />
+          )}
+          {item.separator !== true && (
+            <button
+              role="menuitem"
+              type="button"
+              disabled={item.disabled === true}
+              className="flex w-full items-center justify-between gap-6 px-3 py-1.5 text-left text-sm text-ink hover:bg-ink/5 disabled:opacity-40"
+              onClick={() => {
+                onClose()
+                item.onSelect?.()
+              }}
+            >
+              <span className="min-w-0 truncate">{item.label}</span>
+              {item.shortcut !== undefined && (
+                <span className="shrink-0 text-xs text-muted">{item.shortcut}</span>
+              )}
+            </button>
+          )}
         </div>
       ))}
     </div>

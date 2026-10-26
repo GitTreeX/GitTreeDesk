@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type JSX, type MouseEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api'
-import { tabLabel, useEditor, type EditorTab } from '../contexts/editor'
+import { tabLabel, useEditor, type EditorTab, type FileTab } from '../contexts/editor'
 import { useSettings } from '../contexts/settings'
 import { useTreeUi } from '../contexts/tree'
 import { loadMonaco } from '../editor/monaco'
@@ -13,6 +13,7 @@ import { FileDiffView } from './FileDiffView'
 import { FileEditor } from './FileEditor'
 import { GraphView } from './GraphView'
 import { KeyboardShortcutsView } from './KeyboardShortcutsView'
+import { PromptDialog } from './PromptDialog'
 import { SettingsView } from './SettingsView'
 import { WorkspaceOverview } from './WorkspaceOverview'
 
@@ -99,12 +100,47 @@ function TabStrip(): JSX.Element {
   const editor = useEditor()
   const tree = useTreeUi()
   const [menu, setMenu] = useState<{ x: number; y: number; tab: EditorTab } | null>(null)
+  const [renaming, setRenaming] = useState<FileTab | null>(null)
 
   const copyPath = useCallback((text: string): void => {
     void api.invoke('app:copyText', { text }).catch((error: unknown) => {
       notifyError(error instanceof Error ? error.message : String(error))
     })
   }, [])
+
+  const renameTab = useCallback(
+    async (tab: FileTab, newName: string): Promise<void> => {
+      try {
+        if (editor.dirtyIds.has(tab.id)) {
+          const actions = editor.fileActions.current.get(tab.id)
+          const saved = actions === undefined ? true : await actions.save()
+          if (!saved) return
+        }
+        const { path } = await api.invoke('fs:rename', { path: tab.path, newName })
+        editor.remapFileTab(tab.path, path)
+        setRenaming(null)
+      } catch (error) {
+        notifyError(error instanceof Error ? error.message : String(error))
+      }
+    },
+    [editor]
+  )
+
+  const validateTabName = useCallback(
+    (value: string): string | null => {
+      const name = value.trim()
+      if (
+        name.length === 0 ||
+        name === '.' ||
+        name === '..' ||
+        /[/\\\u0000-\u001f]/.test(name)
+      ) {
+        return t('explorer.errors.invalidName')
+      }
+      return null
+    },
+    [t]
+  )
 
   const absolutePath = useCallback((tab: EditorTab): string | null => {
     if (tab.kind === 'file') return tab.path
@@ -115,16 +151,31 @@ function TabStrip(): JSX.Element {
 
   const menuItems = useCallback(
     (tab: EditorTab): ContextMenuItem[] => {
+      const tabs = editor.tabs
+      const index = tabs.findIndex((item) => item.id === tab.id)
       const items: ContextMenuItem[] = [
         { label: t('tabs.close'), onSelect: () => editor.requestClose([tab.id]) },
-        { label: t('tabs.closeOthers'), onSelect: () => editor.closeOthers(tab.id) },
+        {
+          label: t('tabs.closeLeft'),
+          disabled: index < 1,
+          onSelect: () => editor.closeLeft(tab.id)
+        },
+        {
+          label: t('tabs.closeRight'),
+          disabled: index === -1 || index === tabs.length - 1,
+          onSelect: () => editor.closeRight(tab.id)
+        },
+        { label: t('tabs.closeOthers'), disabled: tabs.length < 2, onSelect: () => editor.closeOthers(tab.id) },
         { label: t('tabs.closeAll'), onSelect: () => editor.closeAll() }
       ]
       const path = absolutePath(tab)
       if (path === null) return items
-      return [
-        ...items,
-        { divider: true, label: t('menu.copyPath'), onSelect: () => copyPath(path) },
+      const fileItems: ContextMenuItem[] = [{ label: '', separator: true }]
+      if (tab.kind === 'file') {
+        fileItems.push({ label: t('menu.rename'), onSelect: () => setRenaming(tab) })
+      }
+      fileItems.push(
+        { label: t('menu.copyPath'), onSelect: () => copyPath(path) },
         {
           label: t('menu.reveal'),
           onSelect: () => {
@@ -137,7 +188,8 @@ function TabStrip(): JSX.Element {
           label: t('menu.revealInExplorer'),
           onSelect: () => tree.requestExplorerReveal(path)
         }
-      ]
+      )
+      return [...items, ...fileItems]
     },
     [absolutePath, copyPath, editor, t, tree]
   )
@@ -202,6 +254,18 @@ function TabStrip(): JSX.Element {
           y={menu.y}
           items={menuItems(menu.tab)}
           onClose={() => setMenu(null)}
+        />
+      )}
+
+      {renaming !== null && (
+        <PromptDialog
+          title={t('menu.rename')}
+          label={t('dialogs.nameLabel')}
+          initialValue={renaming.name}
+          submitLabel={t('dialogs.rename')}
+          validate={validateTabName}
+          onSubmit={(name) => void renameTab(renaming, name.trim())}
+          onClose={() => setRenaming(null)}
         />
       )}
     </div>

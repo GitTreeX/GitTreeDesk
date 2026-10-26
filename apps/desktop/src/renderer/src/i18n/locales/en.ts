@@ -68,6 +68,8 @@ const en = {
     copyRelativePath: 'Copy Relative Path',
     moreActions: 'More Actions',
     rename: 'Rename',
+    duplicate: 'Duplicate',
+    duplicateSuffix: 'copy',
     delete: 'Move to Trash',
     checkoutBranch: 'Checkout Branch…',
     createBranch: 'New Branch…',
@@ -125,6 +127,8 @@ const en = {
   },
   tabs: {
     close: 'Close',
+    closeLeft: 'Close to the Left',
+    closeRight: 'Close to the Right',
     closeOthers: 'Close Others',
     closeAll: 'Close All'
   },

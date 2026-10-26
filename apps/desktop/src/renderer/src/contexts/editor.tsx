@@ -194,6 +194,8 @@ interface EditorContextValue {
   dirtyIds: ReadonlySet<string>
   settings: EditorSettings
   openFile: (path: string, options?: { preview?: boolean; line?: number }) => void
+  /** Moves an open file tab to a new path after the file was renamed on disk. */
+  remapFileTab: (oldPath: string, newPath: string) => void
   openDiff: (repo: RepoTabInfo, spec: ScmDiffSpec, options?: { preview?: boolean }) => void
   openCommitDiff: (input: OpenCommitInput) => void
   /** Opens (or activates) the tab comparing two workspace files. */
@@ -217,6 +219,8 @@ interface EditorContextValue {
   closePrompt: readonly string[] | null
   resolveClosePrompt: (action: 'save' | 'discard' | 'cancel') => void
   closeOthers: (id: string) => void
+  closeLeft: (id: string) => void
+  closeRight: (id: string) => void
   closeAll: () => void
   saveActiveFile: () => void
   openActiveInCode: () => void
@@ -341,6 +345,32 @@ export function EditorProvider({ children }: { children: ReactNode }): JSX.Eleme
     (path: string, options?: { preview?: boolean; line?: number }) => openFileAt(path, options, true),
     [openFileAt]
   )
+
+  const remapFileTab = useCallback((oldPath: string, newPath: string): void => {
+    const oldId = fileTabId(oldPath)
+    const newId = fileTabId(newPath)
+    setState((current) => {
+      const index = current.tabs.findIndex((tab) => tab.kind === 'file' && tab.path === oldPath)
+      if (index === -1) return current
+      const tabs = [...current.tabs]
+      tabs[index] = { ...(tabs[index] as FileTab), id: newId, path: newPath, name: baseName(newPath) }
+      const dirty = new Set(current.dirty)
+      if (dirty.delete(oldId)) dirty.add(newId)
+      return {
+        tabs,
+        activeId: current.activeId === oldId ? newId : current.activeId,
+        previewId: current.previewId === oldId ? newId : current.previewId,
+        dirty
+      }
+    })
+    fileActions.current.delete(oldId)
+    navRef.current = {
+      ...navRef.current,
+      entries: navRef.current.entries.map((entry) =>
+        entry.path === oldPath ? { ...entry, path: newPath } : entry
+      )
+    }
+  }, [])
 
   const applyNav = useCallback(
     (index: number): void => {
@@ -550,6 +580,25 @@ export function EditorProvider({ children }: { children: ReactNode }): JSX.Eleme
     [requestClose]
   )
 
+  const closeLeft = useCallback(
+    (id: string) => {
+      const index = stateRef.current.tabs.findIndex((tab) => tab.id === id)
+      if (index < 1) return
+      requestClose(stateRef.current.tabs.slice(0, index).map((tab) => tab.id))
+    },
+    [requestClose]
+  )
+
+  const closeRight = useCallback(
+    (id: string) => {
+      const tabs = stateRef.current.tabs
+      const index = tabs.findIndex((tab) => tab.id === id)
+      if (index === -1 || index === tabs.length - 1) return
+      requestClose(tabs.slice(index + 1).map((tab) => tab.id))
+    },
+    [requestClose]
+  )
+
   const closeAll = useCallback(() => {
     requestClose(stateRef.current.tabs.map((tab) => tab.id))
   }, [requestClose])
@@ -595,6 +644,7 @@ export function EditorProvider({ children }: { children: ReactNode }): JSX.Eleme
       dirtyIds: state.dirty,
       settings,
       openFile,
+      remapFileTab,
       openDiff,
       openCommitDiff,
       openCompare,
@@ -613,6 +663,8 @@ export function EditorProvider({ children }: { children: ReactNode }): JSX.Eleme
       closePrompt,
       resolveClosePrompt,
       closeOthers,
+      closeLeft,
+      closeRight,
       closeAll,
       saveActiveFile,
       openActiveInCode,
@@ -627,6 +679,7 @@ export function EditorProvider({ children }: { children: ReactNode }): JSX.Eleme
       activeTab,
       settings,
       openFile,
+      remapFileTab,
       openDiff,
       openCommitDiff,
       openCompare,
@@ -645,6 +698,8 @@ export function EditorProvider({ children }: { children: ReactNode }): JSX.Eleme
       closePrompt,
       resolveClosePrompt,
       closeOthers,
+      closeLeft,
+      closeRight,
       closeAll,
       saveActiveFile,
       openActiveInCode,

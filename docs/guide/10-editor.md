@@ -7,7 +7,7 @@ GitTreeDesk has a built-in editor for **viewing and light editing**. It is delib
 ## Opening and closing files
 
 - Click a file in the Explorer, or use **quick open** (`Ctrl/Cmd+P`) to jump to any file in the workspace (respecting `exclude`).
-- Files open as **tabs** in the editor area; the open-editors list shows a dirty dot for unsaved changes. Tab context menu: Close, Close others, Close all, Copy path, Reveal in Explorer.
+- Files open as **tabs** in the editor area; the open-editors list shows a dirty dot for unsaved changes. Tab context menu, split by dividers into tab and file groups: Close, Close to the left, Close to the right, Close others, Close all · Rename, Copy Path, Reveal in File Manager, Reveal in Explorer (the in-app file tree). Renaming a file tab saves pending edits first, then renames on disk and moves the tab to the new path.
 - Diffs (page 03), commit diffs (page 09) and settings open as their own tabs in the same area.
 
 ## Saving

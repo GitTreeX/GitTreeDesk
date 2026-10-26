@@ -70,6 +70,8 @@ export const zhHansResource: TranslationResource = {
     copyRelativePath: '复制相对路径',
     moreActions: '更多操作',
     rename: '重命名',
+    duplicate: '创建副本',
+    duplicateSuffix: '副本',
     delete: '移到回收站',
     checkoutBranch: '检出分支…',
     createBranch: '新建分支…',
@@ -127,6 +129,8 @@ export const zhHansResource: TranslationResource = {
   },
   tabs: {
     close: '关闭',
+    closeLeft: '关闭左侧标签页',
+    closeRight: '关闭右侧标签页',
     closeOthers: '关闭其他标签页',
     closeAll: '关闭全部标签页'
   },
