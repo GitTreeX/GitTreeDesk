@@ -3,6 +3,20 @@
 English is canonical; [简体中文](CHANGELOG.zh-CN.md) is the synced mirror.
 Archives for every version are published on the [releases page](https://github.com/GitTreeX/GitTreeDesk/releases).
 
+## 0.3.0-alpha.1
+
+**Explorer and tabs**
+
+- Duplicate any file or folder from the explorer. The copy is named after the original with a localized suffix (`notes-copy.md`, then `notes-copy2.md` when that name is taken).
+- Rename entries from the explorer context menu, with the platform shortcut shown next to the action: F2 on Windows and Linux, Return on macOS.
+- Rename the open file from its tab. Pending changes are written first, and the tab follows the file to its new path. The tab menu also closes tabs to the left or right.
+
+**Packaging**
+
+- Tags with a hyphen suffix, such as `v0.3.0-alpha.1`, publish as GitHub pre-releases.
+- Release download links include a gh-proxy mirror.
+- The app version is tracked only in the root `package.json`; packaging injects it into the desktop manifest, and a pre-flight job rejects a tag that disagrees with it.
+
 ## 0.2.0
 
 The first release packaged for all three platforms — everything below ships in it.

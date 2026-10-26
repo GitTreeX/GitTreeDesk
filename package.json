@@ -1,6 +1,6 @@
 {
   "name": "gitreedesk",
-  "version": "0.2.0",
+  "version": "0.3.0-alpha.1",
   "private": true,
   "description": "Workspace-first multi-repo Git workbench",
   "license": "MIT",
