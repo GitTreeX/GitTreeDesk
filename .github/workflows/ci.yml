@@ -201,7 +201,7 @@ jobs:
 
           {
             cat en.md
-            printf '\n### 下载 · Downloads\n\n'
+            printf '\n### Downloads · 下载\n\n'
             printf -- '- **Windows (x64)**: '
             link 'Installer · 安装程序' "$win_setup"
             printf ' · '
