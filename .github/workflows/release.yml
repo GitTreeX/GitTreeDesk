@@ -60,13 +60,15 @@ jobs:
               ~/Library/Caches/electron
               ~/Library/Caches/electron-builder
               ~/.npm/_prebuilds
-          - name: macos-x64
-            os: macos-15-intel
-            package: mac
-            caches: |
-              ~/Library/Caches/electron
-              ~/Library/Caches/electron-builder
-              ~/.npm/_prebuilds
+          # The Intel host is parked: without it no *-x64.dmg is produced, so the
+          # publish step below no longer requires or links that asset.
+          # - name: macos-x64
+          #   os: macos-15-intel
+          #   package: mac
+          #   caches: |
+          #     ~/Library/Caches/electron
+          #     ~/Library/Caches/electron-builder
+          #     ~/.npm/_prebuilds
           - name: linux-x64
             os: ubuntu-latest
             package: linux
@@ -161,7 +163,8 @@ jobs:
         run: |
           mkdir -p bundle
           find assets -mindepth 2 -type f -exec mv -t bundle {} +
-          for pattern in '*-setup.exe' '*-win.zip' '*-arm64.dmg' '*-x64.dmg' '*.AppImage' '*.deb' 'latest.yml' 'latest-linux.yml'; do
+          # for pattern in '*-setup.exe' '*-win.zip' '*-arm64.dmg' '*-x64.dmg' '*.AppImage' '*.deb' 'latest.yml' 'latest-linux.yml'; do
+          for pattern in '*-setup.exe' '*-win.zip' '*-arm64.dmg' '*.AppImage' '*.deb' 'latest.yml' 'latest-linux.yml'; do
             if [ -z "$(find bundle -maxdepth 1 -type f -name "$pattern" -print -quit)" ]; then
               echo "No asset matches ${pattern}" | tee -a "$GITHUB_STEP_SUMMARY"
               exit 1
@@ -190,7 +193,7 @@ jobs:
           win_setup=$(asset '*-setup.exe')
           win_portable=$(asset '*-win.zip')
           mac_arm=$(asset '*-arm64.dmg')
-          mac_intel=$(asset '*-x64.dmg')
+          # mac_intel=$(asset '*-x64.dmg')
           linux_appimage=$(asset '*.AppImage')
           linux_deb=$(asset '*.deb')
 
@@ -203,8 +206,8 @@ jobs:
             link 'Portable · 便携版' "$win_portable"
             printf '\n- **macOS (Apple Silicon)**: '
             link 'DMG' "$mac_arm"
-            printf ' · **macOS (Intel)**: '
-            link 'DMG' "$mac_intel"
+            # printf ' · **macOS (Intel)**: '
+            # link 'DMG' "$mac_intel"
             printf '\n- **Linux (x64)**: '
             link 'AppImage' "$linux_appimage"
             printf ' · '
