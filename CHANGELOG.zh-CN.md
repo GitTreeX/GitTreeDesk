@@ -3,6 +3,15 @@
 > 英文版为权威版本，[`CHANGELOG.md`](./CHANGELOG.md) 为准；本文件为同步中文镜像。
 > 各版本安装包发布在[发布页面](https://github.com/GitTreeX/GitTreeDesk/releases)。
 
+## 0.4.0-alpha.1
+
+**应用内更新**
+
+- GitTreeDesk 会在启动后不久检查 GitHub Releases，也可从**帮助 → 检查更新…**、关于对话框或命令面板手动检查。
+- 有可用更新时显示发布说明，并在后台下载、显示进度；**重启并更新**即可安装。
+- Windows 安装版与 Linux AppImage 可直接更新。macOS 构建、Linux deb 与开发版会提示不支持更新，并给出发布页链接。
+- 发布资产包含更新器读取的更新通道清单与 blockmap 文件。
+
 ## 0.3.0
 
 **资源管理器与标签页**

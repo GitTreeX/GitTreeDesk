@@ -3,6 +3,15 @@
 English is canonical; [简体中文](CHANGELOG.zh-CN.md) is the synced mirror.
 Archives for every version are published on the [releases page](https://github.com/GitTreeX/GitTreeDesk/releases).
 
+## 0.4.0-alpha.1
+
+**In-app updates**
+
+- GitTreeDesk checks GitHub Releases shortly after launch and on demand from **Help → Check for Updates…**, the About dialog, or the command palette.
+- An available update shows its release notes and downloads in the background with a progress bar; **Restart and Update** installs it.
+- Windows installs and the Linux AppImage update in place. macOS builds, the Linux deb and development builds report updates as unsupported and link to the release page.
+- Release uploads include the update channel manifests and blockmaps the updater reads.
+
 ## 0.3.0
 
 **Explorer and tabs**
