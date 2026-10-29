@@ -55,6 +55,16 @@ export function WelcomeView(): JSX.Element {
     [reloadRecents]
   )
 
+  // A missing folder stays in the list only until the next attempt: the service
+  // drops it from the store, so re-read the list whether or not the open worked.
+  const openRecent = useCallback(
+    async (root: string) => {
+      await workspace.open(root)
+      await reloadRecents()
+    },
+    [workspace.open, reloadRecents]
+  )
+
   const busy = workspace.opening
 
   return (
@@ -91,7 +101,7 @@ export function WelcomeView(): JSX.Element {
                   <button
                     type="button"
                     disabled={busy}
-                    onClick={() => void workspace.open(entry.root)}
+                    onClick={() => void openRecent(entry.root)}
                     onContextMenu={(event) => {
                       event.preventDefault()
                       setMenu({ x: event.clientX, y: event.clientY, root: entry.root })

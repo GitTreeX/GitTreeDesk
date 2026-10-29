@@ -870,6 +870,8 @@ export const zhHansResource: TranslationResource = {
     invalidName: '该名称不可用',
     exists: '已存在同名内容',
     notOpen: '尚未打开工作区',
+    workspaceMissing: '目录 {{path}} 已不存在，已从最近打开列表中移除',
+    workspaceMissingGeneric: '该目录已不存在，已从最近打开列表中移除',
     disposed: '工作区已关闭',
     branchUnmerged: '该分支包含未合并到其他位置的提交',
     branchInUse: '该分支已在另一个工作树中检出',

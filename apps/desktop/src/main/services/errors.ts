@@ -1,5 +1,6 @@
 export type ServiceErrorCode =
   | 'not-open'
+  | 'workspace-missing'
   | 'unknown-repo'
   | 'outside-workspace'
   | 'invalid-name'

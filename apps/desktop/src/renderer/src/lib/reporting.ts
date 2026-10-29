@@ -22,6 +22,10 @@ export function errorText(error: unknown, t: Translate): string {
           : t('errors.authRequired', { remote: name })
       case 'auth-ssh':
         return name === '' ? t('errors.authSshGeneric') : t('errors.authSsh', { remote: name })
+      case 'workspace-missing':
+        return name === ''
+          ? t('errors.workspaceMissingGeneric')
+          : t('errors.workspaceMissing', { path: name })
       case 'unknown-repo':
         return t('errors.unknownRepo')
       case 'outside-workspace':

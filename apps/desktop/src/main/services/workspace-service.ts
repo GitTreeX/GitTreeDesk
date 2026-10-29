@@ -293,6 +293,18 @@ async function realPathPosix(path: string): Promise<string> {
 
 const RECENT_LIMIT = 10
 
+const MISSING_PATH_CODES = new Set(['ENOENT', 'ENOTDIR'])
+
+/** `true` when the path is gone or no longer a folder, i.e. cannot serve as a workspace root. */
+async function workspaceUnavailable(path: string): Promise<boolean> {
+  try {
+    return !(await stat(path)).isDirectory()
+  } catch (error) {
+    if (MISSING_PATH_CODES.has((error as NodeJS.ErrnoException).code ?? '')) return true
+    throw new ServiceError('fs-failed', `Could not open ${path}: ${(error as Error).message}`)
+  }
+}
+
 const INVALID_ENTRY_NAME = /[/\\\u0000-\u001f]/
 
 function assertEntryName(name: string): void {
@@ -455,6 +467,14 @@ export class WorkspaceService {
   /** Opens a workspace; opening the already-open root returns its current state. */
   async open(root: string): Promise<WorkspaceDescriptor> {
     this.#assertLive()
+
+    if (await workspaceUnavailable(root)) {
+      this.#workspaces.removeFromRecent(root)
+      throw new ServiceError(
+        'workspace-missing',
+        `The workspace folder no longer exists: "${root}"`
+      )
+    }
 
     const existing = this.#session
     if (existing !== null && normalizeWorkspaceRoot(existing.root) === normalizeWorkspaceRoot(root)) {

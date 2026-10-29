@@ -9,13 +9,16 @@ import {
   type JSX,
   type ReactNode
 } from 'react'
-import type {
-  RepoRecord,
-  RepoStatusSnapshot,
-  WatchScopeKind,
-  WorkspaceDescriptor
+import { useTranslation } from 'react-i18next'
+import {
+  GtdIpcError,
+  type RepoRecord,
+  type RepoStatusSnapshot,
+  type WatchScopeKind,
+  type WorkspaceDescriptor
 } from '@gitreedesk/shared'
 import { api } from '../api'
+import { notifyServiceError } from '../lib/reporting'
 
 export interface DegradedEntry {
   kind: WatchScopeKind
@@ -76,6 +79,7 @@ function mergeRecords(
 }
 
 export function WorkspaceProvider({ children }: { children: ReactNode }): JSX.Element {
+  const { t } = useTranslation()
   const [descriptor, setDescriptor] = useState<WorkspaceDescriptor | null>(null)
   const [statuses, setStatuses] = useState<ReadonlyMap<string, RepoStatusSnapshot>>(EMPTY_STATUSES)
   const [degraded, setDegraded] = useState<readonly DegradedEntry[]>([])
@@ -99,11 +103,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }): JSX.El
         applyDescriptor(await api.invoke('workspace:open', { root }))
       } catch (error) {
         setLastError(errorMessage(error))
+        if (error instanceof GtdIpcError && error.code === 'workspace-missing') {
+          notifyServiceError(error, t)
+        }
       } finally {
         setOpening(false)
       }
     },
-    [applyDescriptor]
+    [applyDescriptor, t]
   )
 
   const close = useCallback(async () => {

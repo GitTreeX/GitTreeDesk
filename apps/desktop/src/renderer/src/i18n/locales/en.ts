@@ -886,6 +886,8 @@ const en = {
     invalidName: 'That name is not allowed',
     exists: 'Something with that name already exists',
     notOpen: 'No workspace is open',
+    workspaceMissing: 'The folder {{path}} no longer exists — it was removed from recent workspaces',
+    workspaceMissingGeneric: 'That folder no longer exists — it was removed from recent workspaces',
     disposed: 'The workspace was closed',
     branchUnmerged: 'The branch holds commits that are not merged elsewhere',
     branchInUse: 'That branch is checked out in another worktree',

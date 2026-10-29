@@ -402,6 +402,21 @@ describe('WorkspaceService', () => {
     expect(recent[0]?.lastOpenedAt).toBeTypeOf('number')
   })
 
+  it('refuses a workspace folder that no longer exists and drops it from recents', async () => {
+    const root = await tempDir('gtd-svc-gone-')
+    const userData = await tempDir('gtd-svc-data-')
+    await initRepo(join(root, 'api-server'))
+
+    const instance = service(userData, [])
+    const opened = await instance.open(root)
+    expect(instance.recent()).toHaveLength(1)
+    await instance.close()
+
+    await removeDir(root)
+    await expect(instance.open(opened.root)).rejects.toMatchObject({ code: 'workspace-missing' })
+    expect(instance.recent()).toEqual([])
+  })
+
   it('serves cached statuses from the previous session on open', async () => {
     const root = await tempDir('gtd-svc-cache-')
     const userData = await tempDir('gtd-svc-data-')
