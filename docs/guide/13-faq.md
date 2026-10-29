@@ -15,6 +15,10 @@ GitTreeDesk drives the **system Git** (page README → Prerequisites). The requi
 
 v1 publishes **unsigned macOS builds** (notarization requires an Apple developer account and is deferred). To open for the first time: **right-click the app → Open → Open**. After that it launches normally, or allow it via System Settings → Privacy & Security → "Open Anyway".
 
+### How do I update GitTreeDesk?
+
+Windows installs and the Linux AppImage update from GitHub Releases. GitTreeDesk checks quietly at launch and on demand via **Help → Check for Updates…** (also in the About dialog); available updates show the release notes, download in the background, and install when you restart. macOS builds, Linux deb and development builds have no update channel — they say updates are unsupported and link to the release page for a manual download.
+
 ### Where are my settings, and how do I reset everything?
 
 | What | Where |

@@ -475,7 +475,7 @@ Both views render with virtualization (TanStack Virtual) and keyboard navigation
 - Publishing: pushing a `vX.Y.Z` tag runs the same matrix build and, once every platform has packaged and smoke-tested, opens a GitHub Release for that tag with the installers and portable archives attached; the notes come from the matching `CHANGELOG.md` section (with the 简体中文 mirror below). The app version is maintained only in the root `package.json` — `apps/desktop/electron-builder.mjs` injects it into the app metadata at packaging time, and a pre-flight job fails the run when the tag does not match it. A manually run (`workflow_dispatch`) workflow still uploads `installers-*` artifacts without publishing. Only the host platform can be packaged locally: the Linux targets need tooling that is unavailable on a Windows host, and macOS targets need a macOS host.
 - Platform integration: native menu bar on macOS (app menu + edit menu with standard clipboard roles — required for Cmd+C/V to work at all on macOS), frameless window with custom titlebar on Windows/Linux (native frame fallback setting); keyboard shortcuts use Cmd on macOS everywhere.
 - Data locations: `%APPDATA%/GitTreeDesk`, `~/Library/Application Support/GitTreeDesk`, `~/.config/GitTreeDesk` (`settings.json`, `keybindings.json`, `cache.db`, `logs/`).
-- Auto-update (electron-updater) is *Later*; v1 ships a manual download link in the About dialog.
+- Updates come from GitHub Releases through `electron-updater`. Packaged Windows installs and the Linux AppImage check on launch (silently) and on demand from **Help → Check for Updates…** / the About dialog, show release notes, download in the background with a progress bar, and install with an explicit restart. Development builds and platforms without an installer channel (macOS, Linux deb) report updates as unsupported and link to the release page instead. The publish config names the GitHub repository, so electron-builder writes `latest.yml` / `latest-linux.yml` alongside the installers and blockmaps; the release workflow uploads all of them to the same GitHub Release, which the updater reads.
 
 ---
 
@@ -568,7 +568,6 @@ Budget failures are treated as bugs, not polish; the dev overlay (toggleable, sh
 ## Open questions
 
 - **Bundled portable Git** on Windows/macOS for zero-dependency installs — decide after first user feedback (v1 requires system Git).
-- **Auto-update channel** and hosting (GitHub Releases vs object storage) — the mechanism itself is post-v1; v1 links to the download page from the About dialog.
 
 ## Appendices
 
