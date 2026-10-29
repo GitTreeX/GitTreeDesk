@@ -49,6 +49,16 @@ export interface ScmRepoSection {
 
 export const UNTRACKED_PAGE = 200
 
+/** Collapse key of a repository section header. */
+export function repoCollapseKey(sectionKey: string): string {
+  return `repo:${sectionKey}`
+}
+
+/** Collapse key of a group header inside a repository section. */
+export function groupCollapseKey(sectionKey: string, group: ScmGroup): string {
+  return `group:${sectionKey}:${group}`
+}
+
 const LETTER_BY_KIND: Record<ScmRowKind, string> = {
   added: 'A',
   modified: 'M',

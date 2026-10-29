@@ -151,6 +151,24 @@ export function ChevronRightIcon({ className }: IconProps): JSX.Element {
   )
 }
 
+export function CollapseAllIcon({ className }: IconProps): JSX.Element {
+  return (
+    <svg {...iconProps(className)} aria-hidden="true">
+      <path d="m7 20 5-5 5 5" />
+      <path d="m7 4 5 5 5-5" />
+    </svg>
+  )
+}
+
+export function ExpandAllIcon({ className }: IconProps): JSX.Element {
+  return (
+    <svg {...iconProps(className)} aria-hidden="true">
+      <path d="m7 15 5 5 5-5" />
+      <path d="m7 9 5-5 5 5" />
+    </svg>
+  )
+}
+
 export function FolderIcon({ className }: IconProps): JSX.Element {
   return (
     <svg {...iconProps(className)} aria-hidden="true">

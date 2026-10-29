@@ -3,6 +3,8 @@ import type { RepoRecord, RepoStatus } from '@gitreedesk/shared'
 import {
   buildScmModel,
   DEFAULT_SCM_GROUPS,
+  groupCollapseKey,
+  repoCollapseKey,
   stagePathspecs,
   unstagePathspecs,
   UNTRACKED_PAGE,
@@ -191,6 +193,13 @@ describe('buildScmModel', () => {
       })
     )
     expect(model.map((section) => section.record.relPath)).toEqual(['app', 'backend/worker'])
+  })
+})
+
+describe('collapse keys', () => {
+  it('namespaces repository and group headers by checkout key', () => {
+    expect(repoCollapseKey('/ws/app/.git')).toBe('repo:/ws/app/.git')
+    expect(groupCollapseKey('/ws/app/.git', 'unstaged')).toBe('group:/ws/app/.git:unstaged')
   })
 })
 

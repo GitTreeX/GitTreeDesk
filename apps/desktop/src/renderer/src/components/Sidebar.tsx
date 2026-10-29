@@ -7,6 +7,7 @@ import { checkoutKey } from '../tree/repos-model'
 import {
   buildScmModel,
   DEFAULT_SCM_GROUPS,
+  repoCollapseKey,
   SCM_GROUPS,
   type ScmGroup
 } from '../tree/scm-model'
@@ -15,7 +16,7 @@ import { ReposView } from './ReposView'
 import { ScmOptionsPopover } from './ScmOptionsPopover'
 import { ScmView } from './ScmView'
 import { ViewOptionsPopover } from './ViewOptionsPopover'
-import { SlidersIcon } from './icons'
+import { CollapseAllIcon, ExpandAllIcon, SlidersIcon } from './icons'
 
 const VIEWS: readonly TreeViewKind[] = ['explorer', 'repos']
 const NO_RECORDS: readonly RepoRecord[] = []
@@ -104,6 +105,18 @@ function ScmHeader(): JSX.Element {
   )
 
   // Same scope rules as the list, so each count is what its group would reveal now.
+  const sections = useMemo(
+    () =>
+      buildScmModel({
+        records,
+        statusFor,
+        isSelected: tree.isScmSelected,
+        onlySelected: tree.scmOnlySelected,
+        groups: DEFAULT_SCM_GROUPS
+      }),
+    [records, statusFor, tree.isScmSelected, tree.scmOnlySelected]
+  )
+
   const counts = useMemo(() => {
     const totals: Record<ScmGroup, number> = {
       conflicts: 0,
@@ -111,18 +124,18 @@ function ScmHeader(): JSX.Element {
       unstaged: 0,
       untracked: 0
     }
-    const sections = buildScmModel({
-      records,
-      statusFor,
-      isSelected: tree.isScmSelected,
-      onlySelected: tree.scmOnlySelected,
-      groups: DEFAULT_SCM_GROUPS
-    })
     for (const section of sections) {
       for (const group of SCM_GROUPS) totals[group] += section.counts[group]
     }
     return totals
-  }, [records, statusFor, tree.isScmSelected, tree.scmOnlySelected])
+  }, [sections])
+
+  const allCollapsed = useMemo(
+    () =>
+      sections.length > 0 &&
+      sections.every((section) => tree.scmCollapsed.includes(repoCollapseKey(section.key))),
+    [sections, tree.scmCollapsed]
+  )
 
   const checked = useMemo(
     () => records.filter((record) => tree.isScmSelected(checkoutKey(record))).length,
@@ -138,6 +151,25 @@ function ScmHeader(): JSX.Element {
         {t('view.scm')}
       </span>
       <span className="min-w-0 flex-1" />
+      {sections.length > 0 && (
+        <button
+          type="button"
+          title={allCollapsed ? t('scm.expandAll') : t('scm.collapseAll')}
+          aria-label={allCollapsed ? t('scm.expandAll') : t('scm.collapseAll')}
+          className="rounded p-1 text-muted hover:bg-ink/5 hover:text-ink"
+          onClick={() => {
+            tree.setScmCollapsed(
+              allCollapsed ? [] : sections.map((section) => repoCollapseKey(section.key))
+            )
+          }}
+        >
+          {allCollapsed ? (
+            <ExpandAllIcon className="size-4" />
+          ) : (
+            <CollapseAllIcon className="size-4" />
+          )}
+        </button>
+      )}
       <button
         type="button"
         aria-pressed={optionsOpen}

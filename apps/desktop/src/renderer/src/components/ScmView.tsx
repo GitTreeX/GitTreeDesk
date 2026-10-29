@@ -27,6 +27,8 @@ import { checkoutKey } from '../tree/repos-model'
 import {
   buildScmModel,
   DEFAULT_SCM_GROUPS,
+  groupCollapseKey,
+  repoCollapseKey,
   stagePathspecs,
   SCM_GROUPS,
   unstagePathspecs,
@@ -215,9 +217,9 @@ export function ScmView(): JSX.Element {
     const list: FlatItem[] = []
     const collapsed = new Set(tree.scmCollapsed)
     for (const section of sections) {
-      if (collapsed.has(`repo:${section.key}`)) continue
+      if (collapsed.has(repoCollapseKey(section.key))) continue
       for (const block of section.groups) {
-        if (collapsed.has(`group:${section.key}:${block.group}`)) continue
+        if (collapsed.has(groupCollapseKey(section.key, block.group))) continue
         for (const row of block.rows) list.push({ id: itemId(section, row), section, row })
       }
     }
@@ -479,9 +481,9 @@ export function ScmView(): JSX.Element {
         const item = cursorId === null ? undefined : items[itemIndex.get(cursorId) ?? -1]
         if (item !== undefined) {
           event.preventDefault()
-          const groupKey = `group:${item.section.key}:${item.row.group}`
+          const groupKey = groupCollapseKey(item.section.key, item.row.group)
           if (!tree.scmCollapsed.includes(groupKey)) toggleCollapsed(groupKey)
-          else toggleCollapsed(`repo:${item.section.key}`)
+          else toggleCollapsed(repoCollapseKey(item.section.key))
         }
         break
       }
@@ -489,7 +491,7 @@ export function ScmView(): JSX.Element {
         const item = cursorId === null ? undefined : items[itemIndex.get(cursorId) ?? -1]
         if (item !== undefined) {
           event.preventDefault()
-          const groupKey = `group:${item.section.key}:${item.row.group}`
+          const groupKey = groupCollapseKey(item.section.key, item.row.group)
           if (tree.scmCollapsed.includes(groupKey)) toggleCollapsed(groupKey)
         }
         break
@@ -657,7 +659,7 @@ export function ScmView(): JSX.Element {
           </p>
         )}
         {sections.map((section) => {
-          const repoCollapsed = collapsed.has(`repo:${section.key}`)
+          const repoCollapsed = collapsed.has(repoCollapseKey(section.key))
           const status = statusFor(section.record)
           const branch = branchLabel(section.record, status)
           const stageableRows =
@@ -671,7 +673,7 @@ export function ScmView(): JSX.Element {
                   aria-label={section.record.name}
                   aria-expanded={!repoCollapsed}
                   className="shrink-0 rounded p-0.5 text-muted hover:bg-ink/10 hover:text-ink"
-                  onClick={() => toggleCollapsed(`repo:${section.key}`)}
+                  onClick={() => toggleCollapsed(repoCollapseKey(section.key))}
                 >
                   <ChevronRightIcon className={`size-3.5 ${repoCollapsed ? '' : 'rotate-90'}`} />
                 </button>
@@ -789,7 +791,7 @@ export function ScmView(): JSX.Element {
 
               {!repoCollapsed &&
                 section.groups.map((block) => {
-                  const groupKey = `group:${section.key}:${block.group}`
+                  const groupKey = groupCollapseKey(section.key, block.group)
                   const groupCollapsed = collapsed.has(groupKey)
                   return (
                     <div key={block.group}>

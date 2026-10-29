@@ -250,6 +250,8 @@ const en = {
     ignored: 'Added {{pattern}} to .gitignore',
     stageAll: 'Stage All Changes',
     unstageAll: 'Unstage All Changes',
+    collapseAll: 'Collapse All',
+    expandAll: 'Expand All',
     options: 'Display options',
     optionsGroups: 'Groups',
     optionsScope: 'Repositories',

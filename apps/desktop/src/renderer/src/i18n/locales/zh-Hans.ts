@@ -252,6 +252,8 @@ export const zhHansResource: TranslationResource = {
     ignored: '已将 {{pattern}} 添加到 .gitignore',
     stageAll: '暂存全部更改',
     unstageAll: '取消暂存全部更改',
+    collapseAll: '全部折叠',
+    expandAll: '全部展开',
     options: '显示选项',
     optionsGroups: '显示分组',
     optionsScope: '仓库范围',
