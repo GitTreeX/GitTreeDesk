@@ -36,14 +36,15 @@ jobs:
         with:
           # "Last updated" stamps come from each page's file history.
           fetch-depth: 0
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: pnpm/setup@v3
         with:
-          node-version: 24
-          cache: pnpm
+          runtime: node@24
+          cache: true
           cache-dependency-path: website/pnpm-lock.yaml
-      # The site is its own pnpm workspace: this skips the desktop app's
-      # Electron and native toolchain entirely.
+          # The site is its own pnpm workspace: installing here would pull the
+          # desktop app's Electron and native toolchain, so the install below
+          # runs inside website/ instead.
+          install: false
       - name: Install
         run: pnpm install --frozen-lockfile
         working-directory: website
