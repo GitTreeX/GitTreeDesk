@@ -3,6 +3,14 @@
 English is canonical; [简体中文](CHANGELOG.zh-CN.md) is the synced mirror.
 Archives for every version are published on the [releases page](https://github.com/GitTreeX/GitTreeDesk/releases).
 
+## 0.4.0-alpha.2
+
+**Packaging**
+
+- macOS releases ship the Apple Silicon disk image only; no Intel (x64) installer is published.
+- Package builds on every platform work again: electron-builder rejected the updater dependency while its version came from the pnpm catalog and aborted before writing any artifact.
+- The release page leads with the download links, followed by the notes in English and then in Chinese.
+
 ## 0.4.0-alpha.1
 
 **In-app updates**

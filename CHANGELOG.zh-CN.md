@@ -3,6 +3,14 @@
 > 英文版为权威版本，[`CHANGELOG.md`](./CHANGELOG.md) 为准；本文件为同步中文镜像。
 > 各版本安装包发布在[发布页面](https://github.com/GitTreeX/GitTreeDesk/releases)。
 
+## 0.4.0-alpha.2
+
+**打包**
+
+- macOS 发布仅提供 Apple Silicon 磁盘镜像，不再提供 Intel（x64）安装包。
+- 各平台打包恢复正常：更新器依赖的版本号取自 pnpm catalog 时，electron-builder 会校验失败，并在产出任何产物之前中止。
+- 发布页面先给出下载链接，随后依次是英文说明与中文说明。
+
 ## 0.4.0-alpha.1
 
 **应用内更新**
