@@ -6,7 +6,7 @@
 
 - At first launch the **Welcome screen** shows recent workspaces and an "Open folder…" action. You can also use the menu (File → Open Folder…) or **drag a folder onto the window**.
 - A workspace is just a folder — it does **not** need to be a Git repository. You will typically point it at a folder that *contains* many repositories (e.g. `E:\Projects\acme`).
-- The recent list keeps the last 10 workspaces; each entry has a context menu with "Remove from list". Reopening a workspace happens in place — no restart.
+- The recent list keeps the last 10 workspaces; each entry has an **×** button (also in its context menu) that removes it from the list. Reopening a workspace happens in place — no restart.
 - v1 is single-window: opening another workspace replaces the current one in the same window.
 
 ## What gets discovered

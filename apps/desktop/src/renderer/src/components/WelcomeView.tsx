@@ -4,7 +4,7 @@ import type { RecentWorkspace } from '@gitreedesk/shared'
 import { api } from '../api'
 import { useWorkspace } from '../contexts/workspace'
 import { ContextMenu } from './ContextMenu'
-import { FolderOpenIcon } from './icons'
+import { FolderOpenIcon, XIcon } from './icons'
 
 function formatLastOpened(timestamp: number | null, locale: string): string {
   if (timestamp === null) return ''
@@ -97,7 +97,10 @@ export function WelcomeView(): JSX.Element {
           ) : (
             <ul className="overflow-hidden rounded-md border border-line bg-panel">
               {recents.map((entry) => (
-                <li key={entry.root} className="border-b border-line last:border-b-0">
+                <li
+                  key={entry.root}
+                  className="group/recent relative border-b border-line last:border-b-0"
+                >
                   <button
                     type="button"
                     disabled={busy}
@@ -106,7 +109,7 @@ export function WelcomeView(): JSX.Element {
                       event.preventDefault()
                       setMenu({ x: event.clientX, y: event.clientY, root: entry.root })
                     }}
-                    className="block w-full px-3 py-2 text-left hover:bg-ink/5 disabled:opacity-60"
+                    className="block w-full px-3 py-2 pr-10 text-left hover:bg-ink/5 disabled:opacity-60"
                   >
                     <span className="block truncate text-sm text-ink">
                       {entry.name ?? entry.root.split('/').pop()}
@@ -119,6 +122,16 @@ export function WelcomeView(): JSX.Element {
                         {formatLastOpened(entry.lastOpenedAt, i18n.language)}
                       </span>
                     </span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    title={t('welcome.removeFromList')}
+                    aria-label={t('welcome.removeFromList')}
+                    onClick={() => void removeRecent(entry.root)}
+                    className="absolute top-1/2 right-1.5 -translate-y-1/2 rounded p-1 text-muted opacity-50 transition-opacity group-hover/recent:opacity-100 hover:bg-ink/10 hover:text-ink focus-visible:opacity-100 disabled:opacity-30"
+                  >
+                    <XIcon className="size-3.5" />
                   </button>
                 </li>
               ))}
