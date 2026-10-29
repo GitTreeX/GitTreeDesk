@@ -3,7 +3,7 @@
 English is canonical; [简体中文](CHANGELOG.zh-CN.md) is the synced mirror.
 Archives for every version are published on the [releases page](https://github.com/GitTreeX/GitTreeDesk/releases).
 
-## 0.3.0-alpha.1
+## 0.3.0
 
 **Explorer and tabs**
 
@@ -11,11 +11,22 @@ Archives for every version are published on the [releases page](https://github.c
 - Rename entries from the explorer context menu, with the platform shortcut shown next to the action: F2 on Windows and Linux, Return on macOS.
 - Rename the open file from its tab. Pending changes are written first, and the tab follows the file to its new path. The tab menu also closes tabs to the left or right.
 
+**Source Control**
+
+- Group visibility and the repository scope now live in a display options menu (sliders icon) in the panel header, and whatever is still restricted appears as a removable chip under the title.
+- A button in the same header folds every repository section at once; once everything is folded it expands it again.
+
+**Recent workspaces**
+
+- A workspace can be dropped from the welcome list with the × on its row, without opening it first.
+- Opening a workspace whose folder no longer exists is reported, removes that entry and returns to the welcome list instead of surfacing a filesystem error.
+
 **Packaging**
 
 - Tags with a hyphen suffix, such as `v0.3.0-alpha.1`, publish as GitHub pre-releases.
 - Release download links include a gh-proxy mirror.
 - The app version is tracked only in the root `package.json`; packaging injects it into the desktop manifest, and a pre-flight job rejects a tag that disagrees with it.
+- Typecheck, tests and the app build run in `ci.yml` on `main` and pull requests; `release.yml` keeps only the tag-triggered packaging and publishing.
 
 ## 0.2.0
 
