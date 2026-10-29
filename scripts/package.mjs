@@ -27,9 +27,13 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const desktopDir = join(repoRoot, 'apps', 'desktop')
 const cli = createRequire(join(desktopDir, 'package.json')).resolve('electron-builder/cli.js')
 
-const result = spawnSync(process.execPath, [cli, `--${target}`, '--config', 'electron-builder.mjs', ...rest], {
-  cwd: desktopDir,
-  stdio: 'inherit',
-  env: electronEnv()
-})
+const result = spawnSync(
+  process.execPath,
+  [cli, `--${target}`, '--config', 'electron-builder.mjs', '--publish', 'never', ...rest],
+  {
+    cwd: desktopDir,
+    stdio: 'inherit',
+    env: electronEnv()
+  }
+)
 process.exit(result.status ?? 1)

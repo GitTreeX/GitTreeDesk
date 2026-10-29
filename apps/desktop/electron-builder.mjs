@@ -11,6 +11,14 @@ export default {
     buildResources: 'build',
     output: '../../release',
   },
+  // electron-updater resolves releases through the packaged app-update.yml;
+  // electron-builder writes latest.yml / latest-linux.yml next to the installers
+  // and release.yml uploads them as release assets.
+  publish: {
+    provider: 'github',
+    owner: 'GitTreeX',
+    repo: 'GitTreeDesk',
+  },
   files: ['out/**', 'package.json', '!**/*.map'],
   extraMetadata: { version },
   // Native modules are N-API, so they load under Electron without a rebuild.

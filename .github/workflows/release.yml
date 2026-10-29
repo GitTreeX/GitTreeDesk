@@ -136,6 +136,8 @@ jobs:
             release/*.dmg
             release/*.AppImage
             release/*.deb
+            release/*.blockmap
+            release/latest*.yml
           # On a tag push these are the release assets, so a platform that
           # packaged nothing must fail the run instead of shipping a partial set.
           if-no-files-found: error
@@ -159,7 +161,7 @@ jobs:
         run: |
           mkdir -p bundle
           find assets -mindepth 2 -type f -exec mv -t bundle {} +
-          for pattern in '*-setup.exe' '*-win.zip' '*-arm64.dmg' '*-x64.dmg' '*.AppImage' '*.deb'; do
+          for pattern in '*-setup.exe' '*-win.zip' '*-arm64.dmg' '*-x64.dmg' '*.AppImage' '*.deb' 'latest.yml' 'latest-linux.yml'; do
             if [ -z "$(find bundle -maxdepth 1 -type f -name "$pattern" -print -quit)" ]; then
               echo "No asset matches ${pattern}" | tee -a "$GITHUB_STEP_SUMMARY"
               exit 1
