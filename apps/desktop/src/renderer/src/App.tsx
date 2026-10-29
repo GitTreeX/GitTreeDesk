@@ -13,6 +13,8 @@ import { StatusBar } from './components/StatusBar'
 import { TerminalPanel } from './components/TerminalPanel'
 import { ToastHost } from './components/ToastHost'
 import { TrustDialog } from './components/TrustDialog'
+import { UpdateDialog } from './components/UpdateDialog'
+import { UpdateNotice } from './components/UpdateNotice'
 import { WelcomeView } from './components/WelcomeView'
 import { CommandsProvider, useCommands } from './contexts/commands'
 import { EditorProvider, useEditor } from './contexts/editor'
@@ -24,6 +26,7 @@ import { SettingsProvider, useSettings, type InitialSettings } from './contexts/
 import { SubmodulesProvider, useSubmodules } from './contexts/submodules'
 import { TerminalProvider, useTerminal } from './contexts/terminal'
 import { TreeUiProvider, useTreeUi, type SidebarPanel } from './contexts/tree'
+import { UpdateProvider, useUpdate } from './contexts/update'
 import { WorkspaceProvider, useWorkspace } from './contexts/workspace'
 import { nextTheme } from './theme'
 import { checkoutKey } from './tree/repos-model'
@@ -57,7 +60,9 @@ export function App({ initialSettings }: { initialSettings: InitialSettings }): 
                   <TerminalProvider>
                     <SubmodulesProvider>
                       <OperationsProvider>
-                        <AppRoot />
+                        <UpdateProvider>
+                          <AppRoot />
+                        </UpdateProvider>
                       </OperationsProvider>
                     </SubmodulesProvider>
                   </TerminalProvider>
@@ -81,6 +86,7 @@ function AppRoot(): JSX.Element {
   const operations = useOperations()
   const submodules = useSubmodules()
   const terminal = useTerminal()
+  const update = useUpdate()
   const { registry, keybindings } = useCommands()
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -266,6 +272,7 @@ function AppRoot(): JSX.Element {
     },
     terminalHasSession: () => terminal.sessions.length > 0,
     openAbout: () => setAboutOpen(true),
+    checkForUpdates: () => update.check(),
     togglePerfOverlay: () => setPerfOpen((current) => !current)
   }
 
@@ -414,6 +421,8 @@ function AppRoot(): JSX.Element {
       <ToastHost />
       {import.meta.env.DEV && perfOpen && <PerfOverlay />}
       {aboutOpen && <AboutDialog onClose={() => setAboutOpen(false)} />}
+      <UpdateNotice />
+      <UpdateDialog />
       {trustPrompt && descriptor !== null && (
         <TrustDialog
           root={descriptor.root}

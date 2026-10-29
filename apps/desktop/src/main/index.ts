@@ -11,6 +11,7 @@ import { TerminalService } from './services/terminal'
 import { WorkspaceService } from './services/workspace-service'
 import { syncSettingsFiles } from './settings-schema'
 import { electronTerminalRuntime } from './terminal-runtime'
+import { createDesktopUpdateService } from './updater'
 
 const devServerUrl = process.env['ELECTRON_RENDERER_URL']
 
@@ -175,7 +176,12 @@ if (!app.requestSingleInstanceLock()) {
     })
     installApplicationMenu(shellLocale, sendCommand)
     void syncShellLocale()
-    bridge = registerIpcHandlers(workspace, commitMessages, terminals, { userDataDir })
+    const updateService = createDesktopUpdateService((snapshot) => {
+      broadcaster.handleUpdate(snapshot)
+    })
+    bridge = registerIpcHandlers(workspace, commitMessages, terminals, updateService, {
+      userDataDir
+    })
     app.on('will-quit', () => {
       bridge?.dispose()
       bridge = null

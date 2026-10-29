@@ -21,6 +21,7 @@ import type {
   TerminalResolutionInfo,
   TerminalSessionInfo
 } from './terminal'
+import type { UpdateSnapshot } from './update'
 import type { DiscoveryStats, RepoRecord, WatchScopeKind, WorkspaceConfig } from './workspace'
 
 export type SettingsScope = 'user' | 'workspace'
@@ -1227,7 +1228,8 @@ export const HOST_COMMANDS = [
   'workspace.openFolder',
   'workspace.closeFolder',
   'view.commandPalette',
-  'app.about'
+  'app.about',
+  'app.checkForUpdates'
 ] as const
 
 export type HostCommandId = (typeof HOST_COMMANDS)[number]
@@ -1368,6 +1370,9 @@ export interface InvokeMap {
   'ui-state:delete': { request: UiStateDeleteRequest; response: null }
   'app:info': { request: undefined; response: AppInfo }
   'app:perfStats': { request: undefined; response: PerfStats }
+  'update:check': { request: undefined; response: UpdateSnapshot }
+  'update:download': { request: undefined; response: null }
+  'update:install': { request: undefined; response: null }
 }
 
 export interface EventMap {
@@ -1385,6 +1390,7 @@ export interface EventMap {
   'terminal:frame': TerminalFrameEvent
   'terminal:exited': TerminalExitedEvent
   'app:command': AppCommandEvent
+  'update:changed': UpdateSnapshot
 }
 
 export type InvokeChannel = keyof InvokeMap
@@ -1524,7 +1530,10 @@ export const INVOKE_CHANNELS = [
   'ui-state:keys',
   'ui-state:delete',
   'app:info',
-  'app:perfStats'
+  'app:perfStats',
+  'update:check',
+  'update:download',
+  'update:install'
 ] as const satisfies readonly InvokeChannel[]
 
 export const EVENT_CHANNELS = [
@@ -1541,7 +1550,8 @@ export const EVENT_CHANNELS = [
   'commitmsg:done',
   'terminal:frame',
   'terminal:exited',
-  'app:command'
+  'app:command',
+  'update:changed'
 ] as const satisfies readonly EventChannel[]
 
 type Covered<T extends never> = T

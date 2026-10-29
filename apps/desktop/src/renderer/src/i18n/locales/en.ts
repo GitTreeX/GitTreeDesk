@@ -112,7 +112,35 @@ const en = {
     license: 'Released under the MIT License',
     copyright: '© 2026 GitTreeX',
     homepage: 'Project Homepage',
-    download: 'Download Latest Version'
+    download: 'Download Latest Version',
+    checkForUpdates: 'Check for Updates…'
+  },
+  update: {
+    title: 'Software Update',
+    currentVersion: 'Current version',
+    latestVersion: 'Latest version',
+    checking: 'Checking for updates…',
+    upToDate: 'You are on the latest version.',
+    available: 'A new version is available.',
+    downloading: 'Downloading the update…',
+    downloaded: 'The update is ready. Restart to apply it.',
+    downloadFailed: 'The update could not be downloaded.',
+    checkFailed: 'Could not check for updates.',
+    installFailed: 'The update could not be installed.',
+    unsupported:
+      'Automatic updates are unavailable on this platform. Download the latest release instead.',
+    development: 'Update checks are available in packaged builds only.',
+    releaseNotes: 'Release notes',
+    noReleaseNotes: 'No release notes were published with this version.',
+    later: 'Later',
+    download: 'Download Update',
+    retry: 'Retry',
+    close: 'Close',
+    restart: 'Restart and Update',
+    openReleases: 'Release Page',
+    noticeTitle: 'Version {{version}} is available',
+    noticeBody: 'Download it in the background and restart when you are ready.',
+    update: 'Update'
   },
   dialogs: {
     cancel: 'Cancel',
@@ -1119,6 +1147,7 @@ const en = {
     newTerminal: 'New Terminal',
     closeTerminal: 'Close Terminal',
     about: 'About GitTreeDesk',
+    checkForUpdates: 'Check for Updates…',
     togglePerf: 'Developer: Toggle Performance Overlay',
     categories: {
       workspace: 'Workspace',

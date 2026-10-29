@@ -114,7 +114,34 @@ export const zhHansResource: TranslationResource = {
     license: '以 MIT 许可证发布',
     copyright: '© 2026 GitTreeX',
     homepage: '项目主页',
-    download: '下载最新版本'
+    download: '下载最新版本',
+    checkForUpdates: '检查更新…'
+  },
+  update: {
+    title: '软件更新',
+    currentVersion: '当前版本',
+    latestVersion: '最新版本',
+    checking: '正在检查更新…',
+    upToDate: '已是最新版本。',
+    available: '有新版本可用。',
+    downloading: '正在下载更新…',
+    downloaded: '更新已就绪，重启后应用。',
+    downloadFailed: '更新下载失败。',
+    checkFailed: '检查更新失败。',
+    installFailed: '更新安装失败。',
+    unsupported: '当前平台不支持自动更新，请手动下载最新版本。',
+    development: '仅在打包版本中提供更新检查。',
+    releaseNotes: '更新说明',
+    noReleaseNotes: '该版本未发布更新说明。',
+    later: '稍后',
+    download: '下载更新',
+    retry: '重试',
+    close: '关闭',
+    restart: '重启并更新',
+    openReleases: '发布页面',
+    noticeTitle: '新版本 {{version}} 可用',
+    noticeBody: '可在后台下载，准备好后重启应用即可。',
+    update: '更新'
   },
   dialogs: {
     cancel: '取消',
@@ -1101,6 +1128,7 @@ export const zhHansResource: TranslationResource = {
     newTerminal: '新建终端',
     closeTerminal: '关闭终端',
     about: '关于 GitTreeDesk',
+    checkForUpdates: '检查更新…',
     togglePerf: '开发者：切换性能覆盖层',
     categories: {
       workspace: '工作区',

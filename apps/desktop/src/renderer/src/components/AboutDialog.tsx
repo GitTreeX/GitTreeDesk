@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { AppInfo } from '@gitreedesk/shared'
 import { api } from '../api'
+import { useUpdate } from '../contexts/update'
 import iconUrl from '../../../../../../brand/svg/gitreedesk-icon.svg'
 
 const HOMEPAGE = 'https://github.com/GitTreeX/GitTreeDesk'
@@ -9,6 +10,7 @@ const DOWNLOADS = `${HOMEPAGE}/releases`
 
 export function AboutDialog({ onClose }: { onClose: () => void }): JSX.Element {
   const { t } = useTranslation()
+  const update = useUpdate()
   const [info, setInfo] = useState<AppInfo | null>(null)
   const closeRef = useRef<HTMLButtonElement | null>(null)
 
@@ -84,6 +86,13 @@ export function AboutDialog({ onClose }: { onClose: () => void }): JSX.Element {
 
         <div className="mt-4 flex items-center justify-between gap-2">
           <div className="flex min-w-0 gap-3">
+            <button
+              type="button"
+              className="truncate text-xs text-accent hover:underline"
+              onClick={update.check}
+            >
+              {t('about.checkForUpdates')}
+            </button>
             <a
               href={HOMEPAGE}
               target="_blank"

@@ -30,6 +30,7 @@ interface MenuLabels {
   zoom: string
   help: string
   about: string
+  checkForUpdates: string
   services: string
   hide: string
   hideOthers: string
@@ -59,6 +60,7 @@ const LABELS: Record<ShellLocale, MenuLabels> = {
     zoom: 'Zoom',
     help: 'Help',
     about: 'About GitTreeDesk',
+    checkForUpdates: 'Check for Updates…',
     services: 'Services',
     hide: 'Hide GitTreeDesk',
     hideOthers: 'Hide Others',
@@ -86,6 +88,7 @@ const LABELS: Record<ShellLocale, MenuLabels> = {
     zoom: '缩放',
     help: '帮助',
     about: '关于 GitTreeDesk',
+    checkForUpdates: '检查更新…',
     services: '服务',
     hide: '隐藏 GitTreeDesk',
     hideOthers: '隐藏其他',
@@ -112,6 +115,10 @@ export function installApplicationMenu(
             label: app.name,
             submenu: [
               { label: labels.about, click: () => sendCommand('app.about') },
+              {
+                label: labels.checkForUpdates,
+                click: () => sendCommand('app.checkForUpdates')
+              },
               { type: 'separator' },
               { role: 'services', label: labels.services },
               { type: 'separator' },
@@ -173,7 +180,11 @@ export function installApplicationMenu(
       : ([
           {
             label: labels.help,
-            submenu: [{ label: labels.about, click: () => sendCommand('app.about') }]
+            submenu: [
+              { label: labels.checkForUpdates, click: () => sendCommand('app.checkForUpdates') },
+              { type: 'separator' },
+              { label: labels.about, click: () => sendCommand('app.about') }
+            ]
           }
         ] satisfies MenuItemConstructorOptions[]))
   ]

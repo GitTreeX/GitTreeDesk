@@ -46,7 +46,7 @@ afterEach(() => {
 })
 
 describe('application menu', () => {
-  it('puts About GitTreeDesk in a Help menu off macOS and sends app.about', () => {
+  it('puts Check for Updates and About in a Help menu off macOS', () => {
     setPlatform('win32')
     const send = vi.fn()
     installApplicationMenu('en', send)
@@ -55,15 +55,23 @@ describe('application menu', () => {
     const help = menu.find((entry) => entry.label === 'Help')
     expect(help).toBeDefined()
     const items = help?.submenu as MenuItemConstructorOptions[]
-    expect(items.map((entry) => entry.label)).toEqual(['About GitTreeDesk'])
+    expect(items.map((entry) => entry.label)).toEqual([
+      'Check for Updates…',
+      undefined,
+      'About GitTreeDesk'
+    ])
 
-    const about = items[0]
+    const [checkForUpdates, , about] = items
+    expect(checkForUpdates.click).toBeTypeOf('function')
+    ;(checkForUpdates.click as () => void)()
+    expect(send).toHaveBeenCalledWith('app.checkForUpdates')
+
     expect(about.click).toBeTypeOf('function')
     ;(about.click as () => void)()
     expect(send).toHaveBeenCalledWith('app.about')
   })
 
-  it('puts About GitTreeDesk in the app menu on macOS', () => {
+  it('puts About and Check for Updates in the app menu on macOS', () => {
     setPlatform('darwin')
     const send = vi.fn()
     installApplicationMenu('en', send)
@@ -76,18 +84,24 @@ describe('application menu', () => {
 
     ;(about.click as () => void)()
     expect(send).toHaveBeenCalledWith('app.about')
+
+    const checkForUpdates = appMenu[1]
+    expect(checkForUpdates.label).toBe('Check for Updates…')
+    ;(checkForUpdates.click as () => void)()
+    expect(send).toHaveBeenCalledWith('app.checkForUpdates')
     // No separate Help menu: the app menu carries About on macOS.
     expect(menu.find((entry) => entry.label === 'Help')).toBeUndefined()
   })
 
-  it('localizes the About entry', () => {
+  it('localizes the About and Check for Updates entries', () => {
     setPlatform('linux')
     installApplicationMenu('zh-Hans', vi.fn())
 
     const menu = template()
     const help = menu.find((entry) => entry.label === '帮助')
     expect(help).toBeDefined()
-    expect((help?.submenu as MenuItemConstructorOptions[])[0].label).toBe('关于 GitTreeDesk')
+    const labels = (help?.submenu as MenuItemConstructorOptions[]).map((entry) => entry.label)
+    expect(labels).toEqual(['检查更新…', undefined, '关于 GitTreeDesk'])
   })
 
   it('resolves the shell locale from the OS language', () => {

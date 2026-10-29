@@ -416,7 +416,10 @@ export const invokeSchemas = {
   'ui-state:keys': z.object({ prefix: z.string().max(512).optional() }),
   'ui-state:delete': z.object({ key: keyString }),
   'app:info': z.undefined(),
-  'app:perfStats': z.undefined()
+  'app:perfStats': z.undefined(),
+  'update:check': z.undefined(),
+  'update:download': z.undefined(),
+  'update:install': z.undefined()
 } satisfies { [K in InvokeChannel]: z.ZodTypeAny }
 
 /** Compile-time guard: every schema's output must match its channel's request type. */

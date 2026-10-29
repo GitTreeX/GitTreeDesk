@@ -11,7 +11,8 @@ import {
   type IpcErrorInfo,
   type IpcResult,
   type KeybindingsChangedEvent,
-  type SettingsChangedEvent
+  type SettingsChangedEvent,
+  type UpdateSnapshot
 } from '@gitreedesk/shared'
 import { invokeSchemas } from '@gitreedesk/shared/validate'
 import type { InvokeHandlers } from '@gitreedesk/shared'
@@ -23,6 +24,7 @@ import type { CommitMessageService, CommitMessageServiceEvent } from './services
 import { ServiceError } from './services/errors'
 import { StatusBatcher } from './services/status-batcher'
 import type { TerminalService, TerminalServiceEvent } from './services/terminal'
+import type { UpdateService } from './update-service'
 import type { WorkspaceService, WorkspaceServiceEvent } from './services/workspace-service'
 
 const STATUS_FLUSH_MS = 33
@@ -31,6 +33,7 @@ export interface EventBroadcaster {
   handle(event: WorkspaceServiceEvent): void
   handleCommitMessage(event: CommitMessageServiceEvent): void
   handleTerminal(event: TerminalServiceEvent): void
+  handleUpdate(snapshot: UpdateSnapshot): void
   dispose(): void
 }
 
@@ -99,6 +102,9 @@ export function createEventBroadcaster(): EventBroadcaster {
       if (event.type === 'frame') broadcast('terminal:frame', { id: event.id, frame: event.frame })
       else broadcast('terminal:exited', { id: event.id, code: event.code })
     },
+    handleUpdate(snapshot) {
+      broadcast('update:changed', snapshot)
+    },
     dispose() {
       batcher.dispose()
     }
@@ -117,9 +123,10 @@ export function registerIpcHandlers(
   service: WorkspaceService,
   commitMessages: CommitMessageService,
   terminals: TerminalService,
+  updateService: UpdateService,
   appPaths: IpcAppPaths
 ): IpcBridge {
-  const handlers = createHandlers(service, commitMessages, terminals, appPaths)
+  const handlers = createHandlers(service, commitMessages, terminals, updateService, appPaths)
 
   for (const channel of INVOKE_CHANNELS) {
     // Status reads report their own timing through the scheduler; keeping them out of the
@@ -157,6 +164,7 @@ function createHandlers(
   service: WorkspaceService,
   commitMessages: CommitMessageService,
   terminals: TerminalService,
+  updateService: UpdateService,
   appPaths: IpcAppPaths
 ): InvokeHandlers {
   return {
@@ -290,7 +298,16 @@ function createHandlers(
     'ui-state:delete': (request) => service.uiStateDelete(request.key),
     'app:info': () => appInfo(service),
     'app:perfStats': () => ({ ...perfSnapshot(), watchers: service.watcherStats() }),
-    'app:openFolder': (request) => openAppFolder(appPaths, request)
+    'app:openFolder': (request) => openAppFolder(appPaths, request),
+    'update:check': () => updateService.check(),
+    'update:download': async () => {
+      await updateService.download()
+      return null
+    },
+    'update:install': () => {
+      updateService.install()
+      return null
+    }
   }
 }
 
