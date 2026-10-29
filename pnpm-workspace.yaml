@@ -25,7 +25,8 @@ catalog:
   better-sqlite3: ^13.0.3
   electron: ^44.7.0
   electron-builder: ^26.15.3
-  electron-updater: ^6.8.11
+  # electron-updater is deliberately absent: electron-builder reads its range literally, so a "catalog:" specifier fails validation and aborts packaging.
+  # electron-updater: ^6.8.11
   electron-vite: ^6.0.0
   i18next: ^26.4.4
   jsonc-parser: ^3.3.1

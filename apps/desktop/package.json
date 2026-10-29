@@ -22,7 +22,7 @@
   "dependencies": {
     "@parcel/watcher": "catalog:",
     "better-sqlite3": "catalog:",
-    "electron-updater": "catalog:",
+    "electron-updater": "^6.8.11",
     "jsonc-parser": "catalog:",
     "node-pty": "catalog:"
   },
