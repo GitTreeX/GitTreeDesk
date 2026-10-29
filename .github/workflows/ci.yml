@@ -1,18 +1,12 @@
 name: CI
 
+# Checks only: no packaging, no publishing. Releases are tagged and handled by
+# release.yml.
 on:
   push:
-    # A `vX.Y.Z` tag cuts a release: the same matrix build runs, then the
-    # `release` job publishes everything it produced.
-    tags: ['v*']
-    # branches: [main]
-  # pull_request:
+    branches: [main]
+  pull_request:
   workflow_dispatch:
-    inputs:
-      tag:
-        description: Release tag to verify the root version against (leave empty for a branch build)
-        required: false
-        default: ''
 
 permissions:
   contents: read
@@ -22,214 +16,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  validate:
-    name: Verify the tag
+  check:
+    name: Typecheck, test, and build
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
-      # The artifact names carry the version out of the root manifest, so a tag
-      # that disagrees with it would publish mislabeled installers. Checking here
-      # keeps a mistyped tag from costing a full three-platform build.
-      - name: Check the tag against the app version
-        env:
-          TAG: ${{ github.event.inputs.tag || github.ref_name }}
-        run: |
-          if [ "${TAG#v}" = "$TAG" ]; then
-            echo "Not a v* tag (${TAG}); skipping version verification."
-            exit 0
-          fi
-          version=$(node -p "require('./package.json').version")
-          if [ "${TAG#v}" != "$version" ]; then
-            echo "Tag ${TAG} is not version ${version}; bump the root package.json and re-tag." | tee -a "$GITHUB_STEP_SUMMARY"
-            exit 1
-          fi
-          echo "Verified ${TAG} against the root package.json version ${version}."
-
-  build:
-    name: ${{ matrix.name }}
-    needs: validate
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 90
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: windows-x64
-            os: windows-latest
-            package: win
-            caches: |
-              ~/AppData/Local/electron/Cache
-              ~/AppData/Local/electron-builder/Cache
-              ~/.npm/_prebuilds
-          - name: macos-arm64
-            os: macos-latest
-            package: mac
-            caches: |
-              ~/Library/Caches/electron
-              ~/Library/Caches/electron-builder
-              ~/.npm/_prebuilds
-          - name: macos-x64
-            os: macos-15-intel
-            package: mac
-            caches: |
-              ~/Library/Caches/electron
-              ~/Library/Caches/electron-builder
-              ~/.npm/_prebuilds
-          - name: linux-x64
-            os: ubuntu-latest
-            package: linux
-            caches: |
-              ~/.cache/electron
-              ~/.cache/electron-builder
-              ~/.npm/_prebuilds
-    steps:
-      - uses: actions/checkout@v7
-      # Restored before the install runs, so Electron's and electron-builder's
-      # downloads are already on disk when pnpm/setup installs dependencies.
-      - name: Cache Electron, builder tooling, and native prebuilds
-        uses: actions/cache@v6
-        with:
-          path: ${{ matrix.caches }}
-          key: ${{ matrix.name }}-${{ hashFiles('pnpm-lock.yaml', '.npmrc') }}
-          restore-keys: |
-            ${{ matrix.name }}-
       - uses: pnpm/setup@v3
         with:
           runtime: node@24
           cache: true
           require-lockfile: true
-      # node-pty has no Linux prebuild, so it is compiled here and must be
-      # verified before packaging: an unbuilt native module is invisible until
-      # the packaged smoke checks for it.
+      # node-pty has no Linux prebuild, so the app build needs it compiled here.
       - run: pnpm build:native
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
-      - run: pnpm fixture
-      - name: Package (${{ matrix.package }})
-        run: pnpm package:${{ matrix.package }}
-      - name: Packaged smoke (headless Linux)
-        if: matrix.package == 'linux'
-        run: xvfb-run -a pnpm smoke:packaged
-      - name: Packaged smoke
-        if: matrix.package != 'linux'
-        run: pnpm smoke:packaged
-      # The release budgets are gates on the reference machine; shared CI
-      # runners are only good enough for trend measurement.
-      - name: Perf budgets (informational on shared runners)
-        if: matrix.package == 'win'
-        continue-on-error: true
-        run: |
-          pnpm perf-budget
-          pnpm perf-graph
-      - name: Upload smoke reports
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: reports-${{ matrix.name }}
-          path: |
-            .fixtures/packaged-profile/smoke-report.json
-            .fixtures/packaged-profile/packaged-open.png
-            .fixtures/perf-profile/perf-report.json
-            .fixtures/graph-profile/graph-report.json
-          if-no-files-found: ignore
-      - name: Upload installers
-        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
-        uses: actions/upload-artifact@v7
-        with:
-          name: installers-${{ matrix.name }}
-          path: |
-            release/*.exe
-            release/*.zip
-            release/*.dmg
-            release/*.AppImage
-            release/*.deb
-          # On a tag push these are the release assets, so a platform that
-          # packaged nothing must fail the run instead of shipping a partial set.
-          if-no-files-found: error
-
-  release:
-    name: Publish GitHub Release
-    # Only a version tag publishes; a branch push or a manual run just builds.
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v7
-      - name: Download installers
-        uses: actions/download-artifact@v7
-        with:
-          pattern: installers-*
-          path: assets
-      - name: Collect release assets
-        run: |
-          mkdir -p bundle
-          find assets -mindepth 2 -type f -exec mv -t bundle {} +
-          for pattern in '*-setup.exe' '*-win.zip' '*-arm64.dmg' '*-x64.dmg' '*.AppImage' '*.deb'; do
-            if [ -z "$(find bundle -maxdepth 1 -type f -name "$pattern" -print -quit)" ]; then
-              echo "No asset matches ${pattern}" | tee -a "$GITHUB_STEP_SUMMARY"
-              exit 1
-            fi
-          done
-      - name: Write release notes
-        run: |
-          version="${GITHUB_REF_NAME#v}"
-          section() {
-            awk -v ver="$version" '
-              !found && $0 ~ ("^## (v)?" ver "[ \t\r]*$") { found = 1; next }
-              found && /^## / { exit }
-              found { print }
-            ' "$1" > "$2"
-          }
-          section CHANGELOG.md en.md
-          section CHANGELOG.zh-CN.md zh.md
-          if [ ! -s en.md ]; then
-            printf 'No `%s` entry in CHANGELOG.md yet.\n' "$version" > en.md
-          fi
-
-          base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}"
-          mirror="https://v6.gh-proxy.org/${base}"
-          asset() { find bundle -maxdepth 1 -type f -name "$1" -printf '%f\n' -quit; }
-          link() { printf '[%s](%s/%s) ([国内镜像](%s/%s))' "$1" "$base" "$2" "$mirror" "$2"; }
-          win_setup=$(asset '*-setup.exe')
-          win_portable=$(asset '*-win.zip')
-          mac_arm=$(asset '*-arm64.dmg')
-          mac_intel=$(asset '*-x64.dmg')
-          linux_appimage=$(asset '*.AppImage')
-          linux_deb=$(asset '*.deb')
-
-          {
-            cat en.md
-            printf '\n### Downloads · 下载\n\n'
-            printf -- '- **Windows (x64)**: '
-            link 'Installer · 安装程序' "$win_setup"
-            printf ' · '
-            link 'Portable · 便携版' "$win_portable"
-            printf '\n- **macOS (Apple Silicon)**: '
-            link 'DMG' "$mac_arm"
-            printf ' · **macOS (Intel)**: '
-            link 'DMG' "$mac_intel"
-            printf '\n- **Linux (x64)**: '
-            link 'AppImage' "$linux_appimage"
-            printf ' · '
-            link 'deb' "$linux_deb"
-            printf '\n'
-            if [ -s zh.md ]; then
-              printf -- '\n---\n\n## 简体中文\n\n'
-              cat zh.md
-            fi
-          } > notes.md
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
-          body_path: notes.md
-          files: bundle/*
-          # Release convention shared by the abrooka apps: a tag with a hyphen
-          # after the version (v1.2.3-beta.1) publishes as a GitHub pre-release;
-          # a plain v1.2.3 tag publishes as the current stable release.
-          prerelease: ${{ contains(github.ref_name, '-') }}
