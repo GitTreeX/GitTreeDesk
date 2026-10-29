@@ -198,8 +198,7 @@ jobs:
           linux_deb=$(asset '*.deb')
 
           {
-            cat en.md
-            printf '\n### Downloads · 下载\n\n'
+            printf '### Downloads · 下载\n\n'
             printf -- '- **Windows (x64)**: '
             link 'Installer · 安装程序' "$win_setup"
             printf ' · '
@@ -212,9 +211,10 @@ jobs:
             link 'AppImage' "$linux_appimage"
             printf ' · '
             link 'deb' "$linux_deb"
-            printf '\n'
+            printf -- '\n\n---\n\n'
+            cat en.md
             if [ -s zh.md ]; then
-              printf -- '\n---\n\n## 简体中文\n\n'
+              printf -- '\n---\n\n'
               cat zh.md
             fi
           } > notes.md
