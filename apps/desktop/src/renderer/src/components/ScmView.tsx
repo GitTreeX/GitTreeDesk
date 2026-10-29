@@ -26,11 +26,11 @@ import { rowHeightFor } from '../theme'
 import { checkoutKey } from '../tree/repos-model'
 import {
   buildScmModel,
+  DEFAULT_SCM_GROUPS,
   stagePathspecs,
   SCM_GROUPS,
   unstagePathspecs,
   UNTRACKED_PAGE,
-  type ScmGroup,
   type ScmRepoSection,
   type ScmRow
 } from '../tree/scm-model'
@@ -47,8 +47,8 @@ import {
   IgnoreIcon,
   MinusIcon,
   PlusIcon,
-  SquareIcon,
-  UndoIcon
+  UndoIcon,
+  XIcon
 } from './icons'
 
 const NO_RECORDS: readonly RepoRecord[] = []
@@ -166,6 +166,17 @@ export function ScmView(): JSX.Element {
       }),
     [records, statusFor, tree.isScmSelected, tree.scmOnlySelected, tree.scmGroups, untrackedLimits]
   )
+
+  const hiddenGroups = useMemo(
+    () => SCM_GROUPS.filter((group) => !tree.scmGroups[group]),
+    [tree.scmGroups]
+  )
+  const checkedCount = useMemo(
+    () => records.filter((record) => tree.isScmSelected(checkoutKey(record))).length,
+    [records, tree.isScmSelected]
+  )
+  const scopeFiltered = tree.scmOnlySelected && checkedCount < records.length
+  const filtersActive = hiddenGroups.length > 0 || scopeFiltered
 
   // Working-tree edits only reach the status pipeline through tree watches, so the
   // repos this view covers stay watched while it is mounted; released on unmount.
@@ -586,7 +597,49 @@ export function ScmView(): JSX.Element {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <ScmToolbar />
+      {filtersActive && (
+        <div className="flex shrink-0 items-center gap-2 border-b border-line px-2 py-1">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
+            {hiddenGroups.map((group) => (
+              <button
+                key={group}
+                type="button"
+                title={t('scm.showGroup', { group: t(`scm.groups.${group}`) })}
+                className="inline-flex max-w-full items-center gap-1 rounded border border-line px-1.5 py-0.5 text-xs text-ink hover:bg-ink/5"
+                onClick={() => tree.setScmGroups({ ...tree.scmGroups, [group]: true })}
+              >
+                <span className="truncate">
+                  {t('scm.hiddenGroup', { group: t(`scm.groups.${group}`) })}
+                </span>
+                <XIcon className="size-3 shrink-0 text-muted" />
+              </button>
+            ))}
+            {scopeFiltered && (
+              <button
+                type="button"
+                title={t('scm.showAllRepos')}
+                className="inline-flex max-w-full items-center gap-1 rounded border border-line px-1.5 py-0.5 text-xs text-ink hover:bg-ink/5"
+                onClick={() => tree.setScmOnlySelected(false)}
+              >
+                <span className="truncate">
+                  {t('scm.scopedRepos', { selected: checkedCount, total: records.length })}
+                </span>
+                <XIcon className="size-3 shrink-0 text-muted" />
+              </button>
+            )}
+          </div>
+          <button
+            type="button"
+            className="shrink-0 rounded px-1 py-0.5 text-xs text-muted hover:bg-ink/5 hover:text-ink"
+            onClick={() => {
+              tree.setScmGroups(DEFAULT_SCM_GROUPS)
+              tree.setScmOnlySelected(false)
+            }}
+          >
+            {t('scm.showAll')}
+          </button>
+        </div>
+      )}
       <div
         ref={listRef}
         tabIndex={0}
@@ -598,7 +651,11 @@ export function ScmView(): JSX.Element {
           if (event.target === listRef.current) setSelected(new Set())
         }}
       >
-        {sections.length === 0 && <p className="px-3 py-4 text-sm text-muted">{t('scm.empty')}</p>}
+        {sections.length === 0 && (
+          <p className="px-3 py-4 text-sm text-muted">
+            {filtersActive ? t('scm.emptyFiltered') : t('scm.empty')}
+          </p>
+        )}
         {sections.map((section) => {
           const repoCollapsed = collapsed.has(`repo:${section.key}`)
           const status = statusFor(section.record)
@@ -954,63 +1011,5 @@ function RowButton({
     >
       {icon}
     </button>
-  )
-}
-
-function ScmToolbar(): JSX.Element {
-  const { t } = useTranslation()
-  const { descriptor } = useWorkspace()
-  const tree = useTreeUi()
-  const records = descriptor?.records ?? NO_RECORDS
-
-  return (
-    <div className="flex min-h-8 shrink-0 flex-wrap items-center gap-1 border-b border-line px-2 py-1">
-      {SCM_GROUPS.map((group: ScmGroup) => (
-        <button
-          key={group}
-          type="button"
-          aria-pressed={tree.scmGroups[group]}
-          className={`whitespace-nowrap rounded border px-1.5 py-0.5 text-xs ${
-            tree.scmGroups[group]
-              ? 'border-accent/60 bg-accent/15 text-ink'
-              : 'border-line text-muted hover:bg-ink/5 hover:text-ink'
-          }`}
-          onClick={() => tree.setScmGroups({ ...tree.scmGroups, [group]: !tree.scmGroups[group] })}
-        >
-          {t(`scm.groups.${group}`)}
-        </button>
-      ))}
-      <button
-        type="button"
-        aria-pressed={tree.scmOnlySelected}
-        title={t('scm.onlySelectedTitle')}
-        className={`whitespace-nowrap rounded border px-1.5 py-0.5 text-xs ${
-          tree.scmOnlySelected
-            ? 'border-accent/60 bg-accent/15 text-ink'
-            : 'border-line text-muted hover:bg-ink/5 hover:text-ink'
-        }`}
-        onClick={() => tree.setScmOnlySelected(!tree.scmOnlySelected)}
-      >
-        {t('scm.onlySelected')}
-      </button>
-      <div className="ml-auto flex shrink-0 items-center gap-1">
-        <button
-          type="button"
-          title={t('repos.selectAll')}
-          className="rounded p-1 text-muted hover:bg-ink/5 hover:text-ink"
-          onClick={() => tree.setScmDeselected([])}
-        >
-          <CheckSquareIcon className="size-4" />
-        </button>
-        <button
-          type="button"
-          title={t('repos.selectNone')}
-          className="rounded p-1 text-muted hover:bg-ink/5 hover:text-ink"
-          onClick={() => tree.setScmDeselected([...records].map((record) => checkoutKey(record)))}
-        >
-          <SquareIcon className="size-4" />
-        </button>
-      </div>
-    </div>
   )
 }

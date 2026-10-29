@@ -7,12 +7,12 @@ The **Source Control view** (activity bar) is the multi-repo changes list: one s
 ## Which repositories appear
 
 - Repositories start **all checked**: unchecking one in the Repos view hides it from this list. The default is therefore "everything with changes is visible"; the selection is how you cut the view down on a 50+ repo workspace.
-- Toolbar actions: **"Only selected"** (on by default — shows changes only from the repositories you checked in the Repos view), "Select all / none".
+- The panel's options menu (sliders icon, top right) holds the repository scope: **"Only checked repositories"** (on by default — shows changes only from the repositories checked in the Repos view), **Check all / none**, and a shortcut to the Repos view. Active restrictions appear as removable chips under the panel title.
 - Repositories with an in-progress operation (merge, rebase, cherry-pick, revert, bisect) always appear, with an operation banner at the top of their section: the operation name, a **live count of unresolved files**, and the actions Git allows for that operation — **Continue / Abort** for a merge, **Continue / Skip / Abort** for a rebase, cherry-pick or revert, and **Abort** only while bisecting (details: page 06).
 
 ## Groups and toggles
 
-Each repository section groups its changes in this order: **Merge Conflicts**, **Staged Changes**, **Changes** (unstaged), **Untracked Files**. Group visibility is toggled from the Source Control view's own toolbar menu — e.g. hide *Untracked Files* if you rarely commit new files. Everything starts visible: nothing is hidden until you hide it.
+Each repository section groups its changes in this order: **Merge Conflicts**, **Staged Changes**, **Changes** (unstaged), **Untracked Files**. Group visibility is toggled from the same options menu, next to the current count of each group — e.g. hide *Untracked Files* if you rarely commit new files. Everything starts visible: nothing is hidden until you hide it.
 
 Each section ends with the **commit box** (message field, ✨ generate button, Commit / Amend / Stage-all — details: page 04).
 
